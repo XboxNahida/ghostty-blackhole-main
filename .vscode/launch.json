@@ -2,34 +2,41 @@
      "version": "0.2.0",
      "configurations": [
          {
-             "name": "Python: 调试 claude-token.py",
-             "type": "debugpy",
+             "name": "Debug (F5)",
+             "type": "cppdbg",
              "request": "launch",
-             "program": "${workspaceFolder}/claude-token.py",
-             "console": "integratedTerminal",
+             "program": "${workspaceFolder}/build/blackhole.exe",
              "args": [],
-             "justMyCode": true,
-             "env": {
-                 "PYTHONUNBUFFERED": "1"
-             },
+             "cwd": "${workspaceFolder}",
+             "preLaunchTask": "build-debug",
+             "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
+             "externalConsole": true,
+             "MIMode": "gdb",
+             "setupCommands": [
+                 {
+                     "description": "Enable pretty printing for gdb",
+                     "text": "-enable-pretty-printing",
+                     "ignoreFailures": true
+                 }
+             ],
              "presentation": {
-                 "group": "python",
+                 "group": "cpp",
                  "order": 1
              }
          },
          {
-             "name": "Python: 运行 claude-token.py",
-             "type": "debugpy",
+             "name": "Run (Ctrl+F5)",
+             "type": "cppdbg",
              "request": "launch",
-             "program": "${workspaceFolder}/claude-token.py",
-             "console": "integratedTerminal",
+             "program": "${workspaceFolder}/build/blackhole.exe",
              "args": [],
-             "noDebug": true,
-             "env": {
-                 "PYTHONUNBUFFERED": "1"
-             },
+             "cwd": "${workspaceFolder}",
+             "preLaunchTask": "build-release",
+             "externalConsole": false,
+             "MIMode": "gdb",
+             "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
              "presentation": {
-                 "group": "python",
+                 "group": "cpp",
                  "order": 2
              }
          }

@@ -2,35 +2,73 @@
      "version": "2.0.0",
      "tasks": [
          {
-             "label": "Python: 语法检查 claude-token.py",
+             "label": "build-debug",
              "type": "shell",
-             "command": "python",
+             "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
              "args": [
-                 "-m",
-                 "py_compile",
-                 "${workspaceFolder}/claude-token.py"
+                 "-std=c++17",
+                 "-g",
+                 "-O0",
+                 "-o",
+                 "${workspaceFolder}/build/blackhole.exe",
+                 "${workspaceFolder}/src/main.cpp",
+                 "-IC:/msys64/ucrt64/include",
+                 "-LC:/msys64/ucrt64/lib",
+                 "-lglfw3", "-lopengl32", "-lgdi32"
              ],
              "group": {
                  "kind": "build",
                  "isDefault": true
              },
              "presentation": {
-                 "reveal": "silent"
+                 "reveal": "always",
+                 "panel": "new"
              },
-             "problemMatcher": []
+             "problemMatcher": {
+                 "owner": "cpp",
+                 "fileLocation": "absolute",
+                 "pattern": {
+                     "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                     "file": 1,
+                     "line": 2,
+                     "column": 3,
+                     "severity": 4,
+                     "message": 5
+                 }
+             }
          },
          {
-             "label": "Python: 运行 claude-token.py",
+             "label": "build-release",
              "type": "shell",
-             "command": "python",
+             "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
              "args": [
-                 "${workspaceFolder}/claude-token.py"
+                 "-std=c++17",
+                 "-O2",
+                 "-o",
+                 "${workspaceFolder}/build/blackhole.exe",
+                 "${workspaceFolder}/src/main.cpp",
+                 "-IC:/msys64/ucrt64/include",
+                 "-LC:/msys64/ucrt64/lib",
+                 "-lglfw3", "-lopengl32", "-lgdi32",
+                 "-mwindows"
              ],
              "group": "none",
              "presentation": {
-                 "reveal": "always"
+                 "reveal": "silent",
+                 "panel": "new"
              },
-             "problemMatcher": []
+             "problemMatcher": {
+                 "owner": "cpp",
+                 "fileLocation": "absolute",
+                 "pattern": {
+                     "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                     "file": 1,
+                     "line": 2,
+                     "column": 3,
+                     "severity": 4,
+                     "message": 5
+                 }
+             }
          }
      ]
  }

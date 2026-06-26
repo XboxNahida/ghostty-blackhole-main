@@ -1,0 +1,23 @@
+ {
+     "configurations": [
+         {
+             "name": "Win32",
+             "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
+             "intelliSenseMode": "gcc-x64",
+             "includePath": [
+                 "${workspaceFolder}/src",
+                 "C:/msys64/ucrt64/include",
+                 "C:/msys64/ucrt64/include/GLFW"
+             ],
+             "cStandard": "c17",
+             "cppStandard": "c++17",
+             "browse": {
+                 "path": [
+                     "${workspaceFolder}/src",
+                     "C:/msys64/ucrt64/include"
+                 ]
+             }
+         }
+     ],
+     "version": 4
+ }
