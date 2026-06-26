@@ -1,4 +1,4 @@
-﻿// blackhole standalone  Windows OpenGL host for blackhole.glsl
+// blackhole standalone  Windows OpenGL host for blackhole.glsl
 // v5: ImGui config panel + uniform-overridable shader params
 // Build: Ctrl+Shift+B in VS Code
 
@@ -164,9 +164,39 @@ static bool buildFragmentShader(std::string& out) {
         }
     }
 
+    // Add custom demoLook that checks uUseCustom
+    {
+        size_t dlo = body.find("DiskLook demoLookOrig()");
+        if (dlo != std::string::npos) {
+            size_t ob = body.find("{", dlo);
+            int d = 0; size_t dle = ob;
+            if (ob != std::string::npos) {
+                for (dle = ob; dle < body.size(); dle++) {
+                    if (body[dle] == 123) d++;
+                    else if (body[dle] == 125) { d--; if (d == 0) break; }
+                }
+            }
+            if (dle < body.size()) {
+                std::string newFunc =
+                    "DiskLook demoLookOrig() {\n"
+                    "    if (uUseCustom) {\n"
+                    "        int n = int(clamp(float(uPresetCount), 1.0, float(MAX_PRESETS)));\n"
+                    "        float u = mod(iTime, DEMO_SEC) / DEMO_SEC * float(n);\n"
+                    "        int   i = int(min(u, float(n) - 0.001));\n"
+                    "        float f = smoothstep(1.0 - DEMO_XFADE, 1.0, fract(u));\n"
+                    "        return mixLook(demoPreset(i), demoPreset((i + 1) % n), f);\n"
+                    "    } else {\n"
+                    "        return demoLookOrig();\n"
+                    "    }\n"
+                    "}\n";
+                body.replace(dlo, dle - dlo + 1, newFunc);
+            }
+        }
+    }
+
     size_t pos = body.find("#define SIZE_MODE MODE_TOKENS");
     if (pos != std::string::npos)
-        body.replace(pos, 29, "#define SIZE_MODE MODE_DEMO");
+        body.replace(pos, 29, "#define SIZE_MODE MODE_TOKENS");
 
     out = header + "\n// ===== blackhole.glsl =====" + body +
           "\nvoid main() { vec4 c; vec2 fc = vec2(gl_FragCoord.x, iResolution.y - gl_FragCoord.y); mainImage(c, fc); fragColor = c; }\n";
@@ -279,6 +309,7 @@ int main(int argc, char* argv[]) {
     GLint loc_uEX  = gl_GetUniformLocation(program, "uExposure");
     GLint loc_uSP  = gl_GetUniformLocation(program, "uSpeed");
     GLint loc_uSG  = gl_GetUniformLocation(program, "uStarGain");
+    GLint loc_uCust = gl_GetUniformLocation(program, "uUseCustom");
     GLint loc_uDI  = gl_GetUniformLocation(program, "uDiskIncl");
 
     gl_UseProgram(0);
@@ -342,13 +373,14 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locTime, t);
         gl_Uniform4f(locDate, 0,0,0,ep);
 
-        // GUI parameters (set every frame — cheap uniform calls)
+        // GUI parameters (set every frame 闂?cheap uniform calls)
         gl_Uniform1f(loc_uHR, cfg.holeRadius);
         gl_Uniform1f(loc_uDG, cfg.diskGain);
         gl_Uniform1f(loc_uDT, cfg.diskTemp);
         gl_Uniform1f(loc_uEX, cfg.exposure);
-        gl_Uniform1f(loc_uSP, cfg.speed);
+        gl_Uniform1f(loc_uSP, cfg.spd);
         gl_Uniform1f(loc_uSG, cfg.starGain);
+        gl_Uniform1i(loc_uCust, cfg.useCustomPresets ? 1 : 0);
         gl_Uniform1f(loc_uDI, cfg.diskIncl);
 
         gl_BindVertexArray(vao);

@@ -20,4 +20,23 @@ uniform float uSpeed      = -1.0;
 uniform float uStarGain   = -1.0;
 uniform float uDiskIncl   = -1.0;
 
+// Demo preset overrides (negative = use hardcoded default)
+#define MAX_PRESETS 16
+uniform int   uPresetCount = 8;
+uniform float uPresetTemp [MAX_PRESETS];
+uniform float uPresetIncl [MAX_PRESETS];
+uniform float uPresetRoll [MAX_PRESETS];
+uniform float uPresetInner[MAX_PRESETS];
+uniform float uPresetOuter[MAX_PRESETS];
+uniform float uPresetOpac [MAX_PRESETS];
+uniform float uPresetDopp [MAX_PRESETS];
+uniform float uPresetBeam [MAX_PRESETS];
+uniform float uPresetGain [MAX_PRESETS];
+uniform float uPresetContr[MAX_PRESETS];
+uniform float uPresetWind [MAX_PRESETS];
+uniform float uPresetSpd  [MAX_PRESETS];
+uniform float uPresetExpo [MAX_PRESETS];
+uniform float uPresetStar [MAX_PRESETS];
+
+uniform bool uUseCustom = false;
 #define fragColor gl_FragColor
