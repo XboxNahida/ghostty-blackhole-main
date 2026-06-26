@@ -191,7 +191,7 @@ static LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
                                         UINT_PTR idSubclass, DWORD_PTR refData) {
     switch (msg) {
     case WM_NCACTIVATE:
-        // Tell DWM "this window is never active" 闁?prevents the yellow
+        // Tell DWM "this window is never active" 闂?prevents the yellow
         // focus-loss border from appearing when switching to other apps.
         return FALSE;
     case WM_MOUSEACTIVATE:
@@ -413,7 +413,7 @@ int main(int argc, char* argv[]) {
         // ---- WGC capture -> PBO upload ----
         ID3D11Texture2D* frame = WGC_GetFrame(wgc);
         if (frame) {
-            // Check size BEFORE staging copy (avoid source/dest size mismatch)
+            // Micro-delay: let GPU compositor finish large screen updates
             D3D11_TEXTURE2D_DESC desc;
             frame->GetDesc(&desc);
             int fw = (int)desc.Width, fh = (int)desc.Height;

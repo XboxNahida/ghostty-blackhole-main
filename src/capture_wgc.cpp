@@ -179,7 +179,7 @@ bool WGC_Init(WGCCapture& wgc) {
     WGD::DirectXPixelFormat pixelFmt = WGD::DirectXPixelFormat_B8G8R8A8UIntNormalized;
     SizeInt32 size = { wgc.width, wgc.height };
 
-    hr = poolStatics->Create(rtDevice, pixelFmt, 4, size, &pool);
+    hr = poolStatics->Create(rtDevice, pixelFmt, 3, size, &pool);
     rtDevice->Release();
     poolStatics->Release();
     if (FAILED(hr)) {
