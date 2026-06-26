@@ -230,7 +230,7 @@ int main(int argc, char* argv[]) {
         if (idleSec < 10) idleSec = 10;
     }
     // Capture mode: "wgc" or "dxgi" (default: dxgi 闂?more stable)
-    bool useWGC = false;
+    bool useWGC = true;
     if (argc > 1) {
         for (int i = 1; i < argc; i++) {
             if (strcmp(argv[i], "wgc") == 0) useWGC = true;
@@ -397,6 +397,12 @@ int main(int argc, char* argv[]) {
     GLint locChannel0   = gl_GetUniformLocation(program, "iChannel0");
     gl_UseProgram(0);
 
+    // Acquire first frame before main loop (DXGI ReleaseFrame pairing)
+    if (!useWGC) {
+        ID3D11Texture2D* firstFrame = DXGI_GetFrame(dxgi);
+        if (firstFrame) firstFrame->Release();
+    }
+
     // ---- Main loop ----
     double startTime = glfwGetTime();
     int frames = 0;
@@ -434,11 +440,9 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, fbW, fbH);
 
         // ---- Capture -> upload (WGC or DXGI) ----
-        // DXGI pattern: Release previous frame BEFORE acquiring next
-        static bool dxgiHasFrame = false;
-        if (!useWGC && dxgiHasFrame) { DXGI_ReleaseFrame(dxgi); dxgiHasFrame = false; }
+        // DXGI: always ReleaseFrame before AcquireNextFrame (v3 pattern)
+        if (!useWGC) DXGI_ReleaseFrame(dxgi);
         ID3D11Texture2D* frame = useWGC ? WGC_GetFrame(wgc) : DXGI_GetFrame(dxgi);
-        if (!useWGC && frame) dxgiHasFrame = true;
         static int dxgiOk = 0, dxgiMiss = 0;
         if (!useWGC) {
             if (frame) { dxgiOk++; }

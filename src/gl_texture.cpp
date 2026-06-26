@@ -1,5 +1,5 @@
 // gl_texture.cpp  Synchronous D3D11-staging -> OpenGL texture upload
-// No PBO, no async DMA 閳?simple, reliable glTexSubImage2D.
+// No PBO, no async DMA 闂?simple, reliable glTexSubImage2D.
 #include "gl_texture.h"
 #include <cstdio>
 #include <cstring>

@@ -50,7 +50,7 @@ bool DXGI_Init(DXGICapture& dxgi) {
 
     // Staging texture will be created on first frame (to match format)
     // DXGI desktop backbuffer may use HDR or different format.
-    fprintf(stderr, "[DXGI] Waiting for first frame to match format...\n");
+    
 
     dxgi.active = true;
     fprintf(stderr, "[DXGI] Capture ready: %dx%d\n", dxgi.width, dxgi.height);
@@ -84,7 +84,7 @@ static bool DXGI_Reinit(DXGICapture& dxgi) {
         fprintf(stderr, "[DXGI] Reinit DuplicateOutput failed: 0x%08X\n", (unsigned)hr);
         return false;
     }
-    fprintf(stderr, "[DXGI] Reinit OK\n");
+    
     return true;
 }
 
@@ -96,7 +96,7 @@ ID3D11Texture2D* DXGI_GetFrame(DXGICapture& dxgi) {
     HRESULT hr = dxgi.dupl->AcquireNextFrame(100, &frameInfo, &frameRes);
 
     if (hr == DXGI_ERROR_ACCESS_LOST) {
-        fprintf(stderr, "[DXGI] ACCESS_LOST, reinitializing...\n");
+        
         if (!DXGI_Reinit(dxgi)) {
             dxgi.active = false;
             return nullptr;
@@ -115,10 +115,8 @@ ID3D11Texture2D* DXGI_GetFrame(DXGICapture& dxgi) {
     ID3D11Texture2D* tex = nullptr;
     hr = frameRes->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
     frameRes->Release();
-    if (FAILED(hr)) {
-        dxgi.dupl->ReleaseFrame();
-        return nullptr;
-    }
+    // Always return the texture 閳?caller must always call DXGI_ReleaseFrame
+    // after processing, regardless of success/failure.
     return tex;
 }
 
