@@ -191,7 +191,7 @@ static LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
                                         UINT_PTR idSubclass, DWORD_PTR refData) {
     switch (msg) {
     case WM_NCACTIVATE:
-        // Tell DWM "this window is never active" 閳?prevents the yellow
+        // Tell DWM "this window is never active" 闁?prevents the yellow
         // focus-loss border from appearing when switching to other apps.
         return FALSE;
     case WM_MOUSEACTIVATE:
@@ -269,7 +269,7 @@ int main(int argc, char* argv[]) {
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         LONG ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-        SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_LAYERED );
+        SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE );
         // Exclude from WGC/DXGI capture (prevents feedback loop)
         SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
         // Remove DWM frame borders (fullscreen borderless overlay)

@@ -1,0 +1,12 @@
+Blackhole: mode=always idle=300s
+OpenGL 4.6.0 NVIDIA 596.49, GLSL 4.60 NVIDIA
+[WGC] Capture ready: 2560x1600
+[Tex] Texture ready: 2560x1600 (sync upload)
+[frag] log: 0(618) : warning C7533: global variable gl_FragColor is deprecated after version 120
+
+Link log:
+Fragment info
+-------------
+0(618) : warning C7533: global variable gl_FragColor is deprecated after version 120
+
+Waiting for first WGC frame...

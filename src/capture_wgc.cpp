@@ -38,6 +38,7 @@ namespace WGD3D = ABI::Windows::Graphics::DirectX::Direct3D11;
 using WGC::IDirect3D11CaptureFramePoolStatics;
 using WGC::IDirect3D11CaptureFramePool;
 using WGC::IGraphicsCaptureSession;
+using WGC::IGraphicsCaptureSession2;
 using WGC::IDirect3D11CaptureFrame;
 using WGC::IGraphicsCaptureItem;
 using WGD3D::IDirect3DDevice;
@@ -46,6 +47,10 @@ using ABI::Windows::Graphics::SizeInt32;
 
 // GUID for IDirect3DDevice (not exported as IID_ in MinGW WIDL)
 // {A37624AB-8D5F-4650-9D3E-9EAE3D9BC670}
+// IGraphicsCaptureSession2: {2C39AE40-7D2E-5044-804E-8B6799D4CF9E}
+static const GUID IID_IGraphicsCaptureSession2_WGC = {
+    0x2c39ae40, 0x7d2e, 0x5044, {0x80,0x4e,0x8b,0x67,0x99,0xd4,0xcf,0x9e}};
+
 static const GUID IID_IDirect3DDevice_WGC = {
     0xa37624ab, 0x8d5f, 0x4650, {0x9d,0x3e,0x9e,0xae,0x3d,0x9b,0xc6,0x70}};
 
@@ -174,7 +179,7 @@ bool WGC_Init(WGCCapture& wgc) {
     WGD::DirectXPixelFormat pixelFmt = WGD::DirectXPixelFormat_B8G8R8A8UIntNormalized;
     SizeInt32 size = { wgc.width, wgc.height };
 
-    hr = poolStatics->Create(rtDevice, pixelFmt, 2, size, &pool);
+    hr = poolStatics->Create(rtDevice, pixelFmt, 4, size, &pool);
     rtDevice->Release();
     poolStatics->Release();
     if (FAILED(hr)) {
@@ -197,6 +202,7 @@ bool WGC_Init(WGCCapture& wgc) {
 
     // 10. Start capture
     hr = sess->StartCapture();
+
     if (FAILED(hr)) {
         fprintf(stderr, "[WGC] StartCapture failed: 0x%08X\n", (unsigned)hr);
         WGC_Release(wgc);
@@ -273,6 +279,17 @@ bool WGC_CopyToStaging(WGCCapture& wgc, ID3D11Texture2D* srcTex,
 
     // Copy frame to staging texture (GPU-only)
     wgc.d3dCtx->CopyResource(wgc.stagingTex, srcTex);
+
+    // D3D11 fence: ensure CopyResource completes before CPU Map.
+    // Without this, high-fps GPU pipelining can return partially-written data.
+    ID3D11Query* fence = nullptr;
+    D3D11_QUERY_DESC qdesc = { D3D11_QUERY_EVENT, 0 };
+    if (SUCCEEDED(wgc.d3dDev->CreateQuery(&qdesc, &fence))) {
+        wgc.d3dCtx->End(fence);
+        while (wgc.d3dCtx->GetData(fence, nullptr, 0, 0) == S_FALSE)
+            ;  // spin-wait for GPU
+        fence->Release();
+    }
 
     // Map staging for CPU read
     HRESULT hr = wgc.d3dCtx->Map(wgc.stagingTex, 0, D3D11_MAP_READ, 0, &mapped);
