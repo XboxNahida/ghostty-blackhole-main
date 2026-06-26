@@ -84,12 +84,12 @@ clean: CMakeFiles/blackhole.dir/clean
 CMakeFiles/blackhole.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\blackhole.dir\build.make CMakeFiles/blackhole.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\blackhole.dir\build.make CMakeFiles/blackhole.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=1,2,3,4 "Built target blackhole"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12 "Built target blackhole"
 .PHONY : CMakeFiles/blackhole.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/blackhole.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles 4
+	$(CMAKE_COMMAND) -E cmake_progress_start C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles 12
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 CMakeFiles/blackhole.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles 0
 .PHONY : CMakeFiles/blackhole.dir/rule
@@ -101,7 +101,7 @@ blackhole: CMakeFiles/blackhole.dir/rule
 # codegen rule for target.
 CMakeFiles/blackhole.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\blackhole.dir\build.make CMakeFiles/blackhole.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=1,2,3,4 "Finished codegen for target blackhole"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12 "Finished codegen for target blackhole"
 .PHONY : CMakeFiles/blackhole.dir/codegen
 
 # clean rule for target.

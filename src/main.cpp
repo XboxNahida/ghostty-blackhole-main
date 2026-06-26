@@ -1,4 +1,4 @@
-// blackhole standalone  Windows OpenGL host for blackhole.glsl
+﻿// blackhole standalone  Windows OpenGL host for blackhole.glsl
 // v5: ImGui config panel + uniform-overridable shader params
 // Build: Ctrl+Shift+B in VS Code
 
@@ -52,6 +52,7 @@ DECL_GL_FUNC(void,   Uniform1f, (GLint, GLfloat));
 DECL_GL_FUNC(void,   Uniform1i, (GLint, GLint));
 DECL_GL_FUNC(void,   ActiveTexture, (GLenum));
 DECL_GL_FUNC(void,   Uniform4f, (GLint, GLfloat, GLfloat, GLfloat, GLfloat));
+DECL_GL_FUNC(void,   Uniform1fv, (GLint, GLsizei, const GLfloat*));
 DECL_GL_FUNC(void,   GenVertexArrays, (GLsizei, GLuint*));
 DECL_GL_FUNC(void,   GenBuffers, (GLsizei, GLuint*));
 DECL_GL_FUNC(void,   BindVertexArray, (GLuint));
@@ -88,6 +89,7 @@ static bool loadGLFunctions() {
     LOAD_GL_FUNC(Uniform1i);
     LOAD_GL_FUNC(ActiveTexture);
     LOAD_GL_FUNC(Uniform4f);
+    LOAD_GL_FUNC(Uniform1fv);
     LOAD_GL_FUNC(GenVertexArrays);
     LOAD_GL_FUNC(GenBuffers);
     LOAD_GL_FUNC(BindVertexArray);
@@ -166,7 +168,7 @@ static bool buildFragmentShader(std::string& out) {
 
     // Add custom demoLook that checks uUseCustom
     {
-        size_t dlo = body.find("DiskLook demoLookOrig()");
+        size_t dlo = body.find("DiskLook demoLook()");
         if (dlo != std::string::npos) {
             size_t ob = body.find("{", dlo);
             int d = 0; size_t dle = ob;
@@ -178,7 +180,16 @@ static bool buildFragmentShader(std::string& out) {
             }
             if (dle < body.size()) {
                 std::string newFunc =
-                    "DiskLook demoLookOrig() {\n"
+                    "DiskLook demoPreset(int i) {\n"
+                    "    return DiskLook(\n"
+                    "        uPresetTemp[i], uPresetIncl[i], uPresetRoll[i],\n"
+                    "        uPresetInner[i], uPresetOuter[i], uPresetOpac[i],\n"
+                    "        uPresetDopp[i], uPresetBeam[i], uPresetGain[i],\n"
+                    "        uPresetContr[i], uPresetWind[i], uPresetSpd[i],\n"
+                    "        uPresetExpo[i], uPresetStar[i]);\n"
+                    "}\n"
+                    "\n"
+                    "DiskLook demoLook() {\n"
                     "    if (uUseCustom) {\n"
                     "        int n = int(clamp(float(uPresetCount), 1.0, float(MAX_PRESETS)));\n"
                     "        float u = mod(iTime, DEMO_SEC) / DEMO_SEC * float(n);\n"
@@ -186,7 +197,10 @@ static bool buildFragmentShader(std::string& out) {
                     "        float f = smoothstep(1.0 - DEMO_XFADE, 1.0, fract(u));\n"
                     "        return mixLook(demoPreset(i), demoPreset((i + 1) % n), f);\n"
                     "    } else {\n"
-                    "        return demoLookOrig();\n"
+                    "        float u = mod(iTime, DEMO_SEC) / DEMO_SEC * float(DEMO_N);\n"
+                    "        int   i = int(min(u, float(DEMO_N) - 0.001));\n"
+                    "        float f = smoothstep(1.0 - DEMO_XFADE, 1.0, fract(u));\n"
+                    "        return mixLook(DEMO_TOUR[i], DEMO_TOUR[(i + 1) % DEMO_N], f);\n"
                     "    }\n"
                     "}\n";
                 body.replace(dlo, dle - dlo + 1, newFunc);
@@ -196,7 +210,7 @@ static bool buildFragmentShader(std::string& out) {
 
     size_t pos = body.find("#define SIZE_MODE MODE_TOKENS");
     if (pos != std::string::npos)
-        body.replace(pos, 29, "#define SIZE_MODE MODE_TOKENS");
+        body.replace(pos, 29, "#define SIZE_MODE MODE_DEMO");
 
     out = header + "\n// ===== blackhole.glsl =====" + body +
           "\nvoid main() { vec4 c; vec2 fc = vec2(gl_FragCoord.x, iResolution.y - gl_FragCoord.y); mainImage(c, fc); fragColor = c; }\n";
@@ -311,6 +325,22 @@ int main(int argc, char* argv[]) {
     GLint loc_uSG  = gl_GetUniformLocation(program, "uStarGain");
     GLint loc_uCust = gl_GetUniformLocation(program, "uUseCustom");
     GLint loc_uDI  = gl_GetUniformLocation(program, "uDiskIncl");
+    // Preset uniform locations
+    GLint loc_uPC   = gl_GetUniformLocation(program, "uPresetCount");
+    GLint loc_uPT   = gl_GetUniformLocation(program, "uPresetTemp");
+    GLint loc_uPI   = gl_GetUniformLocation(program, "uPresetIncl");
+    GLint loc_uPR   = gl_GetUniformLocation(program, "uPresetRoll");
+    GLint loc_uPN   = gl_GetUniformLocation(program, "uPresetInner");
+    GLint loc_uPO   = gl_GetUniformLocation(program, "uPresetOuter");
+    GLint loc_uPP   = gl_GetUniformLocation(program, "uPresetOpac");
+    GLint loc_uPD   = gl_GetUniformLocation(program, "uPresetDopp");
+    GLint loc_uPB   = gl_GetUniformLocation(program, "uPresetBeam");
+    GLint loc_uPG   = gl_GetUniformLocation(program, "uPresetGain");
+    GLint loc_uPCo  = gl_GetUniformLocation(program, "uPresetContr");
+    GLint loc_uPW   = gl_GetUniformLocation(program, "uPresetWind");
+    GLint loc_uPS   = gl_GetUniformLocation(program, "uPresetSpd");
+    GLint loc_uPE   = gl_GetUniformLocation(program, "uPresetExpo");
+    GLint loc_uPSt  = gl_GetUniformLocation(program, "uPresetStar");
 
     gl_UseProgram(0);
 
@@ -382,6 +412,39 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(loc_uSG, cfg.starGain);
         gl_Uniform1i(loc_uCust, cfg.useCustomPresets ? 1 : 0);
         gl_Uniform1f(loc_uDI, cfg.diskIncl);
+        // Upload preset uniforms
+        gl_Uniform1i(loc_uPC, cfg.presetCount);
+        {
+            float buf[16];
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].temp;
+            gl_Uniform1fv(loc_uPT, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].incl;
+            gl_Uniform1fv(loc_uPI, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].roll;
+            gl_Uniform1fv(loc_uPR, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].inner;
+            gl_Uniform1fv(loc_uPN, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].outer;
+            gl_Uniform1fv(loc_uPO, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].opac;
+            gl_Uniform1fv(loc_uPP, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].dopp;
+            gl_Uniform1fv(loc_uPD, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].beam;
+            gl_Uniform1fv(loc_uPB, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].gain;
+            gl_Uniform1fv(loc_uPG, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].contr;
+            gl_Uniform1fv(loc_uPCo, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].wind;
+            gl_Uniform1fv(loc_uPW, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].speed;
+            gl_Uniform1fv(loc_uPS, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].expo;
+            gl_Uniform1fv(loc_uPE, cfg.presetCount, buf);
+            for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].star;
+            gl_Uniform1fv(loc_uPSt, cfg.presetCount, buf);
+        }
 
         gl_BindVertexArray(vao);
         gl_DrawArrays(GL_TRIANGLE_STRIP, 0, 4);

@@ -1,1 +1,1 @@
- C:/msys64/ucrt64/lib/libglfw3.dll.a -lopengl32 -lglu32 -ld3d11 -ldxgi -lgdi32 -lruntimeobject -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 
+ C:/msys64/ucrt64/lib/libglfw3.dll.a -lopengl32 -lglu32 -ld3d11 -ldxgi -lgdi32 -lruntimeobject -ldwmapi -lcomctl32 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 

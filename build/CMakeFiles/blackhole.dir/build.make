@@ -99,10 +99,122 @@ CMakeFiles/blackhole.dir/src/capture_wgc.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/capture_wgc.cpp.s"
 	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\capture_wgc.cpp -o CMakeFiles\blackhole.dir\src\capture_wgc.cpp.s
 
+CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/capture_dxgi.cpp
+CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj -MF CMakeFiles\blackhole.dir\src\capture_dxgi.cpp.obj.d -o CMakeFiles\blackhole.dir\src\capture_dxgi.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\capture_dxgi.cpp
+
+CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\capture_dxgi.cpp > CMakeFiles\blackhole.dir\src\capture_dxgi.cpp.i
+
+CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\capture_dxgi.cpp -o CMakeFiles\blackhole.dir\src\capture_dxgi.cpp.s
+
+CMakeFiles/blackhole.dir/src/gui_config.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/gui_config.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/gui_config.cpp
+CMakeFiles/blackhole.dir/src/gui_config.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/blackhole.dir/src/gui_config.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/gui_config.cpp.obj -MF CMakeFiles\blackhole.dir\src\gui_config.cpp.obj.d -o CMakeFiles\blackhole.dir\src\gui_config.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\gui_config.cpp
+
+CMakeFiles/blackhole.dir/src/gui_config.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/gui_config.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\gui_config.cpp > CMakeFiles\blackhole.dir\src\gui_config.cpp.i
+
+CMakeFiles/blackhole.dir/src/gui_config.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/gui_config.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\gui_config.cpp -o CMakeFiles\blackhole.dir\src\gui_config.cpp.s
+
+CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/imgui/imgui.cpp
+CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj -MF CMakeFiles\blackhole.dir\src\imgui\imgui.cpp.obj.d -o CMakeFiles\blackhole.dir\src\imgui\imgui.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui.cpp
+
+CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui.cpp > CMakeFiles\blackhole.dir\src\imgui\imgui.cpp.i
+
+CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui.cpp -o CMakeFiles\blackhole.dir\src\imgui\imgui.cpp.s
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/imgui/imgui_draw.cpp
+CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj -MF CMakeFiles\blackhole.dir\src\imgui\imgui_draw.cpp.obj.d -o CMakeFiles\blackhole.dir\src\imgui\imgui_draw.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_draw.cpp
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_draw.cpp > CMakeFiles\blackhole.dir\src\imgui\imgui_draw.cpp.i
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_draw.cpp -o CMakeFiles\blackhole.dir\src\imgui\imgui_draw.cpp.s
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/imgui/imgui_widgets.cpp
+CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj -MF CMakeFiles\blackhole.dir\src\imgui\imgui_widgets.cpp.obj.d -o CMakeFiles\blackhole.dir\src\imgui\imgui_widgets.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_widgets.cpp
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_widgets.cpp > CMakeFiles\blackhole.dir\src\imgui\imgui_widgets.cpp.i
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_widgets.cpp -o CMakeFiles\blackhole.dir\src\imgui\imgui_widgets.cpp.s
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/imgui/imgui_tables.cpp
+CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj -MF CMakeFiles\blackhole.dir\src\imgui\imgui_tables.cpp.obj.d -o CMakeFiles\blackhole.dir\src\imgui\imgui_tables.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_tables.cpp
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_tables.cpp > CMakeFiles\blackhole.dir\src\imgui\imgui_tables.cpp.i
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_tables.cpp -o CMakeFiles\blackhole.dir\src\imgui\imgui_tables.cpp.s
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/imgui/imgui_impl_glfw.cpp
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj -MF CMakeFiles\blackhole.dir\src\imgui\imgui_impl_glfw.cpp.obj.d -o CMakeFiles\blackhole.dir\src\imgui\imgui_impl_glfw.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_impl_glfw.cpp
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_impl_glfw.cpp > CMakeFiles\blackhole.dir\src\imgui\imgui_impl_glfw.cpp.i
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_impl_glfw.cpp -o CMakeFiles\blackhole.dir\src\imgui\imgui_impl_glfw.cpp.s
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj: CMakeFiles/blackhole.dir/flags.make
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/imgui/imgui_impl_opengl3.cpp
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj -MF CMakeFiles\blackhole.dir\src\imgui\imgui_impl_opengl3.cpp.obj.d -o CMakeFiles\blackhole.dir\src\imgui\imgui_impl_opengl3.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_impl_opengl3.cpp
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.i"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_impl_opengl3.cpp > CMakeFiles\blackhole.dir\src\imgui\imgui_impl_opengl3.cpp.i
+
+CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.s"
+	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S C:\Test_Program\VS_Code\ghostty-blackhole-main\src\imgui\imgui_impl_opengl3.cpp -o CMakeFiles\blackhole.dir\src\imgui\imgui_impl_opengl3.cpp.s
+
 CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj: CMakeFiles/blackhole.dir/flags.make
 CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj: C:/Test_Program/VS_Code/ghostty-blackhole-main/src/gl_texture.cpp
 CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj: CMakeFiles/blackhole.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj"
 	C:\msys64\ucrt64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj -MF CMakeFiles\blackhole.dir\src\gl_texture.cpp.obj.d -o CMakeFiles\blackhole.dir\src\gl_texture.cpp.obj -c C:\Test_Program\VS_Code\ghostty-blackhole-main\src\gl_texture.cpp
 
 CMakeFiles/blackhole.dir/src/gl_texture.cpp.i: cmake_force
@@ -117,6 +229,14 @@ CMakeFiles/blackhole.dir/src/gl_texture.cpp.s: cmake_force
 blackhole_OBJECTS = \
 "CMakeFiles/blackhole.dir/src/main.cpp.obj" \
 "CMakeFiles/blackhole.dir/src/capture_wgc.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/gui_config.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj" \
+"CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj" \
 "CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj"
 
 # External object files for target blackhole
@@ -124,13 +244,21 @@ blackhole_EXTERNAL_OBJECTS =
 
 blackhole.exe: CMakeFiles/blackhole.dir/src/main.cpp.obj
 blackhole.exe: CMakeFiles/blackhole.dir/src/capture_wgc.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/capture_dxgi.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/gui_config.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/imgui/imgui.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/imgui/imgui_draw.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/imgui/imgui_widgets.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/imgui/imgui_tables.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/imgui/imgui_impl_glfw.cpp.obj
+blackhole.exe: CMakeFiles/blackhole.dir/src/imgui/imgui_impl_opengl3.cpp.obj
 blackhole.exe: CMakeFiles/blackhole.dir/src/gl_texture.cpp.obj
 blackhole.exe: CMakeFiles/blackhole.dir/build.make
 blackhole.exe: C:/msys64/ucrt64/lib/libglfw3.dll.a
 blackhole.exe: CMakeFiles/blackhole.dir/linkLibs.rsp
 blackhole.exe: CMakeFiles/blackhole.dir/objects1.rsp
 blackhole.exe: CMakeFiles/blackhole.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable blackhole.exe"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=C:\Test_Program\VS_Code\ghostty-blackhole-main\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Linking CXX executable blackhole.exe"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles\blackhole.dir\link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

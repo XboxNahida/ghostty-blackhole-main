@@ -73,6 +73,7 @@ CMakeFiles/blackhole.dir/src/capture_wgc.cpp.obj: C:/Test_Program/VS_Code/ghostt
   C:/msys64/ucrt64/include/hstring.h \
   C:/msys64/ucrt64/include/imm.h \
   C:/msys64/ucrt64/include/inaddr.h \
+  C:/msys64/ucrt64/include/initguid.h \
   C:/msys64/ucrt64/include/inspectable.h \
   C:/msys64/ucrt64/include/interlockedapi.h \
   C:/msys64/ucrt64/include/ioapiset.h \
@@ -1368,6 +1369,10 @@ C:/msys64/ucrt64/include/hstring.h:
 
 C:/msys64/ucrt64/include/inaddr.h:
 
+C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bitalgvlintrin.h:
+
+C:/msys64/ucrt64/include/initguid.h:
+
 C:/msys64/ucrt64/include/c++/15.2.0/exception:
 
 C:/msys64/ucrt64/include/inspectable.h:
@@ -1781,8 +1786,6 @@ C:/Test_Program/VS_Code/ghostty-blackhole-main/src/main.cpp:
 C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bf16vlintrin.h:
 
 C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bitalgintrin.h:
-
-C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bitalgvlintrin.h:
 
 C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/15.2.0/include/avx512bwintrin.h:
 
