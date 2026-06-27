@@ -38,7 +38,8 @@ static bool       g_hasClipboard = false;
 void SavePresetsToFile(const BlackholeConfig& cfg, const char names[64][64]) {
     FILE* f = fopen("blackhole_presets.txt", "w");
     if (!f) return;
-    fprintf(f, "# Blackhole Presets\n");
+    fprintf(f, "# Blackhole Presets v2\n");
+    fprintf(f, "%d %d %.3f %d\n", cfg.mode, cfg.idleSec, cfg.slotSec, cfg.playMode);
     fprintf(f, "%d\n", cfg.presetCount);
     for (int i = 0; i < cfg.presetCount; i++) {
         const DiskPreset& p = cfg.presets[i];
@@ -55,8 +56,17 @@ bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[64][64]) {
     FILE* f = fopen("blackhole_presets.txt", "r");
     if (!f) return false;
     char line[256];
+    if (!fgets(line, sizeof(line), f)) { fclose(f); return false; } // skip comment
     if (!fgets(line, sizeof(line), f)) { fclose(f); return false; }
-    if (!fgets(line, sizeof(line), f)) { fclose(f); return false; }
+    // Try v2 format (mode idleSec slotSec playMode) else v1 (count only)
+    int mode=1, idle=300, pmode=1; float ss=5.25f;
+    int nf = sscanf(line, "%d %d %f %d", &mode, &idle, &ss, &pmode);
+    if (nf >= 3) {
+        cfg.mode = mode; cfg.idleSec = idle; cfg.slotSec = ss; cfg.playMode = pmode;
+        if (!fgets(line, sizeof(line), f)) { fclose(f); return false; }
+    } else {
+        cfg.mode = 1; cfg.idleSec = 300; cfg.slotSec = 5.25f; cfg.playMode = 1;
+    }
     int count = atoi(line);
     if (count < 1 || count > 64) { fclose(f); return false; }
     for (int i = 0; i < count; i++) {
@@ -137,7 +147,9 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
         ImGui::Text("模式:"); ImGui::SameLine();
         ImGui::Combo("##mode", &cfg.mode, modes, 2);
         if (cfg.mode == 1) {
-            ImGui::SliderInt("超时(秒)", &cfg.idleSec, 10, 1800);
+            ImGui::InputInt("超时(秒)", &cfg.idleSec, 10);
+            if (cfg.idleSec < 1) cfg.idleSec = 1;
+            if (cfg.idleSec > 1800) cfg.idleSec = 1800;
         }
 
         ImGui::Separator();
@@ -255,20 +267,20 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
         ImGui::Separator();
 
         // Parameter grid (2 columns)
-        ImGui::SliderFloat("色温 (K)",  &p.temp,  1500, 40000, "%.0f");
-        ImGui::SliderFloat("盘面倾角",  &p.incl,  0.0f, 1.57f, "%.2f");
-        ImGui::SliderFloat("盘面旋转",  &p.roll, -1.57f, 1.57f, "%.2f");
-        ImGui::SliderFloat("内半径",    &p.inner, 1.6f, 10.0f, "%.1f");
-        ImGui::SliderFloat("外半径",    &p.outer, 3.0f, 30.0f, "%.1f");
-        ImGui::SliderFloat("不透明度",  &p.opac,  0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("多普勒",    &p.dopp,  0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("光束指数",  &p.beam,  1.0f, 8.0f, "%.1f");
-        ImGui::SliderFloat("亮度增益",  &p.gain,  0.0f, 6.0f, "%.2f");
-        ImGui::SliderFloat("条纹对比度",&p.contr, 0.0f, 3.0f, "%.2f");
-        ImGui::SliderFloat("缠绕紧度",  &p.wind,  1.0f, 15.0f, "%.1f");
-        ImGui::SliderFloat("旋转速度",  &p.speed,-10.0f, 10.0f, "%.1f");
-        ImGui::SliderFloat("曝光度",    &p.expo,  0.2f, 3.0f, "%.2f");
-        ImGui::SliderFloat("星空亮度",  &p.star,  0.0f, 2.0f, "%.3f");
+        ImGui::InputFloat("色温 (K)", &p.temp, 0.1f, 1.0f, "%.0f");
+        ImGui::InputFloat("盘面倾角", &p.incl, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("盘面旋转", &p.roll, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("内半径", &p.inner, 0.1f, 1.0f, "%.1f");
+        ImGui::InputFloat("外半径", &p.outer, 0.1f, 1.0f, "%.1f");
+        ImGui::InputFloat("不透明度", &p.opac, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("多普勒", &p.dopp, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("光束指数", &p.beam, 0.1f, 1.0f, "%.1f");
+        ImGui::InputFloat("亮度增益", &p.gain, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("条纹对比度", &p.contr, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("缠绕紧度", &p.wind, 0.1f, 1.0f, "%.1f");
+        ImGui::InputFloat("旋转速度", &p.speed, 0.1f, 1.0f, "%.1f");
+        ImGui::InputFloat("曝光度", &p.expo, 0.1f, 1.0f, "%.2f");
+        ImGui::InputFloat("星空亮度", &p.star, 0.1f, 1.0f, "%.3f");
 
         ImGui::EndChild();
 
