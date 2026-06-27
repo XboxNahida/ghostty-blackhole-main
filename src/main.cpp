@@ -20,6 +20,10 @@
 #include "gl_texture.h"
 #include "gui_config.h"
 
+#ifndef DWMWA_BORDER_COLOR
+#define DWMWA_BORDER_COLOR 34  // Windows 11 accent border (not in SDK 8.1)
+#endif
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -239,10 +243,11 @@ static bool buildFragmentShader(std::string& out) {
     return true;
 }
 
-// Window subclass: block DWM focus border
+// Window subclass: minimal DWM interference (no repeated attribute flush)
 static LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR) {
     if (msg == WM_NCACTIVATE) return FALSE;
     if (msg == WM_MOUSEACTIVATE) return MA_NOACTIVATEANDEAT;
+    if (msg == WM_NCCALCSIZE) return 0;
     return DefSubclassProc(hwnd, msg, wp, lp);
 }
 
@@ -287,15 +292,29 @@ int main(int argc, char* argv[]) {
 
     {
         HWND hwnd = glfwGetWin32Window(window);
-        // Apply DWM + styles + subclass BEFORE first show (prevents ghost border)
+        // Strip all frame/border styles
+        DWORD style = GetWindowLong(hwnd, GWL_STYLE);
+        style &= ~(WS_BORDER | WS_DLGFRAME | WS_THICKFRAME | WS_CAPTION | WS_SYSMENU);
+        SetWindowLong(hwnd, GWL_STYLE, style);
+        // Prevent DWM redirection bitmap (blocks accent layer cache)
+        LONG ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+        ex |= WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP;
+        SetWindowLong(hwnd, GWL_EXSTYLE, ex);
+        // Disable blur-behind (prevents DWM accent trigger)
+        DWM_BLURBEHIND bb = {};
+        bb.dwFlags = DWM_BB_ENABLE;
+        bb.fEnable = FALSE;
+        DwmEnableBlurBehindWindow(hwnd, &bb);
+        // Accent border = transparent
+        COLORREF bc = 0;
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &bc, sizeof(bc));
         DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
         DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
-        LONG ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-        SetWindowLong(hwnd, GWL_EXSTYLE, ex|WS_EX_TRANSPARENT|WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE);
         SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
         SetWindowSubclass(hwnd, OverlayWndProc, 1, 0);
         SetWindowPos(hwnd, HWND_TOPMOST, 0,0,0,0, SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);
         ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+        DwmFlush();  // Clear compositor accent layer cache
     }
 
     glfwMakeContextCurrent(window);
@@ -382,19 +401,17 @@ int main(int argc, char* argv[]) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GL_TRUE);
 
-        // Idle mode: use opacity to hide (avoids DWM repaint = no yellow border)
+        // Idle mode: unified pipeline, only opacity + FPS differ
         static bool idleWasVisible = false;
+        bool userActive = (cfg.mode == 1) && !isIdle((DWORD)cfg.idleSec * 1000);
         if (cfg.mode == 1) {
-            if (isIdle((DWORD)cfg.idleSec * 1000)) {
-                glfwSetWindowOpacity(window, 1.0f);
-                if (!idleWasVisible) {
-                    idleStart = (float)(glfwGetTime() - startTime);
-                }
-                idleWasVisible = true;
-            } else {
-                idleWasVisible = false;
+            if (userActive) {
                 glfwSetWindowOpacity(window, 0.0f);
-                Sleep(250); continue;
+                idleWasVisible = false;
+            } else {
+                glfwSetWindowOpacity(window, 1.0f);
+                if (!idleWasVisible) idleStart = (float)(glfwGetTime() - startTime);
+                idleWasVisible = true;
             }
         }
 
@@ -484,6 +501,8 @@ int main(int argc, char* argv[]) {
         gl_UseProgram(0);
 
         glfwSwapBuffers(window);
+
+        if (userActive) Sleep(100);
 
         frames++;
         if (now - lastFps >= 1.0) {

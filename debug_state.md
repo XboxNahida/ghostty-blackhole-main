@@ -1,41 +1,39 @@
-﻿# Debug State — Blackhole v9: 黄边框修复 + 黑洞参数滑块化
+﻿# Debug State — Blackhole v9: 最终稳定版（统一渲染管线）
 
 ## 当前状态
 ### 编译 ✓ - 零警告零错误 (2026-06-27)
 
-## 问题 1: 空闲模式黄边框 — 已修复
-**根因**: ShowWindow(SW_HIDE)→SW_SHOWNOACTIVATE 触发 DWM 非客户区重绘竞态
-**修复**: 将隐藏逻辑改为 glfwSetWindowOpacity(0.0f)，避免 DWM 重绘触发
-**修改**: src/main.cpp 空闲模式分支，删除 ShowWindow/SW_MINIMIZE/SW_HIDE 和窗口属性重设代码
+## 核心修复：统一渲染管线
 
-## 问题 2: 黑洞参数滑块化 — 已完成
-**修改**: src/gui_config.cpp 中 14 个 ImGui::InputFloat 改为 ImGui::SliderFloat
-**参数范围** (min ~ max):
-| 参数 | 范围 |
-|------|------|
-| 色温 (K) | 1000 ~ 30000 |
-| 盘面倾角 | 0.0 ~ 3.0 |
-| 盘面旋转 | -1.0 ~ 1.0 |
-| 内半径 | 0.5 ~ 10.0 |
-| 外半径 | 1.0 ~ 30.0 |
-| 不透明度 | 0.0 ~ 1.0 |
-| 多普勒 | 0.0 ~ 1.5 |
-| 光束指数 | 0.5 ~ 10.0 |
-| 亮度增益 | 0.0 ~ 5.0 |
-| 条纹对比度 | 0.1 ~ 5.0 |
-| 缠绕紧度 | 1.0 ~ 20.0 |
-| 旋转速度 | 0.5 ~ 15.0 |
-| 曝光度 | 0.1 ~ 5.0 |
-| 星空亮度 | 0.0 ~ 2.0 |
+### 问题根源
+之前的 idle/active 使用**两套不同的渲染路径**，导致 OpenGL 状态在切换时错位：
+
+| 状态 | 旧路径 | 问题 |
+|------|--------|------|
+| active | glClear + swap + continue | 跳过 capture/shader |
+| idle | capture + shader + swap | 完整路径 |
+
+### 最终架构：单一路径，只改参数
+
+`
+          ┌─ active: opacity=0, Sleep(100) ─┐
+          │                                  │
+glfwPollEvents → capture → shader → swap ───┤
+          │                                  │
+          └─ idle: opacity=1, 全速 ──────────┘
+`
+
+- **渲染管线**：主动/空闲完全一致（capture → shader → draw → swap）
+- **区别仅在于**：opacity（0 vs 1）和 Sleep（100ms vs 0）
+- **不 hide、不 continue、不分裂管线**
 
 ## 修改文件
-- src/main.cpp — 空闲模式隐藏逻辑重构
-- src/gui_config.cpp — 黑洞参数 InputFloat → SliderFloat
+- src/main.cpp — 空闲模式重构为统一管线
 
 ## 修改状态
 | 步骤 | 状态 |
 |------|------|
-| 问题分析完成 | ✅ 已完成 |
 | 黄边框修复 | ✅ 已完成 |
+| 黑屏修复（统一管线） | ✅ 已完成 |
 | 黑洞参数滑块化 | ✅ 已完成 |
-| 编译验证 | ✅ 编译通过 (0警告0错误) |
+| 编译验证 | ✅ 0警告0错误 |
