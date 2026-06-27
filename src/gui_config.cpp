@@ -1,4 +1,4 @@
-﻿// gui_config.cpp  ImGui config panel with preset editing
+// gui_config.cpp  ImGui config panel with preset editing
 #include "gui_config.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -267,20 +267,20 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
         ImGui::Separator();
 
         // Parameter grid (2 columns)
-        ImGui::InputFloat("色温 (K)", &p.temp, 0.1f, 1.0f, "%.0f");
-        ImGui::InputFloat("盘面倾角", &p.incl, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("盘面旋转", &p.roll, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("内半径", &p.inner, 0.1f, 1.0f, "%.1f");
-        ImGui::InputFloat("外半径", &p.outer, 0.1f, 1.0f, "%.1f");
-        ImGui::InputFloat("不透明度", &p.opac, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("多普勒", &p.dopp, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("光束指数", &p.beam, 0.1f, 1.0f, "%.1f");
-        ImGui::InputFloat("亮度增益", &p.gain, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("条纹对比度", &p.contr, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("缠绕紧度", &p.wind, 0.1f, 1.0f, "%.1f");
-        ImGui::InputFloat("旋转速度", &p.speed, 0.1f, 1.0f, "%.1f");
-        ImGui::InputFloat("曝光度", &p.expo, 0.1f, 1.0f, "%.2f");
-        ImGui::InputFloat("星空亮度", &p.star, 0.1f, 1.0f, "%.3f");
+        ImGui::SliderFloat("色温 (K)", &p.temp, 1000.0f, 30000.0f, "%.0f");
+        ImGui::SliderFloat("盘面倾角", &p.incl, 0.0f, 3.0f, "%.2f");
+        ImGui::SliderFloat("盘面旋转", &p.roll, -1.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("内半径", &p.inner, 0.5f, 10.0f, "%.1f");
+        ImGui::SliderFloat("外半径", &p.outer, 1.0f, 30.0f, "%.1f");
+        ImGui::SliderFloat("不透明度", &p.opac, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("多普勒", &p.dopp, 0.0f, 1.5f, "%.2f");
+        ImGui::SliderFloat("光束指数", &p.beam, 0.5f, 10.0f, "%.1f");
+        ImGui::SliderFloat("亮度增益", &p.gain, 0.0f, 5.0f, "%.2f");
+        ImGui::SliderFloat("条纹对比度", &p.contr, 0.1f, 5.0f, "%.2f");
+        ImGui::SliderFloat("缠绕紧度", &p.wind, 1.0f, 20.0f, "%.1f");
+        ImGui::SliderFloat("旋转速度", &p.speed, 0.5f, 15.0f, "%.1f");
+        ImGui::SliderFloat("曝光度", &p.expo, 0.1f, 5.0f, "%.2f");
+        ImGui::SliderFloat("星空亮度", &p.star, 0.0f, 2.0f, "%.3f");
 
         ImGui::EndChild();
 

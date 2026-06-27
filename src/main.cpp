@@ -1,4 +1,4 @@
-﻿// blackhole standalone  Windows OpenGL host for blackhole.glsl
+// blackhole standalone  Windows OpenGL host for blackhole.glsl
 // v5: ImGui config panel + uniform-overridable shader params
 // Build: Ctrl+Shift+B in VS Code
 
@@ -287,15 +287,15 @@ int main(int argc, char* argv[]) {
 
     {
         HWND hwnd = glfwGetWin32Window(window);
-        SetWindowPos(hwnd, HWND_TOPMOST, 0,0,0,0, SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);
+        // Apply DWM + styles + subclass BEFORE first show (prevents ghost border)
+        DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
+        DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
         LONG ex = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, ex|WS_EX_TRANSPARENT|WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE);
         SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
-        ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-        MARGINS m = {-1,-1,-1,-1}; DwmExtendFrameIntoClientArea(hwnd, &m);
-        DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
-        DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
         SetWindowSubclass(hwnd, OverlayWndProc, 1, 0);
+        SetWindowPos(hwnd, HWND_TOPMOST, 0,0,0,0, SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);
+        ShowWindow(hwnd, SW_SHOWNOACTIVATE);
     }
 
     glfwMakeContextCurrent(window);
@@ -382,11 +382,10 @@ int main(int argc, char* argv[]) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GL_TRUE);
 
-        // Idle mode: track visibility for fresh restart each trigger
+        // Idle mode: use opacity to hide (avoids DWM repaint = no yellow border)
         static bool idleWasVisible = false;
         if (cfg.mode == 1) {
             if (isIdle((DWORD)cfg.idleSec * 1000)) {
-                ShowWindow(glfwGetWin32Window(window), SW_SHOWNOACTIVATE);
                 glfwSetWindowOpacity(window, 1.0f);
                 if (!idleWasVisible) {
                     idleStart = (float)(glfwGetTime() - startTime);
@@ -394,7 +393,7 @@ int main(int argc, char* argv[]) {
                 idleWasVisible = true;
             } else {
                 idleWasVisible = false;
-                ShowWindow(glfwGetWin32Window(window), SW_HIDE);
+                glfwSetWindowOpacity(window, 0.0f);
                 Sleep(250); continue;
             }
         }
