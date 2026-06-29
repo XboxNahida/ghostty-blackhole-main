@@ -1,4 +1,4 @@
-﻿// blackhole.hlsl  Schwarzschild black hole pixel shader (D3D11)
+// blackhole.hlsl  Schwarzschild black hole pixel shader (D3D11)
 // Translated from blackhole.glsl — all physics identical, API different
 // GLSL→HLSL: vecN→floatN, texture→.Sample, mix→lerp, uniform→cbuffer
 // Cbuffer layout must match BlackHoleUniforms in renderer_interface.h
@@ -64,8 +64,8 @@ static const float EXPOSURE      = 1.4000;
 static const float DRIFT_SPEED   = 1.0000;
 static const float WORK_AREA     = 0.3300;
 static const float DILATION_MIN  = 0.2000;
-static const float B_CRIT        = 2.5980762;
-static const int   N_STEPS       = 48;
+#define B_CRIT 2.5980762
+#define N_STEPS 48
 
 // ── Disk look struct ──
 struct DiskLook {
@@ -130,17 +130,20 @@ float vnoiseWrapY(float2 p, float perY) {
     float2 i = floor(p);
     float2 f = frac(p);
     f = f * f * (3.0 - 2.0 * f);
-    float y0 = fmod(i.y, perY);
-    float y1 = fmod(i.y + 1.0, perY);
+    float y0 = mod_glsl(i.y, perY);
+    float y1 = mod_glsl(i.y + 1.0, perY);
     return lerp(
         lerp(hash21(float2(i.x, y0)), hash21(float2(i.x + 1.0, y0)), f.x),
         lerp(hash21(float2(i.x, y1)), hash21(float2(i.x + 1.0, y1)), f.x),
         f.y);
 }
 
+// ── GLSL-compatible mod (HLSL fmod truncates; GLSL mod floors) ──
+float mod_glsl(float x, float y) { return x - y * floor(x / y); }
+
 // ── Mirror UV ──
 float2 mirrorUV(float2 u) {
-    return 1.0 - abs(1.0 - fmod(u, 2.0));
+    return 1.0 - abs(1.0 - mod_glsl(u, 2.0));
 }
 
 // ── 2D Rotation ──
@@ -193,7 +196,7 @@ float4 main(PSInput input) : SV_TARGET {
     float2 res    = iResolution.xy;
     float2 uv     = input.uv;
     float  aspect = res.x / res.y;
-    float  yUp    = uv.y;
+    float  yUp    = 1.0 - uv.y;  // uv.y: 0=top 1=bottom, yUp: 1=top 0=bottom
     float  t      = iTime * DRIFT_SPEED;
 
     DiskLook L = getDiskLook();
@@ -318,7 +321,7 @@ float4 main(PSInput input) : SV_TARGET {
             float tpl = (-LENS_DEPTH - x.z) / d.z;
             float3 hp = x + d * tpl;
             float2 q  = rot2(hp.xy, -L.roll) / W;
-            float2 sp = float2(q.x, q.y);
+            float2 sp = float2(q.x, -q.y);  // world y-up → screen y-down
             float2 suv = mirrorUV(center + (p + (sp - p) * window * shield) / float2(aspect, 1.0));
             float toward = smoothstep(0.05, 0.35, -d.z);
             bg += iChannel0.Sample(iChannel0Sampler, suv).rgb * toward;

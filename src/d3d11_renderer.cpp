@@ -1,4 +1,4 @@
-﻿// d3d11_renderer.cpp  D3D11 渲染器实现
+// d3d11_renderer.cpp  D3D11 渲染器实现
 // GPU-only 管线: WGC frame → CopyResource → HLSL Pixel Shader → SwapChain Present
 #include "d3d11_renderer.h"
 #include <cstdio>
@@ -16,10 +16,10 @@ struct QuadVertex {
 
 // 全屏四边形: 两个三角形覆盖整个屏幕 [-1,1]×[-1,1], UV [0,1]×[0,1]
 static const QuadVertex kQuadVertices[4] = {
-    {-1.0f,  1.0f, 0.0f, 1.0f},  // top-left
-    { 1.0f,  1.0f, 1.0f, 1.0f},  // top-right
-    {-1.0f, -1.0f, 0.0f, 0.0f},  // bottom-left
-    { 1.0f, -1.0f, 1.0f, 0.0f},  // bottom-right
+    {-1.0f,  1.0f, 0.0f, 0.0f},  // top-left:     uv(0,0)
+    { 1.0f,  1.0f, 1.0f, 0.0f},  // top-right:    uv(1,0)
+    {-1.0f, -1.0f, 0.0f, 1.0f},  // bottom-left:  uv(0,1)
+    { 1.0f, -1.0f, 1.0f, 1.0f},  // bottom-right: uv(1,1)
 };
 
 // ── 内嵌 HLSL 源码 (编译期嵌入, 也可从文件加载) ──
@@ -41,7 +41,7 @@ VSOutput main(VSInput input) {
 )";
 
 // 像素着色器从外部文件加载 (build_shader.ps1)
-static const char* kPixelShaderPath = "release/shaders/blackhole_compiled.hlsl";
+static const char* kPixelShaderPath = "shaders/blackhole.hlsl";
 
 // ── 默认像素着色器 (后备: 简单采样桌面纹理) ──
 static const char* kFallbackPS = R"(
