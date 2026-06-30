@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstddef>
+#include <vector>
 
 // ---- OpenGL 1.2+ constants not in minimal gl.h ----
 #ifndef GL_CLAMP_TO_EDGE
@@ -23,19 +24,20 @@ bool GLTex_Init(GLTextureUpload& gt, int width, int height) {
     gt.width  = width;
     gt.height = height;
 
-    // Create GL texture
     glGenTextures(1, &gt.tex);
     glBindTexture(GL_TEXTURE_2D, gt.tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    std::vector<unsigned char> defaultData(width * height * 4, 128);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
-                 GL_BGRA_EXT, GL_UNSIGNED_BYTE, nullptr);
+                 GL_BGRA_EXT, GL_UNSIGNED_BYTE, defaultData.data());
     glBindTexture(GL_TEXTURE_2D, 0);
 
     gt.active = true;
-    fprintf(stderr, "[Tex] Texture ready: %dx%d (sync upload)\n", width, height);
+    fprintf(stderr, "[Tex] Texture ready: %dx%d (initialized with default content)\n", width, height);
     return true;
 }
 

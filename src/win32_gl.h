@@ -44,3 +44,19 @@ void Win32GL_Shutdown(Win32GL& wgl);
 
 // 窗口消息处理（返回 false 表示窗口应关闭）
 bool Win32GL_PollEvents(Win32GL& wgl);
+
+// 仅处理消息队列，不做关闭检测（用于退出动画期间）
+void Win32GL_DrainMessages(Win32GL& wgl);
+
+// 显示窗口（在所有初始化完成后调用，避免启动黑屏）
+void Win32GL_Show(Win32GL& wgl);
+
+// 启用分层模式（在首次渲染完成后调用）
+void Win32GL_EnableLayered(Win32GL& wgl);
+
+// 立即隐藏窗口（用于退出动画结束时）
+void Win32GL_Hide(Win32GL& wgl);
+
+// 隐藏/恢复系统光标（全局）
+void Win32GL_HideSystemCursor();
+void Win32GL_RestoreSystemCursor();

@@ -378,3 +378,48 @@ program link 失败 → fallback/空输出/旧 shader 残留
 
 ### 效果
 ✅ 闪烁/黑屏彻底消除，渲染稳定性显著提升。
+
+
+---
+
+## 功能移植: 参考版本全功能合并 (2026-06-30)
+
+### 来源
+开发者 **墨溟ink / MoMing-ink** 的 fork 版本
+社区大佬 fork 版本 `ghostty-blackhole-main-main`，包含完整 bug 修复和功能增强。
+
+### 移植清单
+
+| 模块 | 文件 | 内容 |
+|------|------|------|
+| 双光标修复 | `capture_wgc.cpp` | `IsCursorCaptureEnabled(false)` — WGC 纹理不含光标 |
+| 自排除 | `main.cpp` | 前景窗口检测跳过自身渲染窗口 |
+| 全屏误判 | `main.cpp` | 排除 `WS_MAXIMIZE` 窗口 |
+| DWM 清洗 | `win32_gl.cpp` | 初始化末尾 `DwmFlush()` |
+| GUI 升级 | `gui_config.h/cpp` | 16 预设 + 开机自启 + v4 配置格式 |
+| 播放增强 | `main.cpp` | Crossfade (0.65) + 随机播放 (hash) + 启动随机化 + Born/Die 动画 |
+| 窗口函数 | `win32_gl.h/cpp` | DrainMessages/Show/EnableLayered/Hide/HideSystemCursor/RestoreSystemCursor |
+| Shader 头 | `frag_desktop_header.glsl` | 5 个新 uniform: uBornProgress/uHomeX/uHomeY/uRandPhase/uPresetOffset |
+
+### 编译
+✅ 零错误零警告
+
+
+---
+
+## 全量替换: 以参考项目为基底 (2026-06-30)
+
+### 策略
+放弃逐文件移植，直接用 MoMing-ink 的完整项目替换所有源文件，只保留用户自定义图标。
+
+### 操作
+- `src/`、`shaders/`、根目录源文件 → 全部从参考项目复制
+- `blackhole.ico` → 保留用户白底版本（270KB vs 参考 94KB）
+- `release/blackhole.ico` → 同步用户版本
+- `release/shaders/` → 从参考 shaders/ 同步
+- `release/blackhole.glsl` → 同步
+- `CMakeLists.txt` → 参考版本 + libwinpthread 自动拷贝
+- `win32_gl.cpp` → 参考版本 + DwmFlush
+
+### 编译
+✅ 零错误零警告

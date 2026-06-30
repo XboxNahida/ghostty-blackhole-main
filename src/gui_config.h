@@ -34,6 +34,7 @@ struct BlackholeConfig {
     int   playMode        = 1;    // 0=顺序 1=循环 2=随机
     float slotSec        = 5.25f; // 每个预设播放秒数
     bool  videoAsIdle     = false; // 播放视频时视为空闲
+    bool  autoStart       = false; // 开机自启
     bool  confirmed  = false;
 };
 

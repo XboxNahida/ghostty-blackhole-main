@@ -171,9 +171,13 @@ bool WGC_Init(WGCCapture& wgc) {
         return false;
     }
 
-    // 7. Query monitor size
-    wgc.width  = GetSystemMetrics(SM_CXSCREEN);
-    wgc.height = GetSystemMetrics(SM_CYSCREEN);
+    // 7. Query monitor size (使用真实分辨率，避免DPI虚拟化)
+    SetProcessDPIAware();
+    HMONITOR hMon = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO mi = { sizeof(mi) };
+    GetMonitorInfoW(hMon, &mi);
+    wgc.width  = mi.rcMonitor.right - mi.rcMonitor.left;
+    wgc.height = mi.rcMonitor.bottom - mi.rcMonitor.top;
 
     // 8. Create frame pool (2 buffers for pipelining)
     IDirect3D11CaptureFramePool* pool = nullptr;
@@ -225,6 +229,24 @@ bool WGC_Init(WGCCapture& wgc) {
             sess3->Release();
         } else {
             fprintf(stderr, "[WGC] IGraphicsCaptureSession3 not available (pre-Win11?)\n");
+        }
+    }
+
+    // 10c. Disable cursor capture so WGC texture has no cursor (eliminates
+    // double-cursor without hiding the system cursor globally)
+    {
+        IGraphicsCaptureSession2* sess2 = nullptr;
+        HRESULT hr2 = sess->QueryInterface(IID_IGraphicsCaptureSession2_WGC, (void**)&sess2);
+        if (SUCCEEDED(hr2) && sess2) {
+            boolean cursorOff = false;
+            HRESULT hrCursor = sess2->put_IsCursorCaptureEnabled(cursorOff);
+            if (SUCCEEDED(hrCursor))
+                fprintf(stderr, "[WGC] IsCursorCaptureEnabled set to false\n");
+            else
+                fprintf(stderr, "[WGC] IsCursorCaptureEnabled(false) failed: 0x%08X\n", (unsigned)hrCursor);
+            sess2->Release();
+        } else {
+            fprintf(stderr, "[WGC] IGraphicsCaptureSession2 not available (cursor capture cannot be disabled)\n");
         }
     }
 

@@ -20,6 +20,8 @@ uniform float uSpeed      = -1.0;
 uniform float uStarGain   = -1.0;
 uniform float uDiskIncl   = -1.0;
 
+uniform float uBornProgress = 1.0;
+
 // Demo preset overrides (negative = use hardcoded default)
 #define MAX_PRESETS 64
 uniform int   uPresetCount = 0;
@@ -40,5 +42,11 @@ uniform float uPresetStar [MAX_PRESETS];
 
 uniform int uPlayMode = 0;   // 0=顺序 1=循环 2=随机
 uniform float uSlotSec = 5.25;   // 每个预设播放秒数
+
+// Random spawn parameters (set once per session)
+uniform float uHomeX = 0.96;       // initial hole home X (0=left, 1=right)
+uniform float uHomeY = 0.04;       // initial hole home Y (0=top, 1=bottom)
+uniform float uRandPhase = 0.0;    // random phase offset for trajectory
+uniform float uPresetOffset = 0.0; // random time offset for preset cycling (seconds)
 
 #define fragColor gl_FragColor

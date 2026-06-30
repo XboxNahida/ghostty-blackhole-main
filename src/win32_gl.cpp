@@ -68,9 +68,16 @@ static LRESULT CALLBACK WGLWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height) {
     wgl.active = false;
 
-    int wx = 0, wy = 0;
-    wgl.capFullW = GetSystemMetrics(SM_CXSCREEN);
-    wgl.capFullH = GetSystemMetrics(SM_CYSCREEN);
+    // 声明DPI感知，获取真实分辨率
+    SetProcessDPIAware();
+
+    // 获取主显示器真实分辨率
+    HMONITOR hMon = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO mi = { sizeof(mi) };
+    GetMonitorInfoW(hMon, &mi);
+    wgl.capFullW = mi.rcMonitor.right - mi.rcMonitor.left;
+    wgl.capFullH = mi.rcMonitor.bottom - mi.rcMonitor.top;
+
     if (width <= 0 || height <= 0) {
         width  = wgl.capFullW;
         height = wgl.capFullH;
@@ -94,25 +101,24 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height) {
     if (!registered) { RegisterClassExW(&wc); registered = true; }
 
     // 2. 创建窗口（全屏无边框桌面特效窗口）
-    DWORD exStyle = WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW |
-                    WS_EX_TRANSPARENT | WS_EX_LAYERED;
+    // 注意：不使用 WS_EX_LAYERED，因为 SetLayeredWindowAttributes 会自动显示窗口
+    // 分层属性将在渲染完成后添加
+    DWORD exStyle = WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT;
     DWORD style   = WS_POPUP;
 
     WCHAR wTitle[128];
     MultiByteToWideChar(CP_UTF8, 0, title, -1, wTitle, 128);
 
+    // 关键：将窗口创建在屏幕外，GDI/wglMakeCurrent 的刷新不会影响可见屏幕
     wgl.hwnd = CreateWindowExW(
         exStyle, L"BlackHoleWGL", wTitle, style,
-        wx, wy, width, height,
+        -32000, -32000, width, height,
         nullptr, nullptr, wc.hInstance, nullptr);
 
     if (!wgl.hwnd) {
         fprintf(stderr, "[Win32GL] CreateWindowEx failed: %lu\n", GetLastError());
         return false;
     }
-
-    // 分层窗口：设 alpha=255 保持不透明，但启用 DWM 分层合成以支持鼠标穿透
-    SetLayeredWindowAttributes(wgl.hwnd, 0, 255, LWA_ALPHA);
 
     // 3. 获取 DC
     wgl.hdc = GetDC(wgl.hwnd);
@@ -198,11 +204,11 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height) {
     if (!SetWindowDisplayAffinity(wgl.hwnd, WDA_EXCLUDEFROMCAPTURE))
         fprintf(stderr, "[Win32GL] WDA_EXCLUDEFROMCAPTURE failed: %lu\n", GetLastError());
 
-    // 10. 显示窗口（WS_EX_LAYERED + WS_EX_TRANSPARENT 处理鼠标穿透）
+    // 10. 窗口置顶但不显示（等待所有初始化完成后再显示）
     SetWindowPos(wgl.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    ShowWindow(wgl.hwnd, SW_SHOWNOACTIVATE);
-    ShowCursor(FALSE);  // 隐藏系统光标，只保留 WGC 捕获中被黑洞扭曲的光标
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_HIDEWINDOW);
+    // 确保窗口隐藏
+    ShowWindow(wgl.hwnd, SW_HIDE);
 
     // 11. 窗口状态结构
     Win32GLState* state = new Win32GLState();
@@ -210,6 +216,8 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height) {
     state->newWidth    = width;
     state->newHeight   = height;
     SetWindowLongPtrW(wgl.hwnd, GWLP_USERDATA, (LONG_PTR)state);
+
+    DwmFlush();
 
     wgl.active = true;
     fprintf(stderr, "[Win32GL] Window ready: %dx%d\n", width, height);
@@ -223,14 +231,15 @@ void Win32GL_SwapBuffers(Win32GL& wgl) {
 void Win32GL_GetFramebufferSize(Win32GL& wgl, int* w, int* h) {
     if (wgl.active) {
         Win32GLState* state = (Win32GLState*)GetWindowLongPtrW(wgl.hwnd, GWLP_USERDATA);
-        if (state) {
+        if (state && state->newWidth > 0 && state->newHeight > 0) {
             *w = state->newWidth;
             *h = state->newHeight;
             return;
         }
     }
-    *w = wgl.width;
-    *h = wgl.height;
+    // Fallback: 使用屏幕尺寸
+    *w = GetSystemMetrics(SM_CXSCREEN);
+    *h = GetSystemMetrics(SM_CYSCREEN);
 }
 
 void* Win32GL_GetProcAddress(const char* name) {
@@ -294,8 +303,112 @@ bool Win32GL_PollEvents(Win32GL& wgl) {
     return wgl.active;
 }
 
+void Win32GL_DrainMessages(Win32GL& wgl) {
+    MSG msg;
+    while (PeekMessageW(&msg, wgl.hwnd, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+    while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+}
+
+void Win32GL_Show(Win32GL& wgl) {
+    if (!wgl.active || !wgl.hwnd) return;
+    
+    // 将窗口从屏幕外移回屏幕左上角，显式设置全屏大小
+    SetWindowPos(wgl.hwnd, HWND_TOPMOST, 0, 0, wgl.width, wgl.height,
+                 SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+    
+    // 显示窗口
+    ShowWindow(wgl.hwnd, SW_SHOWNOACTIVATE);
+    
+    // 再次确保位置、大小和置顶
+    SetWindowPos(wgl.hwnd, HWND_TOPMOST, 0, 0, wgl.width, wgl.height,
+                 SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    
+    fprintf(stderr, "[Win32GL] Window moved to screen and shown\n");
+}
+
+void Win32GL_EnableLayered(Win32GL& wgl) {
+    if (!wgl.active || !wgl.hwnd) return;
+    
+    // 添加 WS_EX_LAYERED 样式
+    LONG_PTR exStyle = GetWindowLongPtrW(wgl.hwnd, GWL_EXSTYLE);
+    exStyle |= WS_EX_LAYERED;
+    SetWindowLongPtrW(wgl.hwnd, GWL_EXSTYLE, exStyle);
+    
+    // 设置分层窗口 alpha 属性
+    SetLayeredWindowAttributes(wgl.hwnd, 0, 255, LWA_ALPHA);
+    
+    // 强制刷新窗口，让 DWM 立即合成
+    RedrawWindow(wgl.hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    
+    fprintf(stderr, "[Win32GL] Layered mode enabled\n");
+}
+
+void Win32GL_Hide(Win32GL& wgl) {
+    if (!wgl.hwnd) return;
+    // 立即移出屏幕并隐藏，让用户感知瞬间结束
+    SetWindowPos(wgl.hwnd, nullptr, -32000, -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+    ShowWindow(wgl.hwnd, SW_HIDE);
+    // 恢复系统光标
+    Win32GL_RestoreSystemCursor();
+}
+
+// 隐藏系统光标：用空光标替换OCR_NORMAL
+static HCURSOR g_savedCursor = nullptr;
+static bool g_cursorHidden = false;
+
+#ifndef OCR_NORMAL
+#define OCR_NORMAL 32512
+#endif
+
+void Win32GL_HideSystemCursor() {
+    if (g_cursorHidden) return;
+    // 创建一个1x1透明光标
+    int w = GetSystemMetrics(SM_CXCURSOR);
+    int h = GetSystemMetrics(SM_CYCURSOR);
+    if (w <= 0) w = 32;
+    if (h <= 0) h = 32;
+    unsigned char* andMask = (unsigned char*)calloc((w * h + 7) / 8, 1);
+    unsigned char* xorMask = (unsigned char*)calloc((w * h + 7) / 8, 1);
+    // andMask全1 = 透明
+    memset(andMask, 0xFF, (w * h + 7) / 8);
+    HCURSOR hEmpty = CreateCursor(nullptr, 0, 0, w, h, andMask, xorMask);
+    free(andMask);
+    free(xorMask);
+    if (hEmpty) {
+        g_savedCursor = CopyCursor(LoadCursorW(nullptr, L"IDC_ARROW"));
+        SetSystemCursor(hEmpty, OCR_NORMAL);
+        g_cursorHidden = true;
+    }
+    fprintf(stderr, "[Win32GL] System cursor hidden\n");
+}
+
+void Win32GL_RestoreSystemCursor() {
+    if (!g_cursorHidden) return;
+    // SPI_SETCURSORS reloads all system cursors from the registry — the
+    // most reliable way to undo SetSystemCursor changes
+    SystemParametersInfo(SPI_SETCURSORS, 0, nullptr, SPIF_UPDATEINIFILE);
+    g_cursorHidden = false;
+    fprintf(stderr, "[Win32GL] System cursor restored\n");
+}
+
 void Win32GL_Shutdown(Win32GL& wgl) {
     if (!wgl.active) return;
+
+    // 先移出屏幕并隐藏，避免销毁时闪烁
+    if (wgl.hwnd) {
+        SetWindowPos(wgl.hwnd, nullptr, -32000, -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+        ShowWindow(wgl.hwnd, SW_HIDE);
+    }
+
+    // 安全措施：确保系统光标已恢复（正常流程不会隐藏光标，
+    // 但以防异常退出时光标仍处于隐藏状态）
+    Win32GL_RestoreSystemCursor();
 
     Win32GLState* state = (Win32GLState*)GetWindowLongPtrW(wgl.hwnd, GWLP_USERDATA);
     if (state) delete state;
@@ -309,7 +422,6 @@ void Win32GL_Shutdown(Win32GL& wgl) {
         ReleaseDC(wgl.hwnd, wgl.hdc);
         wgl.hdc = nullptr;
     }
-    ShowCursor(TRUE);  // 恢复系统光标
     if (wgl.hwnd) {
         DestroyWindow(wgl.hwnd);
         wgl.hwnd = nullptr;
@@ -317,3 +429,4 @@ void Win32GL_Shutdown(Win32GL& wgl) {
     wgl.active = false;
     fprintf(stderr, "[Win32GL] Shutdown complete\n");
 }
+
