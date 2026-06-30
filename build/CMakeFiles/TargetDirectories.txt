@@ -1,3 +1,0 @@
-C:/Test_Program/VS_Code/ghostty-blackhole-main/build/CMakeFiles/blackhole.dir
-C:/Test_Program/VS_Code/ghostty-blackhole-main/build/CMakeFiles/edit_cache.dir
-C:/Test_Program/VS_Code/ghostty-blackhole-main/build/CMakeFiles/rebuild_cache.dir

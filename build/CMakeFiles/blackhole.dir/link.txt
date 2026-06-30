@@ -1,3 +1,0 @@
-"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\blackhole.dir/objects.a
-C:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\blackhole.dir/objects.a @CMakeFiles\blackhole.dir\objects1.rsp
-C:\msys64\ucrt64\bin\c++.exe -mwindows -Wl,--whole-archive CMakeFiles\blackhole.dir/objects.a -Wl,--no-whole-archive -o blackhole.exe -Wl,--out-implib,libblackhole.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\blackhole.dir\linkLibs.rsp

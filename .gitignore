@@ -1,6 +1,9 @@
-*.mov
+﻿*.mov
 *.mp4
 .DS_Store
 __pycache__/
 tuner/.build/
 tuner/dist/
+
+# Build outputs (CMake intermediate files)
+build/
