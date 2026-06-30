@@ -12,6 +12,7 @@ find_package(glfw3 REQUIRED)
 # OpenGL
 find_package(OpenGL REQUIRED)
 
+# ---- blackhole.exe (原有桌面应用) ----
 add_executable(blackhole
     src/main.cpp
     src/capture_wgc.cpp
@@ -49,6 +50,47 @@ target_link_libraries(blackhole PRIVATE
     comctl32
 )
 
+# ---- blackhole.scr (Windows 原生屏保) ----
+add_executable(blackhole-scr
+    src/scr_entry.cpp
+    src/capture_wgc.cpp
+    src/capture_dxgi.cpp
+    src/gui_config.cpp
+    src/imgui/imgui.cpp
+    src/imgui/imgui_draw.cpp
+    src/imgui/imgui_widgets.cpp
+    src/imgui/imgui_tables.cpp
+    src/imgui/imgui_impl_glfw.cpp
+    src/imgui/imgui_impl_opengl3.cpp
+    src/gl_texture.cpp
+    src/win32_gl.cpp
+    src/win32_window.cpp
+    src/d3d11_renderer.cpp
+    resource.rc
+)
+
+target_include_directories(blackhole-scr PRIVATE
+    ${OPENGL_INCLUDE_DIRS}
+)
+
+target_link_libraries(blackhole-scr PRIVATE
+    glfw
+    ${OPENGL_LIBRARIES}
+    d3d11
+    dxgi
+    d3dcompiler
+    gdi32
+    runtimeobject
+    dwmapi
+    comctl32
+)
+
+# 屏保输出名: blackhole.scr
+set_target_properties(blackhole-scr PROPERTIES
+    OUTPUT_NAME "blackhole"
+    SUFFIX ".scr"
+)
+
 # Compile with MSYS2 GCC (ucrt64)
 if(MINGW)
     target_compile_options(blackhole PRIVATE -fexec-charset=UTF-8)
@@ -62,6 +104,16 @@ if(MINGW)
             "${UCRT64_BIN}/libwinpthread-1.dll"
             "$<TARGET_FILE_DIR:blackhole>/libwinpthread-1.dll"
         COMMENT "Copying libwinpthread-1.dll to output directory"
+    )
+
+    # 屏保同样编译选项
+    target_compile_options(blackhole-scr PRIVATE -fexec-charset=UTF-8)
+    target_link_options(blackhole-scr PRIVATE -mwindows)
+    add_custom_command(TARGET blackhole-scr POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${UCRT64_BIN}/libwinpthread-1.dll"
+            "$<TARGET_FILE_DIR:blackhole-scr>/libwinpthread-1.dll"
+        COMMENT "Copying libwinpthread-1.dll to output directory (scr)"
     )
 endif()
 
