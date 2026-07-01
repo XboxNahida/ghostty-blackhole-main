@@ -30,10 +30,6 @@
 #include <thread>
 #include <vector>
 
-#ifndef kIOMainPortDefault
-#define kIOMainPortDefault kIOMasterPortDefault
-#endif
-
 struct DiskPreset {
     float temp  = 5500.0f;
     float incl  = 1.50f;
