@@ -1,88 +1,8 @@
-﻿# Black Hole — Windows / macOS 桌面黑洞屏保
+﻿# Black Hole — Windows 桌面黑洞屏保
 
 ![demo](demo.gif)
 
-基于 Eric Bruneton 黑洞着色器的桌面黑洞可视化程序。捕获桌面画面，实时渲染史瓦西黑洞的引力透镜、吸积盘、光子环等相对论效应。
-
-## macOS 版
-
-本仓库新增了 macOS 专用入口 `src/macos_main.mm` 和 CMake target `blackhole-macos`。macOS 版不复用 Win32/WGC/DXGI 路径，而是使用：
-
-- GLFW + OpenGL 3.3 渲染黑洞 shader
-- ScreenCaptureKit `SCScreenshotManager` 在黑洞窗口显示前捕获一帧主显示器画面作为引力透镜背景，兼容 macOS 26 SDK
-- IOKit `HIDIdleTime` 检测用户空闲时间
-- Cocoa 设置屏保级浮动窗口、全 Space 显示、鼠标穿透
-- 使用自身黑洞渲染预览裁切出的 macOS `.icns` 应用图标
-
-### macOS 构建
-
-依赖：
-
-```bash
-brew install cmake glfw
-```
-
-构建：
-
-```bash
-cmake -S . -B _build/macos -DCMAKE_BUILD_TYPE=Release
-cmake --build _build/macos --config Release
-```
-
-产物：
-
-```text
-_build/macos/blackhole-macos.app
-```
-
-### macOS 运行
-
-默认打开原生控制窗口。窗口里可以调整模式、空闲时间、预设播放方式，并直接选择预览渲染或启动监控。默认路径是 macOS 单进程：控制窗口会在截图/渲染前临时隐藏，渲染退出后回到控制窗口。
-
-```bash
-open _build/macos/blackhole-macos.app
-```
-
-也可以显式打开控制窗口：
-
-```bash
-open _build/macos/blackhole-macos.app --args --config
-```
-
-安全预览黑洞；移动鼠标或按键后会自动退出。渲染窗口本身鼠标穿透、不接收焦点，因此退出依赖全局 HID 活动检测，不需要点中窗口：
-
-```bash
-open _build/macos/blackhole-macos.app --args --render
-```
-
-按 `blackhole_presets.txt` 的 `mode/idleSec` 直接进入空闲监控快捷模式；这个模式不显示 Dock 图标：
-
-```bash
-open _build/macos/blackhole-macos.app --args --monitor
-```
-
-首次运行如果桌面背景是纯渐变而不是当前屏幕，请到：
-
-```text
-System Settings -> Privacy & Security -> Screen Recording
-```
-
-给 `blackhole-macos` 或启动它的 Terminal 授权。未授权时程序仍会运行，但只能使用内置 fallback 背景，无法做真实桌面透镜。
-
-如果预览时需要强制退出：
-
-```bash
-pkill -f blackhole-macos
-```
-
-### macOS 当前边界
-
-- 已支持默认控制窗口、主屏幕渲染、启动前桌面截图背景（包含主显示器上的其他窗口）、空闲检测、鼠标穿透、预设轮播。
-- macOS 控制窗口复刻 Windows 的主入口职责：默认先配置，再由按钮启动安全预览或监控；不同于 Windows，默认交互不再使用双进程，退出控制窗口即可退出应用生命周期。
-- `--render` / `--monitor` 仍保留为直接快捷入口；所有渲染路径都会在启动短暂保护时间后检测全局鼠标/键盘活动并退出，避免全屏覆盖层不可退出。
-- 控制窗口目前只编辑基础运行参数；完整 14 项黑洞预设仍可通过 **Open Presets File** 打开 `blackhole_presets.txt` 维护。
-- 应用图标来自 `presets-grid.png` 中的自身渲染结果，源 PNG 在 `assets/blackhole-macos-icon.png`，bundle 使用 `assets/blackhole-macos.icns`。
-- `videoAsIdle` / `autoStart` 字段保持配置兼容，但 macOS 版暂不自动检测前景视频音频，也不自动安装 LaunchAgent。
+基于 Eric Bruneton 黑洞着色器的 Windows 桌面黑洞可视化程序。捕获桌面画面，实时渲染史瓦西黑洞的引力透镜、吸积盘、光子环等相对论效应。
 
 ---
 
@@ -90,13 +10,27 @@ pkill -f blackhole-macos
 
 ## 快速开始
 
-### Windows
-
-1. 双击 
-release\blackhole.exe
+1. 双击 `release\blackhole.exe`
 2. 配置参数 → 点击 **"启动"**
 3. 黑洞在**空闲时自动显示**，动鼠标/键盘即消失
 4. 右下角托盘图标 → 右键可退出
+
+## macOS
+
+macOS 版新增独立的 `blackhole-macos` app target，使用 ScreenCaptureKit 截取桌面、AppKit/GLFW/OpenGL 渲染，并提供一个简单的原生控制窗口。
+
+```bash
+brew install cmake glfw
+cmake -S . -B _build/macos -DCMAKE_BUILD_TYPE=Release
+cmake --build _build/macos --config Release
+open _build/macos/blackhole-macos.app
+```
+
+如果桌面背景不是当前屏幕，请在 `System Settings -> Privacy & Security -> Screen Recording` 给应用或启动它的 Terminal 授权。预览模式也可用：
+
+```bash
+open _build/macos/blackhole-macos.app --args --render
+```
 
 ## 两种模式
 
@@ -241,7 +175,6 @@ ghostty-blackhole-main/
 │
 ├── src/                       # 源代码
 │   ├── main.cpp               # 入口（OpenGL / D3D11 双路径，#ifdef 切换）
-│   ├── macos_main.mm          # macOS 入口（GLFW/OpenGL + ScreenCaptureKit + IOKit + Cocoa）
 │   ├── capture_wgc.cpp/h      # WGC 桌面捕获（默认）
 │   ├── capture_dxgi.cpp/h     # DXGI Duplication 备用捕获
 │   ├── gl_texture.cpp/h       # OpenGL 纹理管理
