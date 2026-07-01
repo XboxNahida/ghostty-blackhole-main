@@ -360,3 +360,40 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
     glfwDestroyWindow(win);
     return cfg.confirmed;
 }
+
+// ---- Advanced config: holeRadius/diskGain/... overrides ----
+void SaveAdvancedConfig(const BlackholeConfig& cfg) {
+    FILE* f = fopen("blackhole_advanced.txt", "w");
+    if (!f) return;
+    fprintf(f, "# Blackhole Advanced Overrides\n");
+    fprintf(f, "holeRadius=%.3f\n", cfg.holeRadius);
+    fprintf(f, "diskGain=%.3f\n",   cfg.diskGain);
+    fprintf(f, "diskTemp=%.1f\n",   cfg.diskTemp);
+    fprintf(f, "exposure=%.3f\n",   cfg.exposure);
+    fprintf(f, "spd=%.3f\n",        cfg.spd);
+    fprintf(f, "starGain=%.3f\n",   cfg.starGain);
+    fprintf(f, "diskIncl=%.3f\n",   cfg.diskIncl);
+    fclose(f);
+}
+
+void LoadAdvancedConfig(BlackholeConfig& cfg) {
+    FILE* f = fopen("blackhole_advanced.txt", "r");
+    if (!f) return;  // file not found, keep defaults (-1.0)
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        // skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
+        char key[64] = {0};
+        float val = -1.0f;
+        if (sscanf(line, "%63[^=]=%f", key, &val) == 2) {
+            if (strcmp(key, "holeRadius") == 0) cfg.holeRadius = val;
+            else if (strcmp(key, "diskGain") == 0)   cfg.diskGain   = val;
+            else if (strcmp(key, "diskTemp") == 0)   cfg.diskTemp   = val;
+            else if (strcmp(key, "exposure") == 0)   cfg.exposure   = val;
+            else if (strcmp(key, "spd") == 0)        cfg.spd        = val;
+            else if (strcmp(key, "starGain") == 0)   cfg.starGain   = val;
+            else if (strcmp(key, "diskIncl") == 0)   cfg.diskIncl   = val;
+        }
+    }
+    fclose(f);
+}

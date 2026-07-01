@@ -42,3 +42,5 @@ void InitDefaultPresets(BlackholeConfig& cfg);
 bool GUI_ShowConfigPanel(BlackholeConfig& cfg);
 void SavePresetsToFile(const BlackholeConfig& cfg, const char names[16][64]);
 bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[16][64]);
+void SaveAdvancedConfig(const BlackholeConfig& cfg);
+void LoadAdvancedConfig(BlackholeConfig& cfg);

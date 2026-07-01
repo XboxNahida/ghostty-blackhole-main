@@ -1,4 +1,4 @@
-﻿# Black Hole — Windows 桌面黑洞屏保
+# Black Hole — Windows 桌面黑洞屏保
 
 ![demo](demo.gif)
 
@@ -8,12 +8,46 @@
 
 ---
 
+## 运行要求
+
+| 类别 | 最低要求 | 推荐 |
+|------|----------|------|
+| **操作系统** | Windows 10 1803+ (build 17134) | Windows 11 22H2+ (build 22621) |
+| **架构** | x64 | x64 |
+| **显卡** | OpenGL 3.3 + D3D11 Feature Level 11_0 | 独立显卡 |
+| **显卡驱动** | 2018 年后的 WDDM 2.4+ 驱动 | 最新驱动 |
+| **内存** | 4 GB | 8 GB |
+| **显示器** | 任意分辨率 | ≥ 1920×1080 |
+
+> **已知限制**：Win11 黄边框已通过 `IsBorderRequired(false)` 抑制，但无法 100% 消除。双鼠标问题有待修复。详见 [TECHNICAL.md](TECHNICAL.md)。
+
+### Blakhole_UI 额外要求
+
+| 类别 | 要求 |
+|------|------|
+| **Qt 运行时** | Qt 6.8+（`release/` 目录已附带 DLL） |
+| **OpenGL** | 3.3 Core Profile（FBO 预览需要） |
+
+### 编译要求（从源码构建）
+
+| 工具 | 版本 | 说明 |
+|------|------|------|
+| **MSYS2** | 最新 | UCRT64 环境 |
+| **GCC** | 12+ | `mingw-w64-ucrt-x86_64-gcc` |
+| **CMake** | 3.20+ | |
+| **GLFW3** | 3.3+ | `pacman -S mingw-w64-ucrt-x86_64-glfw` |
+| **Qt 6** | 6.8+ | 仅 Blakhole_UI 需要 (`qt6-base`, `qt6-declarative`) |
+
+---
+
 ## 快速开始
 
-1. 双击 `Blakhole_UI\release\appBlakholeUI.exe`（`release\blackhole.exe`为旧版UI，保留）
+1. 双击 `release\blackhole.exe`
 2. 配置参数 → 点击 **"启动"**
 3. 黑洞在**空闲时自动显示**，动鼠标/键盘即消失
 4. 右下角托盘图标 → 右键可退出
+
+也可使用新版 Qt6 配置面板：`Blakhole_UI\build\appBlakholeUI.exe`
 
 ---
 

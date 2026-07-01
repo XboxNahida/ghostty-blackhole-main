@@ -682,6 +682,7 @@ int main(int argc, char* argv[]) {
         char names[64][64];
         if (!LoadPresetsFromFile(cfg, names))
             InitDefaultPresets(cfg);
+        LoadAdvancedConfig(cfg);
         cfg.mode = 0;
     } else if (isConfig) {
         // === CONFIG ONLY: show config panel, save and exit ===
@@ -702,6 +703,7 @@ int main(int argc, char* argv[]) {
             char names[64][64];
             if (!LoadPresetsFromFile(cfg, names))
                 InitDefaultPresets(cfg);
+            LoadAdvancedConfig(cfg);
             if (debugLog) { fprintf(debugLog, "[Monitor] loaded idleSec=%d mode=%d\n", cfg.idleSec, cfg.mode); fflush(debugLog); }
         } else {
             // Normal launch: show config panel first

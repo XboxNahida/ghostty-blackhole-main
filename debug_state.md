@@ -446,3 +446,22 @@ program link 失败 → fallback/空输出/旧 shader 残留
 - README 中"已知问题"→ TECHNICAL.md 第六章
 - README 中"Shader 改造/Bug修复"→ TECHNICAL.md 第七/八章
 - README 新增"项目结构"章节，明确标注 ✅活跃模块 和 🔒预留模块
+
+---
+
+## README 新增运行要求 (2026-07-02)
+
+### 新增内容
+- 操作系统: Windows 10 1803+ (WGC最低) / Windows 11 22H2+ 推荐 (完整黄边框抑制)
+- 架构: x64 only
+- 显卡: OpenGL 3.3 + D3D11 Feature Level 11_0
+- 驱动: WDDM 2.4+ (2018年后)
+- Blakhole_UI 额外: Qt 6.8+ 运行时
+- 编译: MSYS2 UCRT64, GCC 12+, CMake 3.20+, GLFW3 3.3+, Qt 6.8+
+
+### 兼容性分析依据
+- WGC: Win10 1803 (build 17134) 引入 `Windows.Graphics.Capture` API
+- IGraphicsCaptureSession3/IsBorderRequired: Win11 22H2 (build 22621)
+- WGL 3.3: 需要 WDDM 2.0+, 但 WGC 要求 D3D11 FL 11.0 → 实际要求 WDDM 2.4+
+- D3D11 FL 11_0: WGC 内部使用 D3D11 纹理, capture_wgc.cpp 创建 D3D_FEATURE_LEVEL_11_0 设备
+- Qt 6.8: Blakhole_UI CMake 中 qt_standard_project_setup(REQUIRES 6.8)
