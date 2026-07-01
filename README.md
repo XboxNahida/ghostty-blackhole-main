@@ -1,4 +1,4 @@
-﻿# Black Hole — Windows 桌面黑洞屏保
+﻿# Black Hole — Windows / macOS 桌面黑洞屏保
 
 ![demo](demo.gif)
 
@@ -8,16 +8,14 @@
 
 > **Windows 移植 & 功能增强**：本项目特别致谢 [墨溟ink / MoMing-ink] 改进双进程架构、Win32+WGL 原生窗口、WGC 桌面捕获、16 个预设、Crossfade 过渡、三层空闲检测、DWM 防护、双光标修复等问题。
 
-## 快速开始
+## Windows 快速开始
 
 1. 双击 `release\blackhole.exe`
 2. 配置参数 → 点击 **"启动"**
 3. 黑洞在**空闲时自动显示**，动鼠标/键盘即消失
 4. 右下角托盘图标 → 右键可退出
 
-## macOS
-
-macOS 版新增独立的 `blackhole-macos` app target，使用 ScreenCaptureKit 截取桌面、AppKit/GLFW/OpenGL 渲染，并提供一个简单的原生控制窗口。
+## macOS 快速开始
 
 ```bash
 brew install cmake glfw
@@ -26,7 +24,7 @@ cmake --build _build/macos --config Release
 open _build/macos/blackhole-macos.app
 ```
 
-如果桌面背景不是当前屏幕，请在 `System Settings -> Privacy & Security -> Screen Recording` 给应用或启动它的 Terminal 授权。预览模式也可用：
+macOS需要授权才能进行截屏，如果桌面背景不是当前屏幕，请在 `System Settings -> Privacy & Security -> Screen Recording` 给应用或启动它的 Terminal 授权。预览模式也可用：
 
 ```bash
 open _build/macos/blackhole-macos.app --args --render
@@ -174,7 +172,8 @@ ghostty-blackhole-main/
 ├── watchdog.ps1               # 进程守护脚本
 │
 ├── src/                       # 源代码
-│   ├── main.cpp               # 入口（OpenGL / D3D11 双路径，#ifdef 切换）
+│   ├── main.cpp               # windows 入口（OpenGL / D3D11 双路径，#ifdef 切换）
+│   ├── macos_main.mm          # macos 入口
 │   ├── capture_wgc.cpp/h      # WGC 桌面捕获（默认）
 │   ├── capture_dxgi.cpp/h     # DXGI Duplication 备用捕获
 │   ├── gl_texture.cpp/h       # OpenGL 纹理管理
@@ -308,6 +307,15 @@ Present
 D3D11+WGC 组合在当前 Windows/WGC 版本下存在架构级阻抗：WGC 返回的是 DWM 合成快照的弱绑定 GPU 资源，不适合作为连续视频流纹理源。OpenGL+WGL 路径的 `Staging → Map → glTexSubImage2D` 虽然多一次 CPU 往返，但天然隔离了 GPU 异步竞争问题。
 
 D3D11 代码完整保留，可通过 `CMakeLists.txt` 第 34 行取消注释重新启用。详见 [`debug_log.md`](debug_log.md)。
+
+## macOS适配
+
+本仓库新增了 macOS 专用入口 `src/macos_main.mm` 和 CMake target `blackhole-macos`。macOS 版不复用 Win32/WGC/DXGI 路径，而是使用：
+- GLFW + OpenGL 3.3 渲染黑洞 shader
+- ScreenCaptureKit `SCScreenshotManager` 在黑洞窗口显示前捕获一帧主显示器画面作为引力透镜背景，兼容 macOS 26 SDK
+- IOKit `HIDIdleTime` 检测用户空闲时间
+- Cocoa 设置屏保级浮动窗口、全 Space 显示、鼠标穿透
+- 使用自身黑洞渲染预览裁切出的 macOS `.icns` 应用图标
 
 ---
 
