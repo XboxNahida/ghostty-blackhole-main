@@ -25,7 +25,8 @@ if(APPLE)
     target_compile_options(blackhole-macos PRIVATE
         -Wall
         -Wextra
-        -Wno-deprecated-declarations
+        -Werror=deprecated-declarations
+        -Werror=unguarded-availability-new
     )
     target_link_libraries(blackhole-macos PRIVATE
         glfw
@@ -34,6 +35,7 @@ if(APPLE)
         "-framework Cocoa"
         "-framework CoreGraphics"
         "-framework IOKit"
+        "-framework ScreenCaptureKit"
     )
     set_target_properties(blackhole-macos PROPERTIES
         MACOSX_BUNDLE_BUNDLE_NAME "Black Hole"

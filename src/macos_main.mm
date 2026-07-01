@@ -11,7 +11,10 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 #include <IOKit/IOKitLib.h>
+#include <dispatch/dispatch.h>
+#include <dlfcn.h>
 #include <mach-o/dyld.h>
+#include <objc/message.h>
 
 #include <algorithm>
 #include <chrono>
@@ -440,7 +443,41 @@ static void makeFallbackFrame(ScreenFrame& frame, int width, int height) {
 }
 
 static bool captureMainDisplay(ScreenFrame& frame) {
-    CGImageRef image = CGDisplayCreateImage(CGMainDisplayID());
+    static bool didLoadScreenCaptureKit = false;
+    static bool hasScreenCaptureKit = false;
+    if (!didLoadScreenCaptureKit) {
+        hasScreenCaptureKit = dlopen(
+            "/System/Library/Frameworks/ScreenCaptureKit.framework/ScreenCaptureKit",
+            RTLD_LAZY | RTLD_LOCAL) != nullptr;
+        didLoadScreenCaptureKit = true;
+    }
+    if (!hasScreenCaptureKit) return false;
+
+    Class manager = NSClassFromString(@"SCScreenshotManager");
+    SEL selector = NSSelectorFromString(@"captureImageInRect:completionHandler:");
+    if (!manager || ![manager respondsToSelector:selector]) return false;
+
+    NSScreen* screen = [NSScreen mainScreen];
+    if (!screen) return false;
+    NSRect screenFrame = [screen frame];
+    CGRect captureRect = CGRectMake(
+        screenFrame.origin.x,
+        screenFrame.origin.y,
+        screenFrame.size.width,
+        screenFrame.size.height);
+
+    dispatch_semaphore_t sema = dispatch_semaphore_create(0);
+    __block CGImageRef image = nullptr;
+    using CaptureImageFn = void (*)(id, SEL, CGRect, void (^)(CGImageRef, NSError*));
+    auto captureImage = reinterpret_cast<CaptureImageFn>(objc_msgSend);
+    captureImage(manager, selector, captureRect, ^(CGImageRef capturedImage, NSError* error) {
+        if (capturedImage && !error) image = CGImageRetain(capturedImage);
+        dispatch_semaphore_signal(sema);
+    });
+
+    dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC);
+    if (dispatch_semaphore_wait(sema, timeout) != 0 || !image) return false;
+
     if (!image) return false;
 
     size_t width = CGImageGetWidth(image);

@@ -9,7 +9,7 @@
 本仓库新增了 macOS 专用入口 `src/macos_main.mm` 和 CMake target `blackhole-macos`。macOS 版不复用 Win32/WGC/DXGI 路径，而是使用：
 
 - GLFW + OpenGL 3.3 渲染黑洞 shader
-- CoreGraphics `CGDisplayCreateImage` 捕获主显示器画面作为引力透镜背景
+- ScreenCaptureKit `SCScreenshotManager` 捕获主显示器画面作为引力透镜背景，兼容 macOS 26 SDK
 - IOKit `HIDIdleTime` 检测用户空闲时间
 - Cocoa 设置屏保级浮动窗口、全 Space 显示、鼠标穿透
 
@@ -219,7 +219,7 @@ ghostty-blackhole-main/
 │
 ├── src/                       # 源代码
 │   ├── main.cpp               # 入口（OpenGL / D3D11 双路径，#ifdef 切换）
-│   ├── macos_main.mm          # macOS 入口（GLFW/OpenGL + CoreGraphics + IOKit + Cocoa）
+│   ├── macos_main.mm          # macOS 入口（GLFW/OpenGL + ScreenCaptureKit + IOKit + Cocoa）
 │   ├── capture_wgc.cpp/h      # WGC 桌面捕获（默认）
 │   ├── capture_dxgi.cpp/h     # DXGI Duplication 备用捕获
 │   ├── gl_texture.cpp/h       # OpenGL 纹理管理
