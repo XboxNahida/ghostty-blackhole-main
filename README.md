@@ -37,7 +37,7 @@ _build/macos/blackhole-macos.app
 
 ### macOS 运行
 
-默认打开原生控制窗口。窗口里可以调整模式、空闲时间、预设播放方式，并直接选择预览渲染或启动监控：
+默认打开原生控制窗口。窗口里可以调整模式、空闲时间、预设播放方式，并直接选择预览渲染或启动监控。默认路径是 macOS 单进程：控制窗口会在截图/渲染前临时隐藏，渲染退出后回到控制窗口。
 
 ```bash
 open _build/macos/blackhole-macos.app
@@ -49,13 +49,13 @@ open _build/macos/blackhole-macos.app
 open _build/macos/blackhole-macos.app --args --config
 ```
 
-安全预览黑洞；移动鼠标或按键后会自动退出：
+安全预览黑洞；移动鼠标或按键后会自动退出。渲染窗口本身鼠标穿透、不接收焦点，因此退出依赖全局 HID 活动检测，不需要点中窗口：
 
 ```bash
 open _build/macos/blackhole-macos.app --args --render
 ```
 
-按 `blackhole_presets.txt` 的 `mode/idleSec` 进入空闲监控；监控进程不显示 Dock 图标：
+按 `blackhole_presets.txt` 的 `mode/idleSec` 直接进入空闲监控快捷模式；这个模式不显示 Dock 图标：
 
 ```bash
 open _build/macos/blackhole-macos.app --args --monitor
@@ -78,7 +78,8 @@ pkill -f blackhole-macos
 ### macOS 当前边界
 
 - 已支持默认控制窗口、主屏幕渲染、启动前桌面截图背景（包含主显示器上的其他窗口）、空闲检测、鼠标穿透、预设轮播。
-- macOS 控制窗口复刻 Windows 的主入口职责：默认先配置，再由按钮启动安全预览或后台监控；`--render` / `--monitor` 仍保留为直接快捷入口。
+- macOS 控制窗口复刻 Windows 的主入口职责：默认先配置，再由按钮启动安全预览或监控；不同于 Windows，默认交互不再使用双进程，退出控制窗口即可退出应用生命周期。
+- `--render` / `--monitor` 仍保留为直接快捷入口；所有渲染路径都会在启动短暂保护时间后检测全局鼠标/键盘活动并退出，避免全屏覆盖层不可退出。
 - 控制窗口目前只编辑基础运行参数；完整 14 项黑洞预设仍可通过 **Open Presets File** 打开 `blackhole_presets.txt` 维护。
 - 应用图标来自 `presets-grid.png` 中的自身渲染结果，源 PNG 在 `assets/blackhole-macos-icon.png`，bundle 使用 `assets/blackhole-macos.icns`。
 - `videoAsIdle` / `autoStart` 字段保持配置兼容，但 macOS 版暂不自动检测前景视频音频，也不自动安装 LaunchAgent。

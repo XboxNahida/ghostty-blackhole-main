@@ -151,21 +151,6 @@ static std::filesystem::path executableDir() {
     return std::filesystem::current_path();
 }
 
-static std::filesystem::path executablePath() {
-    char smallPath[4096];
-    uint32_t size = sizeof(smallPath);
-    if (_NSGetExecutablePath(smallPath, &size) == 0) {
-        return std::filesystem::weakly_canonical(std::filesystem::path(smallPath));
-    }
-    std::vector<char> path(size + 1);
-    uint32_t actualSize = static_cast<uint32_t>(path.size());
-    if (_NSGetExecutablePath(path.data(), &actualSize) == 0) {
-        path.back() = '\0';
-        return std::filesystem::weakly_canonical(std::filesystem::path(path.data()));
-    }
-    return executableDir() / "blackhole-macos";
-}
-
 static bool enterResourceDirectory() {
     std::vector<std::filesystem::path> candidates;
     std::string bundlePath = bundleResourcePath();
@@ -528,14 +513,17 @@ static bool captureMainDisplay(ScreenFrame& frame) {
     using GetShareableContentFn = void (*)(id, SEL, void (^)(id, NSError*));
     auto getShareableContent = reinterpret_cast<GetShareableContentFn>(objc_msgSend);
     getShareableContent(shareableContentClass, getContentSelector, ^(id content, NSError* error) {
-        if (content && !error) shareableContent = content;
+        if (content && !error) shareableContent = [content retain];
         dispatch_semaphore_signal(contentSema);
     });
     dispatch_time_t contentTimeout = dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC);
     if (dispatch_semaphore_wait(contentSema, contentTimeout) != 0 || !shareableContent) return false;
 
     NSArray* displays = ((NSArray* (*)(id, SEL))objc_msgSend)(shareableContent, NSSelectorFromString(@"displays"));
-    if (![displays count]) return false;
+    if (![displays count]) {
+        [shareableContent release];
+        return false;
+    }
 
     id display = [displays firstObject];
     uint32_t mainDisplayID = CGMainDisplayID();
@@ -557,11 +545,18 @@ static bool captureMainDisplay(ScreenFrame& frame) {
         display,
         @[],
         @[]);
-    if (!filter) return false;
+    if (!filter) {
+        [shareableContent release];
+        return false;
+    }
 
     id configuration = ((id (*)(id, SEL))objc_msgSend)(configurationClass, NSSelectorFromString(@"alloc"));
     configuration = ((id (*)(id, SEL))objc_msgSend)(configuration, NSSelectorFromString(@"init"));
-    if (!configuration) return false;
+    if (!configuration) {
+        [filter release];
+        [shareableContent release];
+        return false;
+    }
 
     NSInteger captureWidth = std::max<NSInteger>(1, static_cast<NSInteger>(std::lround(screenFrame.size.width * backingScale)));
     NSInteger captureHeight = std::max<NSInteger>(1, static_cast<NSInteger>(std::lround(screenFrame.size.height * backingScale)));
@@ -576,6 +571,12 @@ static bool captureMainDisplay(ScreenFrame& frame) {
     }
     if ([configuration respondsToSelector:NSSelectorFromString(@"setCapturesAudio:")]) {
         ((void (*)(id, SEL, BOOL))objc_msgSend)(configuration, NSSelectorFromString(@"setCapturesAudio:"), NO);
+    }
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setCaptureMicrophone:")]) {
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(configuration, NSSelectorFromString(@"setCaptureMicrophone:"), NO);
+    }
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setExcludesCurrentProcessAudio:")]) {
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(configuration, NSSelectorFromString(@"setExcludesCurrentProcessAudio:"), YES);
     }
     if ([configuration respondsToSelector:NSSelectorFromString(@"setBackgroundColor:")]) {
         ((void (*)(id, SEL, CGColorRef))objc_msgSend)(
@@ -594,13 +595,25 @@ static bool captureMainDisplay(ScreenFrame& frame) {
     });
 
     dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC);
-    if (dispatch_semaphore_wait(sema, timeout) != 0 || !image) return false;
+    if (dispatch_semaphore_wait(sema, timeout) != 0) {
+        // The ScreenCaptureKit request may still complete asynchronously after
+        // timeout; do not release its inputs out from under replayd.
+        return false;
+    }
 
-    if (!image) return false;
+    if (!image) {
+        [configuration release];
+        [filter release];
+        [shareableContent release];
+        return false;
+    }
 
     size_t width = CGImageGetWidth(image);
     size_t height = CGImageGetHeight(image);
     if (width == 0 || height == 0) {
+        [configuration release];
+        [filter release];
+        [shareableContent release];
         CGImageRelease(image);
         return false;
     }
@@ -621,6 +634,9 @@ static bool captureMainDisplay(ScreenFrame& frame) {
 
     if (!ctx) {
         CGColorSpaceRelease(colorSpace);
+        [configuration release];
+        [filter release];
+        [shareableContent release];
         CGImageRelease(image);
         return false;
     }
@@ -628,6 +644,9 @@ static bool captureMainDisplay(ScreenFrame& frame) {
     CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
     CGContextRelease(ctx);
     CGColorSpaceRelease(colorSpace);
+    [configuration release];
+    [filter release];
+    [shareableContent release];
     CGImageRelease(image);
     return true;
 }
@@ -811,10 +830,10 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns, boo
     auto bornStart = start;
     bool exiting = false;
     auto exitStart = start;
-    double launchIdleSeconds = idleSeconds();
     constexpr double birthDuration = 0.8;
     constexpr double dieDuration = 0.5;
     constexpr double inputExitGraceSeconds = 0.8;
+    constexpr double activeInputThresholdSeconds = 1.0;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -826,9 +845,7 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns, boo
             exitStart = now;
         }
         if (!exiting && exitOnUserActivity && seconds >= inputExitGraceSeconds) {
-            double currentIdleSeconds = idleSeconds();
-            double expectedIdleSeconds = launchIdleSeconds + seconds;
-            if (currentIdleSeconds + 0.2 < expectedIdleSeconds) {
+            if (idleSeconds() <= activeInputThresholdSeconds) {
                 exiting = true;
                 exitStart = now;
             }
@@ -935,7 +952,9 @@ static NSButton* makeButton(NSString* title, NSRect frame, id target, SEL action
     NSPopUpButton* playPopup_;
     NSTextField* slotField_;
     NSTextField* statusLabel_;
-    NSTask* monitorTask_;
+    NSTimer* monitorTimer_;
+    bool monitorEnabled_;
+    bool rendering_;
 }
 - (instancetype)initWithConfig:(BlackholeConfig)cfg presetNames:(const char (*)[64])names;
 @end
@@ -952,6 +971,8 @@ static NSButton* makeButton(NSString* title, NSRect frame, id target, SEL action
         } else {
             initDefaultPresetNames(names_);
         }
+        monitorEnabled_ = false;
+        rendering_ = false;
     }
     return self;
 }
@@ -1019,6 +1040,11 @@ static NSButton* makeButton(NSString* title, NSRect frame, id target, SEL action
     return YES;
 }
 
+- (void)applicationWillTerminate:(NSNotification*)notification {
+    (void)notification;
+    [self stopMonitor:nil];
+}
+
 - (void)saveControls {
     cfg_.mode = static_cast<int>([modePopup_ indexOfSelectedItem]);
     cfg_.idleSec = std::clamp(static_cast<int>([idleField_ integerValue]), 1, 1800);
@@ -1031,55 +1057,71 @@ static NSButton* makeButton(NSString* title, NSRect frame, id target, SEL action
     }
 }
 
-- (NSTask*)launchArgument:(NSString*)argument {
+- (void)runRendererInThisProcessExitWhenIdleReturns:(BOOL)exitWhenIdleReturns
+                                 exitOnUserActivity:(BOOL)exitOnUserActivity {
+    if (rendering_) return;
     [self saveControls];
 
-    std::filesystem::path exe = executablePath();
-    std::filesystem::path cwd = std::filesystem::current_path();
-    NSString* exePath = [NSString stringWithUTF8String:exe.string().c_str()];
-    NSString* cwdPath = [NSString stringWithUTF8String:cwd.string().c_str()];
+    rendering_ = true;
+    [statusLabel_ setStringValue:@"Rendering"];
+    [window_ orderOut:nil];
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
-    NSTask* task = [[NSTask alloc] init];
-    [task setExecutableURL:[NSURL fileURLWithPath:exePath]];
-    [task setCurrentDirectoryURL:[NSURL fileURLWithPath:cwdPath]];
-    [task setArguments:@[argument]];
-    NSError* error = nil;
-    if (![task launchAndReturnError:&error]) {
-        NSString* message = error ? [error localizedDescription] : @"Launch failed";
-        [statusLabel_ setStringValue:message];
-        return nil;
-    }
-    return task;
+    // Let WindowServer remove the control window before ScreenCaptureKit takes the desktop snapshot.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    int code = runRenderer(cfg_, exitWhenIdleReturns, exitOnUserActivity);
+
+    rendering_ = false;
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+    [window_ makeKeyAndOrderFront:nil];
+    [statusLabel_ setStringValue:(code == 0 ? @"Ready" : @"Renderer failed")];
 }
 
 - (void)renderPreview:(id)sender {
     (void)sender;
-    if ([self launchArgument:@"--render"]) {
-        [statusLabel_ setStringValue:@"Preview launched"];
-    }
+    [self runRendererInThisProcessExitWhenIdleReturns:NO exitOnUserActivity:YES];
 }
 
 - (void)startMonitor:(id)sender {
     (void)sender;
-    if (monitorTask_ && [monitorTask_ isRunning]) {
-        [statusLabel_ setStringValue:@"Monitor already running"];
+    [self saveControls];
+    if (monitorEnabled_) {
+        [statusLabel_ setStringValue:@"Monitoring"];
         return;
     }
-    monitorTask_ = [self launchArgument:@"--monitor"];
-    if (monitorTask_) {
-        [statusLabel_ setStringValue:@"Monitor running"];
+    monitorEnabled_ = true;
+    if (!monitorTimer_) {
+        monitorTimer_ = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                                         target:self
+                                                       selector:@selector(monitorTick:)
+                                                       userInfo:nil
+                                                        repeats:YES];
+    }
+    [statusLabel_ setStringValue:@"Monitoring"];
+    if (cfg_.mode == 0) {
+        monitorEnabled_ = false;
+        [self runRendererInThisProcessExitWhenIdleReturns:NO exitOnUserActivity:YES];
     }
 }
 
 - (void)stopMonitor:(id)sender {
     (void)sender;
-    if (monitorTask_ && [monitorTask_ isRunning]) {
-        [monitorTask_ terminate];
-        [statusLabel_ setStringValue:@"Monitor stopped"];
-    } else if (statusLabel_) {
-        [statusLabel_ setStringValue:@"Monitor stopped"];
+    monitorEnabled_ = false;
+    if (monitorTimer_) {
+        [monitorTimer_ invalidate];
+        monitorTimer_ = nil;
     }
-    monitorTask_ = nil;
+    if (statusLabel_) [statusLabel_ setStringValue:@"Monitor stopped"];
+}
+
+- (void)monitorTick:(NSTimer*)timer {
+    (void)timer;
+    if (!monitorEnabled_ || rendering_) return;
+    if (isIdleFor(cfg_)) {
+        [self runRendererInThisProcessExitWhenIdleReturns:YES exitOnUserActivity:YES];
+        if (monitorEnabled_) [statusLabel_ setStringValue:@"Monitoring"];
+    }
 }
 
 - (void)openPresets:(id)sender {
@@ -1155,13 +1197,13 @@ int main(int argc, char* argv[]) {
     }
 
     if (cfg.mode == 0) {
-        return runRenderer(cfg, false, false);
+        return runRenderer(cfg, false, true);
     }
 
     fprintf(stderr, "Black Hole macOS monitor: waiting for %d seconds idle. Press Ctrl-C to exit.\n", cfg.idleSec);
     while (true) {
         if (isIdleFor(cfg)) {
-            int code = runRenderer(cfg, true, false);
+            int code = runRenderer(cfg, true, true);
             if (code != 0) return code;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
