@@ -225,6 +225,14 @@ static void writeDefaultConfigIfMissing() {
     fclose(f);
 }
 
+static void openConfigFile() {
+    writeDefaultConfigIfMissing();
+    @autoreleasepool {
+        NSString* path = [NSString stringWithUTF8String:std::filesystem::absolute("blackhole_presets.txt").string().c_str()];
+        [[NSWorkspace sharedWorkspace] openFile:path];
+    }
+}
+
 static bool buildFragmentShader(std::string& out) {
     std::string header = readFile("shaders/frag_desktop_header.glsl");
     std::string body = readFile("blackhole.glsl");
@@ -449,24 +457,87 @@ static bool captureMainDisplay(ScreenFrame& frame) {
     }
     if (!hasScreenCaptureKit) return false;
 
+    Class shareableContentClass = NSClassFromString(@"SCShareableContent");
+    Class filterClass = NSClassFromString(@"SCContentFilter");
+    Class configurationClass = NSClassFromString(@"SCStreamConfiguration");
     Class manager = NSClassFromString(@"SCScreenshotManager");
-    SEL selector = NSSelectorFromString(@"captureImageInRect:completionHandler:");
-    if (!manager || ![manager respondsToSelector:selector]) return false;
+    SEL getContentSelector = NSSelectorFromString(@"getShareableContentWithCompletionHandler:");
+    SEL captureSelector = NSSelectorFromString(@"captureImageWithFilter:configuration:completionHandler:");
+    if (!shareableContentClass || !filterClass || !configurationClass || !manager) return false;
+    if (![shareableContentClass respondsToSelector:getContentSelector] ||
+        ![manager respondsToSelector:captureSelector]) return false;
 
     NSScreen* screen = [NSScreen mainScreen];
     if (!screen) return false;
     NSRect screenFrame = [screen frame];
-    CGRect captureRect = CGRectMake(
-        screenFrame.origin.x,
-        screenFrame.origin.y,
-        screenFrame.size.width,
-        screenFrame.size.height);
+    CGFloat backingScale = [screen backingScaleFactor];
+
+    __block id shareableContent = nil;
+    dispatch_semaphore_t contentSema = dispatch_semaphore_create(0);
+    using GetShareableContentFn = void (*)(id, SEL, void (^)(id, NSError*));
+    auto getShareableContent = reinterpret_cast<GetShareableContentFn>(objc_msgSend);
+    getShareableContent(shareableContentClass, getContentSelector, ^(id content, NSError* error) {
+        if (content && !error) shareableContent = content;
+        dispatch_semaphore_signal(contentSema);
+    });
+    dispatch_time_t contentTimeout = dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC);
+    if (dispatch_semaphore_wait(contentSema, contentTimeout) != 0 || !shareableContent) return false;
+
+    NSArray* displays = ((NSArray* (*)(id, SEL))objc_msgSend)(shareableContent, NSSelectorFromString(@"displays"));
+    if (![displays count]) return false;
+
+    id display = [displays firstObject];
+    uint32_t mainDisplayID = CGMainDisplayID();
+    SEL displayIDSelector = NSSelectorFromString(@"displayID");
+    if ([display respondsToSelector:displayIDSelector]) {
+        for (id candidate in displays) {
+            uint32_t displayID = ((uint32_t (*)(id, SEL))objc_msgSend)(candidate, displayIDSelector);
+            if (displayID == mainDisplayID) {
+                display = candidate;
+                break;
+            }
+        }
+    }
+
+    id filter = ((id (*)(id, SEL))objc_msgSend)(filterClass, NSSelectorFromString(@"alloc"));
+    filter = ((id (*)(id, SEL, id, id, id))objc_msgSend)(
+        filter,
+        NSSelectorFromString(@"initWithDisplay:excludingApplications:exceptingWindows:"),
+        display,
+        @[],
+        @[]);
+    if (!filter) return false;
+
+    id configuration = ((id (*)(id, SEL))objc_msgSend)(configurationClass, NSSelectorFromString(@"alloc"));
+    configuration = ((id (*)(id, SEL))objc_msgSend)(configuration, NSSelectorFromString(@"init"));
+    if (!configuration) return false;
+
+    NSInteger captureWidth = std::max<NSInteger>(1, static_cast<NSInteger>(std::lround(screenFrame.size.width * backingScale)));
+    NSInteger captureHeight = std::max<NSInteger>(1, static_cast<NSInteger>(std::lround(screenFrame.size.height * backingScale)));
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setWidth:")]) {
+        ((void (*)(id, SEL, NSInteger))objc_msgSend)(configuration, NSSelectorFromString(@"setWidth:"), captureWidth);
+    }
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setHeight:")]) {
+        ((void (*)(id, SEL, NSInteger))objc_msgSend)(configuration, NSSelectorFromString(@"setHeight:"), captureHeight);
+    }
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setShowsCursor:")]) {
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(configuration, NSSelectorFromString(@"setShowsCursor:"), NO);
+    }
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setCapturesAudio:")]) {
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(configuration, NSSelectorFromString(@"setCapturesAudio:"), NO);
+    }
+    if ([configuration respondsToSelector:NSSelectorFromString(@"setBackgroundColor:")]) {
+        ((void (*)(id, SEL, CGColorRef))objc_msgSend)(
+            configuration,
+            NSSelectorFromString(@"setBackgroundColor:"),
+            CGColorGetConstantColor(kCGColorBlack));
+    }
 
     dispatch_semaphore_t sema = dispatch_semaphore_create(0);
     __block CGImageRef image = nullptr;
-    using CaptureImageFn = void (*)(id, SEL, CGRect, void (^)(CGImageRef, NSError*));
+    using CaptureImageFn = void (*)(id, SEL, id, id, void (^)(CGImageRef, NSError*));
     auto captureImage = reinterpret_cast<CaptureImageFn>(objc_msgSend);
-    captureImage(manager, selector, captureRect, ^(CGImageRef capturedImage, NSError* error) {
+    captureImage(manager, captureSelector, filter, configuration, ^(CGImageRef capturedImage, NSError* error) {
         if (capturedImage && !error) image = CGImageRetain(capturedImage);
         dispatch_semaphore_signal(sema);
     });
@@ -795,6 +866,7 @@ static void printHelp(const char* argv0) {
 int main(int argc, char* argv[]) {
     @autoreleasepool {
         [NSApplication sharedApplication];
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
     }
 
     if (!enterResourceDirectory()) {
@@ -815,8 +887,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     if (config) {
-        writeDefaultConfigIfMissing();
-        printf("%s\n", std::filesystem::absolute("blackhole_presets.txt").string().c_str());
+        openConfigFile();
         return 0;
     }
     if (render) {

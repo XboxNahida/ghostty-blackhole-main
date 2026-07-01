@@ -42,7 +42,13 @@ _build/macos/blackhole-macos.app
 open _build/macos/blackhole-macos.app --args --render
 ```
 
-按 `blackhole_presets.txt` 的 `mode/idleSec` 进入空闲监控：
+打开控制配置文件：
+
+```bash
+open _build/macos/blackhole-macos.app --args --config
+```
+
+按 `blackhole_presets.txt` 的 `mode/idleSec` 进入空闲监控；监控进程不显示 Dock 图标：
 
 ```bash
 open _build/macos/blackhole-macos.app --args --monitor
@@ -64,8 +70,8 @@ pkill -f blackhole-macos
 
 ### macOS 当前边界
 
-- 已支持主屏幕渲染、启动前桌面截图背景、空闲检测、鼠标穿透、预设轮播。
-- macOS 版目前不提供 Windows 托盘菜单和 ImGui 图形配置器；可直接编辑 `blackhole_presets.txt`。
+- 已支持主屏幕渲染、启动前桌面截图背景（包含主显示器上的其他窗口）、空闲检测、鼠标穿透、预设轮播。
+- macOS 版目前不提供 Windows 托盘菜单和 ImGui 图形配置器；`--config` 会打开 `blackhole_presets.txt` 作为轻量控制界面。
 - `videoAsIdle` / `autoStart` 字段保持配置兼容，但 macOS 版暂不自动检测前景视频音频，也不自动安装 LaunchAgent。
 
 ---
