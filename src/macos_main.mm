@@ -568,7 +568,7 @@ static void updateUniformArray(GLint loc, const BlackholeConfig& cfg, float Disk
     glUniform1fv(loc, count, values);
 }
 
-static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
+static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns, bool exitOnUserActivity) {
     if (!glfwInit()) {
         fprintf(stderr, "glfwInit failed\n");
         return 1;
@@ -582,6 +582,7 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
     glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
@@ -598,7 +599,6 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
     glfwSetWindowPos(window, posX, posY);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
-    configureMacWindow(window);
 
     std::string vert = readFile("shaders/vert.glsl");
     std::string frag;
@@ -632,6 +632,8 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
         fprintf(stderr, "Screen capture unavailable; using fallback background. Grant Screen Recording permission for live desktop lensing.\n");
         makeFallbackFrame(frame, winW, winH);
     }
+    glfwShowWindow(window);
+    configureMacWindow(window);
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
@@ -685,11 +687,12 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
 
     auto start = std::chrono::steady_clock::now();
     auto bornStart = start;
-    auto lastCapture = start - std::chrono::seconds(1);
     bool exiting = false;
     auto exitStart = start;
+    double launchIdleSeconds = idleSeconds();
     constexpr double birthDuration = 0.8;
     constexpr double dieDuration = 0.5;
+    constexpr double inputExitGraceSeconds = 0.8;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -700,18 +703,17 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
             exiting = true;
             exitStart = now;
         }
+        if (!exiting && exitOnUserActivity && seconds >= inputExitGraceSeconds) {
+            double currentIdleSeconds = idleSeconds();
+            double expectedIdleSeconds = launchIdleSeconds + seconds;
+            if (currentIdleSeconds + 0.2 < expectedIdleSeconds) {
+                exiting = true;
+                exitStart = now;
+            }
+        }
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             exiting = true;
             exitStart = now;
-        }
-
-        if (!exiting && now - lastCapture >= std::chrono::milliseconds(250)) {
-            ScreenFrame next;
-            if (captureMainDisplay(next)) {
-                frame = std::move(next);
-                uploadTexture(texture, frame);
-            }
-            lastCapture = now;
         }
 
         double phaseSeconds = std::chrono::duration<double>(now - (exiting ? exitStart : bornStart)).count();
@@ -785,7 +787,7 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns) {
 static void printHelp(const char* argv0) {
     printf("Black Hole macOS\n");
     printf("Usage: %s [--render|--monitor|--config|--help]\n", argv0);
-    printf("  --render   Show the black hole immediately.\n");
+    printf("  --render   Preview the black hole immediately; mouse or keyboard activity exits.\n");
     printf("  --monitor  Wait for idleSec in blackhole_presets.txt, then show until activity returns.\n");
     printf("  --config   Create blackhole_presets.txt if missing and print its path.\n");
 }
@@ -818,17 +820,17 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     if (render) {
-        return runRenderer(cfg, false);
+        return runRenderer(cfg, false, true);
     }
 
     if (!monitor && cfg.mode == 0) {
-        return runRenderer(cfg, false);
+        return runRenderer(cfg, false, true);
     }
 
     fprintf(stderr, "Black Hole macOS monitor: waiting for %d seconds idle. Press Ctrl-C to exit.\n", cfg.idleSec);
     while (true) {
         if (isIdleFor(cfg)) {
-            int code = runRenderer(cfg, true);
+            int code = runRenderer(cfg, true, false);
             if (code != 0) return code;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));

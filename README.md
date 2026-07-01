@@ -9,7 +9,7 @@
 本仓库新增了 macOS 专用入口 `src/macos_main.mm` 和 CMake target `blackhole-macos`。macOS 版不复用 Win32/WGC/DXGI 路径，而是使用：
 
 - GLFW + OpenGL 3.3 渲染黑洞 shader
-- ScreenCaptureKit `SCScreenshotManager` 捕获主显示器画面作为引力透镜背景，兼容 macOS 26 SDK
+- ScreenCaptureKit `SCScreenshotManager` 在黑洞窗口显示前捕获一帧主显示器画面作为引力透镜背景，兼容 macOS 26 SDK
 - IOKit `HIDIdleTime` 检测用户空闲时间
 - Cocoa 设置屏保级浮动窗口、全 Space 显示、鼠标穿透
 
@@ -36,7 +36,7 @@ _build/macos/blackhole-macos.app
 
 ### macOS 运行
 
-立即显示黑洞：
+安全预览黑洞；移动鼠标或按键后会自动退出：
 
 ```bash
 open _build/macos/blackhole-macos.app --args --render
@@ -56,9 +56,15 @@ System Settings -> Privacy & Security -> Screen Recording
 
 给 `blackhole-macos` 或启动它的 Terminal 授权。未授权时程序仍会运行，但只能使用内置 fallback 背景，无法做真实桌面透镜。
 
+如果预览时需要强制退出：
+
+```bash
+pkill -f blackhole-macos
+```
+
 ### macOS 当前边界
 
-- 已支持主屏幕渲染、桌面截图背景、空闲检测、鼠标穿透、预设轮播。
+- 已支持主屏幕渲染、启动前桌面截图背景、空闲检测、鼠标穿透、预设轮播。
 - macOS 版目前不提供 Windows 托盘菜单和 ImGui 图形配置器；可直接编辑 `blackhole_presets.txt`。
 - `videoAsIdle` / `autoStart` 字段保持配置兼容，但 macOS 版暂不自动检测前景视频音频，也不自动安装 LaunchAgent。
 
