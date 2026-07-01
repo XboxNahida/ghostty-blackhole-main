@@ -7,3 +7,6 @@ tuner/dist/
 
 # Build outputs (CMake intermediate files)
 build/
+_build*/
+cmake-build-*/
+CMakeUserPresets.json

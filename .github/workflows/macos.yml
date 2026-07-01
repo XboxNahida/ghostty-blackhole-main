@@ -1,0 +1,25 @@
+name: macOS build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake glfw
+
+      - name: Configure
+        run: cmake -S . -B _build/macos -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build _build/macos --config Release --verbose
+
+      - name: Check app bundle
+        run: test -d _build/macos/blackhole-macos.app
