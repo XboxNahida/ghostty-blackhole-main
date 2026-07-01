@@ -91,6 +91,29 @@ static const DiskPreset DEFAULT_PRESETS[16] = {
     {9000, 0.45f,-0.15f, 2.6f,11.0f, 0.55f, 0.85f, 3.0f, 1.1f, 1.3f, 7.5f, 5.2f, 1.05f, 0.0f},
 };
 
+static const char* DEFAULT_PRESET_NAMES[16] = {
+    "Inferno", "Gargantua", "M87* Donut", "Face-on Ember",
+    "Quasar", "Blazar", "Pure Lens", "Inferno 2",
+    "Crimson Vortex", "Azure Spiral", "Ruby Ring", "Ghost Halo",
+    "Top-down Galaxy", "White Dwarf Beam", "Solar Forge", "Obsidian Eye"
+};
+
+static void copyCString(char* dst, size_t dstSize, const char* src) {
+    if (!dst || dstSize == 0) return;
+    std::snprintf(dst, dstSize, "%s", src ? src : "");
+}
+
+static void initDefaultPresetNames(char names[64][64]) {
+    if (!names) return;
+    for (int i = 0; i < 64; ++i) {
+        if (i < 16) {
+            copyCString(names[i], 64, DEFAULT_PRESET_NAMES[i]);
+        } else {
+            std::snprintf(names[i], 64, "Custom %d", i + 1);
+        }
+    }
+}
+
 static void initDefaultPresets(BlackholeConfig& cfg) {
     cfg.presetCount = 16;
     for (int i = 0; i < cfg.presetCount; ++i) cfg.presets[i] = DEFAULT_PRESETS[i];
@@ -128,6 +151,21 @@ static std::filesystem::path executableDir() {
     return std::filesystem::current_path();
 }
 
+static std::filesystem::path executablePath() {
+    char smallPath[4096];
+    uint32_t size = sizeof(smallPath);
+    if (_NSGetExecutablePath(smallPath, &size) == 0) {
+        return std::filesystem::weakly_canonical(std::filesystem::path(smallPath));
+    }
+    std::vector<char> path(size + 1);
+    uint32_t actualSize = static_cast<uint32_t>(path.size());
+    if (_NSGetExecutablePath(path.data(), &actualSize) == 0) {
+        path.back() = '\0';
+        return std::filesystem::weakly_canonical(std::filesystem::path(path.data()));
+    }
+    return executableDir() / "blackhole-macos";
+}
+
 static bool enterResourceDirectory() {
     std::vector<std::filesystem::path> candidates;
     std::string bundlePath = bundleResourcePath();
@@ -148,7 +186,8 @@ static bool enterResourceDirectory() {
     return false;
 }
 
-static bool loadPresetsFromFile(BlackholeConfig& cfg) {
+static bool loadPresetsFromFile(BlackholeConfig& cfg, char names[64][64] = nullptr) {
+    initDefaultPresetNames(names);
     FILE* f = fopen("blackhole_presets.txt", "r");
     if (!f) return false;
 
@@ -191,6 +230,10 @@ static bool loadPresetsFromFile(BlackholeConfig& cfg) {
 
     for (int i = 0; i < count; ++i) {
         if (!fgets(line, sizeof(line), f)) break; // name
+        if (names) {
+            line[strcspn(line, "\r\n")] = 0;
+            copyCString(names[i], 64, line[0] ? line : DEFAULT_PRESET_NAMES[i % 16]);
+        }
         if (!fgets(line, sizeof(line), f)) break; // values
         DiskPreset& p = cfg.presets[i];
         sscanf(line, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f",
@@ -204,32 +247,40 @@ static bool loadPresetsFromFile(BlackholeConfig& cfg) {
     return true;
 }
 
-static void writeDefaultConfigIfMissing() {
-    if (std::filesystem::exists("blackhole_presets.txt")) return;
-    BlackholeConfig cfg;
-    initDefaultPresets(cfg);
+static bool saveConfigToFile(const BlackholeConfig& cfg, char names[64][64]) {
     FILE* f = fopen("blackhole_presets.txt", "w");
-    if (!f) return;
+    if (!f) return false;
     fprintf(f, "# Blackhole Presets v4\n");
     fprintf(f, "%d %d %.3f %d %d %d\n", cfg.mode, cfg.idleSec, cfg.slotSec,
             cfg.playMode, static_cast<int>(cfg.videoAsIdle), static_cast<int>(cfg.autoStart));
     fprintf(f, "%d\n", cfg.presetCount);
     for (int i = 0; i < cfg.presetCount; ++i) {
         const DiskPreset& p = cfg.presets[i];
-        fprintf(f, "Preset %d\n", i + 1);
+        const char* name = names && names[i][0] ? names[i] : (i < 16 ? DEFAULT_PRESET_NAMES[i] : "Custom");
+        fprintf(f, "%s\n", name);
         fprintf(f, "%.0f %.2f %.2f %.1f %.1f %.2f %.2f %.1f %.2f %.2f %.1f %.1f %.2f %.3f\n",
                 p.temp, p.incl, p.roll, p.inner, p.outer,
                 p.opac, p.dopp, p.beam, p.gain, p.contr,
                 p.wind, p.speed, p.expo, p.star);
     }
     fclose(f);
+    return true;
+}
+
+static void writeDefaultConfigIfMissing() {
+    if (std::filesystem::exists("blackhole_presets.txt")) return;
+    BlackholeConfig cfg;
+    char names[64][64] = {};
+    initDefaultPresets(cfg);
+    initDefaultPresetNames(names);
+    saveConfigToFile(cfg, names);
 }
 
 static void openConfigFile() {
     writeDefaultConfigIfMissing();
     @autoreleasepool {
         NSString* path = [NSString stringWithUTF8String:std::filesystem::absolute("blackhole_presets.txt").string().c_str()];
-        [[NSWorkspace sharedWorkspace] openFile:path];
+        [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:path]];
     }
 }
 
@@ -855,47 +906,256 @@ static int runRenderer(const BlackholeConfig& cfg, bool exitWhenUserReturns, boo
     return 0;
 }
 
+static NSTextField* makeLabel(NSString* title, NSRect frame) {
+    NSTextField* label = [[NSTextField alloc] initWithFrame:frame];
+    [label setStringValue:title];
+    [label setEditable:NO];
+    [label setSelectable:NO];
+    [label setBordered:NO];
+    [label setDrawsBackground:NO];
+    return label;
+}
+
+static NSButton* makeButton(NSString* title, NSRect frame, id target, SEL action) {
+    NSButton* button = [[NSButton alloc] initWithFrame:frame];
+    [button setTitle:title];
+    [button setTarget:target];
+    [button setAction:action];
+    [button setBezelStyle:NSBezelStyleRounded];
+    return button;
+}
+
+@interface ConfigController : NSObject <NSApplicationDelegate> {
+@private
+    BlackholeConfig cfg_;
+    char names_[64][64];
+    NSWindow* window_;
+    NSPopUpButton* modePopup_;
+    NSTextField* idleField_;
+    NSPopUpButton* playPopup_;
+    NSTextField* slotField_;
+    NSTextField* statusLabel_;
+    NSTask* monitorTask_;
+}
+- (instancetype)initWithConfig:(BlackholeConfig)cfg presetNames:(const char (*)[64])names;
+@end
+
+@implementation ConfigController
+
+- (instancetype)initWithConfig:(BlackholeConfig)cfg presetNames:(const char (*)[64])names {
+    self = [super init];
+    if (self) {
+        cfg_ = cfg;
+        std::memset(names_, 0, sizeof(names_));
+        if (names) {
+            for (int i = 0; i < 64; ++i) copyCString(names_[i], 64, names[i]);
+        } else {
+            initDefaultPresetNames(names_);
+        }
+    }
+    return self;
+}
+
+- (void)applicationDidFinishLaunching:(NSNotification*)notification {
+    (void)notification;
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+
+    NSRect frame = NSMakeRect(0, 0, 520, 285);
+    NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
+    window_ = [[NSWindow alloc] initWithContentRect:frame
+                                          styleMask:style
+                                            backing:NSBackingStoreBuffered
+                                              defer:NO];
+    [window_ setTitle:@"Black Hole Config"];
+    [window_ center];
+
+    NSView* content = [window_ contentView];
+    [content addSubview:makeLabel(@"Mode", NSMakeRect(28, 232, 150, 22))];
+    modePopup_ = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(180, 228, 220, 28) pullsDown:NO];
+    [modePopup_ addItemWithTitle:@"Always Show"];
+    [modePopup_ addItemWithTitle:@"Idle Detection"];
+    [modePopup_ selectItemAtIndex:(cfg_.mode == 0 ? 0 : 1)];
+    [content addSubview:modePopup_];
+
+    [content addSubview:makeLabel(@"Idle seconds", NSMakeRect(28, 194, 150, 22))];
+    idleField_ = [[NSTextField alloc] initWithFrame:NSMakeRect(180, 190, 100, 26)];
+    [idleField_ setIntegerValue:std::clamp(cfg_.idleSec, 1, 1800)];
+    [content addSubview:idleField_];
+
+    [content addSubview:makeLabel(@"Preset play mode", NSMakeRect(28, 156, 150, 22))];
+    playPopup_ = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(180, 152, 220, 28) pullsDown:NO];
+    [playPopup_ addItemWithTitle:@"Sequence"];
+    [playPopup_ addItemWithTitle:@"Loop"];
+    [playPopup_ addItemWithTitle:@"Random"];
+    [playPopup_ selectItemAtIndex:std::clamp(cfg_.playMode, 0, 2)];
+    [content addSubview:playPopup_];
+
+    [content addSubview:makeLabel(@"Seconds per preset", NSMakeRect(28, 118, 150, 22))];
+    slotField_ = [[NSTextField alloc] initWithFrame:NSMakeRect(180, 114, 100, 26)];
+    [slotField_ setStringValue:[NSString stringWithFormat:@"%.1f", std::clamp(cfg_.slotSec, 1.0f, 1800.0f)]];
+    [content addSubview:slotField_];
+
+    NSButton* renderButton = makeButton(@"Render Preview", NSMakeRect(28, 68, 140, 32), self, @selector(renderPreview:));
+    [content addSubview:renderButton];
+    NSButton* startButton = makeButton(@"Start Monitor", NSMakeRect(180, 68, 140, 32), self, @selector(startMonitor:));
+    [content addSubview:startButton];
+    NSButton* stopButton = makeButton(@"Stop Monitor", NSMakeRect(332, 68, 140, 32), self, @selector(stopMonitor:));
+    [content addSubview:stopButton];
+
+    NSButton* openButton = makeButton(@"Open Presets File", NSMakeRect(28, 26, 160, 30), self, @selector(openPresets:));
+    [content addSubview:openButton];
+    NSButton* quitButton = makeButton(@"Quit", NSMakeRect(392, 26, 80, 30), self, @selector(quit:));
+    [content addSubview:quitButton];
+
+    statusLabel_ = makeLabel(@"Ready", NSMakeRect(204, 30, 175, 22));
+    [statusLabel_ setTextColor:[NSColor secondaryLabelColor]];
+    [content addSubview:statusLabel_];
+
+    [window_ makeKeyAndOrderFront:nil];
+}
+
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender {
+    (void)sender;
+    return YES;
+}
+
+- (void)saveControls {
+    cfg_.mode = static_cast<int>([modePopup_ indexOfSelectedItem]);
+    cfg_.idleSec = std::clamp(static_cast<int>([idleField_ integerValue]), 1, 1800);
+    cfg_.playMode = std::clamp(static_cast<int>([playPopup_ indexOfSelectedItem]), 0, 2);
+    cfg_.slotSec = std::clamp([slotField_ floatValue], 1.0f, 1800.0f);
+    [idleField_ setIntegerValue:cfg_.idleSec];
+    [slotField_ setStringValue:[NSString stringWithFormat:@"%.1f", cfg_.slotSec]];
+    if (!saveConfigToFile(cfg_, names_)) {
+        [statusLabel_ setStringValue:@"Save failed"];
+    }
+}
+
+- (NSTask*)launchArgument:(NSString*)argument {
+    [self saveControls];
+
+    std::filesystem::path exe = executablePath();
+    std::filesystem::path cwd = std::filesystem::current_path();
+    NSString* exePath = [NSString stringWithUTF8String:exe.string().c_str()];
+    NSString* cwdPath = [NSString stringWithUTF8String:cwd.string().c_str()];
+
+    NSTask* task = [[NSTask alloc] init];
+    [task setExecutableURL:[NSURL fileURLWithPath:exePath]];
+    [task setCurrentDirectoryURL:[NSURL fileURLWithPath:cwdPath]];
+    [task setArguments:@[argument]];
+    NSError* error = nil;
+    if (![task launchAndReturnError:&error]) {
+        NSString* message = error ? [error localizedDescription] : @"Launch failed";
+        [statusLabel_ setStringValue:message];
+        return nil;
+    }
+    return task;
+}
+
+- (void)renderPreview:(id)sender {
+    (void)sender;
+    if ([self launchArgument:@"--render"]) {
+        [statusLabel_ setStringValue:@"Preview launched"];
+    }
+}
+
+- (void)startMonitor:(id)sender {
+    (void)sender;
+    if (monitorTask_ && [monitorTask_ isRunning]) {
+        [statusLabel_ setStringValue:@"Monitor already running"];
+        return;
+    }
+    monitorTask_ = [self launchArgument:@"--monitor"];
+    if (monitorTask_) {
+        [statusLabel_ setStringValue:@"Monitor running"];
+    }
+}
+
+- (void)stopMonitor:(id)sender {
+    (void)sender;
+    if (monitorTask_ && [monitorTask_ isRunning]) {
+        [monitorTask_ terminate];
+        [statusLabel_ setStringValue:@"Monitor stopped"];
+    } else if (statusLabel_) {
+        [statusLabel_ setStringValue:@"Monitor stopped"];
+    }
+    monitorTask_ = nil;
+}
+
+- (void)openPresets:(id)sender {
+    (void)sender;
+    [self saveControls];
+    openConfigFile();
+    [statusLabel_ setStringValue:@"Presets opened"];
+}
+
+- (void)quit:(id)sender {
+    (void)sender;
+    [NSApp terminate:nil];
+}
+
+@end
+
+static int runConfigWindow(const BlackholeConfig& cfg, char names[64][64]) {
+    @autoreleasepool {
+        ConfigController* controller = [[ConfigController alloc] initWithConfig:cfg presetNames:names];
+        [NSApp setDelegate:controller];
+        [NSApp run];
+    }
+    return 0;
+}
+
 static void printHelp(const char* argv0) {
     printf("Black Hole macOS\n");
     printf("Usage: %s [--render|--monitor|--config|--help]\n", argv0);
+    printf("  no args    Open the native config/control window.\n");
     printf("  --render   Preview the black hole immediately; mouse or keyboard activity exits.\n");
     printf("  --monitor  Wait for idleSec in blackhole_presets.txt, then show until activity returns.\n");
-    printf("  --config   Create blackhole_presets.txt if missing and print its path.\n");
+    printf("  --config   Open the native config/control window.\n");
 }
 
 int main(int argc, char* argv[]) {
-    @autoreleasepool {
-        [NSApplication sharedApplication];
-        [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-    }
-
     if (!enterResourceDirectory()) {
         fprintf(stderr, "Could not find blackhole.glsl and shaders/. Run from the repo root or the .app bundle.\n");
         return 1;
     }
-
-    BlackholeConfig cfg;
-    if (!loadPresetsFromFile(cfg)) initDefaultPresets(cfg);
 
     bool render = argc >= 2 && strcmp(argv[1], "--render") == 0;
     bool monitor = argc >= 2 && strcmp(argv[1], "--monitor") == 0;
     bool config = argc >= 2 && strcmp(argv[1], "--config") == 0;
     bool help = argc >= 2 && strcmp(argv[1], "--help") == 0;
 
+    @autoreleasepool {
+        [NSApplication sharedApplication];
+        [NSApp setActivationPolicy:(render || monitor)
+            ? NSApplicationActivationPolicyAccessory
+            : NSApplicationActivationPolicyRegular];
+    }
+
+    BlackholeConfig cfg;
+    char names[64][64] = {};
+    if (!loadPresetsFromFile(cfg, names)) {
+        initDefaultPresets(cfg);
+        initDefaultPresetNames(names);
+    }
+
     if (help) {
         printHelp(argv[0]);
         return 0;
     }
     if (config) {
-        openConfigFile();
-        return 0;
+        return runConfigWindow(cfg, names);
     }
     if (render) {
         return runRenderer(cfg, false, true);
     }
 
-    if (!monitor && cfg.mode == 0) {
-        return runRenderer(cfg, false, true);
+    if (!monitor) {
+        return runConfigWindow(cfg, names);
+    }
+
+    if (cfg.mode == 0) {
+        return runRenderer(cfg, false, false);
     }
 
     fprintf(stderr, "Black Hole macOS monitor: waiting for %d seconds idle. Press Ctrl-C to exit.\n", cfg.idleSec);

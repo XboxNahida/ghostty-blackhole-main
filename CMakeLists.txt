@@ -16,9 +16,14 @@ if(APPLE)
     find_package(OpenGL REQUIRED)
 
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
+    set(BLACKHOLE_MACOS_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/blackhole-macos.icns")
+    set_source_files_properties("${BLACKHOLE_MACOS_ICON}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
 
     add_executable(blackhole-macos MACOSX_BUNDLE
         src/macos_main.mm
+        "${BLACKHOLE_MACOS_ICON}"
     )
 
     target_compile_features(blackhole-macos PRIVATE cxx_std_17)
@@ -40,6 +45,7 @@ if(APPLE)
     set_target_properties(blackhole-macos PROPERTIES
         MACOSX_BUNDLE_BUNDLE_NAME "Black Hole"
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.huiyeruzhou.blackhole"
+        MACOSX_BUNDLE_ICON_FILE "blackhole-macos.icns"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
         MACOSX_BUNDLE_BUNDLE_VERSION "1"
     )

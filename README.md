@@ -12,6 +12,7 @@
 - ScreenCaptureKit `SCScreenshotManager` 在黑洞窗口显示前捕获一帧主显示器画面作为引力透镜背景，兼容 macOS 26 SDK
 - IOKit `HIDIdleTime` 检测用户空闲时间
 - Cocoa 设置屏保级浮动窗口、全 Space 显示、鼠标穿透
+- 使用自身黑洞渲染预览裁切出的 macOS `.icns` 应用图标
 
 ### macOS 构建
 
@@ -36,16 +37,22 @@ _build/macos/blackhole-macos.app
 
 ### macOS 运行
 
+默认打开原生控制窗口。窗口里可以调整模式、空闲时间、预设播放方式，并直接选择预览渲染或启动监控：
+
+```bash
+open _build/macos/blackhole-macos.app
+```
+
+也可以显式打开控制窗口：
+
+```bash
+open _build/macos/blackhole-macos.app --args --config
+```
+
 安全预览黑洞；移动鼠标或按键后会自动退出：
 
 ```bash
 open _build/macos/blackhole-macos.app --args --render
-```
-
-打开控制配置文件：
-
-```bash
-open _build/macos/blackhole-macos.app --args --config
 ```
 
 按 `blackhole_presets.txt` 的 `mode/idleSec` 进入空闲监控；监控进程不显示 Dock 图标：
@@ -70,8 +77,10 @@ pkill -f blackhole-macos
 
 ### macOS 当前边界
 
-- 已支持主屏幕渲染、启动前桌面截图背景（包含主显示器上的其他窗口）、空闲检测、鼠标穿透、预设轮播。
-- macOS 版目前不提供 Windows 托盘菜单和 ImGui 图形配置器；`--config` 会打开 `blackhole_presets.txt` 作为轻量控制界面。
+- 已支持默认控制窗口、主屏幕渲染、启动前桌面截图背景（包含主显示器上的其他窗口）、空闲检测、鼠标穿透、预设轮播。
+- macOS 控制窗口复刻 Windows 的主入口职责：默认先配置，再由按钮启动安全预览或后台监控；`--render` / `--monitor` 仍保留为直接快捷入口。
+- 控制窗口目前只编辑基础运行参数；完整 14 项黑洞预设仍可通过 **Open Presets File** 打开 `blackhole_presets.txt` 维护。
+- 应用图标来自 `presets-grid.png` 中的自身渲染结果，源 PNG 在 `assets/blackhole-macos-icon.png`，bundle 使用 `assets/blackhole-macos.icns`。
 - `videoAsIdle` / `autoStart` 字段保持配置兼容，但 macOS 版暂不自动检测前景视频音频，也不自动安装 LaunchAgent。
 
 ---
