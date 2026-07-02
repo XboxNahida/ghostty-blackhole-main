@@ -272,89 +272,108 @@ QString BlackHoleCore::configFilePath() const
     return appDir + "/blackhole_presets.txt";
 }
 
+QString BlackHoleCore::configDir() const
+{
+    return QFileInfo(configFilePath()).absolutePath();
+}
+
+
 // ====== 配置读写 (v4 格式，与原始项目完全兼容) ======
 
 void BlackHoleCore::loadConfig()
 {
     QString path = configFilePath();
     QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    bool parsed = file.open(QIODevice::ReadOnly | QIODevice::Text);
+
+    if (!parsed) {
         qDebug() << "BlackHoleCore: config file not found, using defaults:" << path;
         initDefaultPresets();
-        emit configLoaded();
-        return;
     }
 
-    QTextStream in(&file);
+    if (parsed) {
+        QTextStream in(&file);
 
-    // Line 1: comment "# Blackhole Presets v4"
-    QString line = in.readLine();
-    bool isV5 = line.contains("v5");
-    if (!line.contains("v4") && !isV5) {
-        // 旧版本格式, 使用默认值
-        initDefaultPresets();
-        emit configLoaded();
-        return;
+        // Line 1: comment "# Blackhole Presets v4"
+        QString line = in.readLine();
+        bool isV5 = line.contains("v5");
+        if (!line.contains("v4") && !isV5) {
+            parsed = false;
+        }
+
+        if (parsed) {
+            // Line 2: mode idleSec slotSec playMode videoAsIdle autoStart
+            line = in.readLine();
+            if (line.isNull()) {
+                parsed = false;
+            } else {
+                QTextStream ls(&line);
+                int vidAsIdle = 0, autoSt = 0;
+                ls >> m_displayMode >> m_idleSeconds >> m_slotSeconds >> m_playMode >> vidAsIdle >> autoSt;
+                m_videoAsIdle = (vidAsIdle != 0);
+                m_autoStart   = (autoSt != 0);
+            }
+        }
+
+        if (parsed) {
+            // Line 3: presetCount
+            line = in.readLine();
+            if (line.isNull()) {
+                parsed = false;
+            } else {
+                int count = line.toInt();
+                if (count < 1 || count > 64) count = 16;
+
+                QVector<PresetData> presets;
+                presets.reserve(count);
+                for (int i = 0; i < count; i++) {
+                    QString name = in.readLine();
+                    QString vals = in.readLine();
+                    if (name.isNull() || vals.isNull()) break;
+
+                    PresetData p;
+                    p.name = name.trimmed();
+
+                    QTextStream vs(&vals);
+                    vs >> p.diskTemp >> p.diskIncl >> p.diskRoll >> p.diskInner >> p.diskOuter
+                       >> p.diskOpac >> p.diskDopp >> p.diskBeam >> p.diskGain >> p.diskContr
+                       >> p.diskWind >> p.diskSpeed >> p.diskExpo >> p.diskStar;
+
+                    presets.append(p);
+                }
+
+                if (!presets.isEmpty()) {
+                    m_presetModel->setPresets(presets);
+                } else {
+                    parsed = false;
+                }
+            }
+        }
+
+        file.close();
+
+        if (!parsed) {
+            initDefaultPresets();
+        }
     }
 
-    // Line 2: mode idleSec slotSec playMode videoAsIdle autoStart
-    line = in.readLine();
-    if (line.isNull()) { emit configLoaded(); return; }
-    {
-        QTextStream ls(&line);
-        int vidAsIdle = 0, autoSt = 0;
-        ls >> m_displayMode >> m_idleSeconds >> m_slotSeconds >> m_playMode >> vidAsIdle >> autoSt;
-        m_videoAsIdle = (vidAsIdle != 0);
-        m_autoStart   = (autoSt != 0);
-    }
+    setCurrentPresetIndex(0);
+    refreshCurrentPresetProps();
     emit displayModeChanged();
     emit idleSecondsChanged();
     emit playModeChanged();
     emit slotSecondsChanged();
     emit videoAsIdleChanged();
     emit autoStartChanged();
-
-    // Line 3: presetCount
-    line = in.readLine();
-    if (line.isNull()) { emit configLoaded(); return; }
-    int count = line.toInt();
-    if (count < 1 || count > 64) count = 16;
-
-    // Lines 4+: name + 14 values
-    QVector<PresetData> presets;
-    presets.reserve(count);
-    for (int i = 0; i < count; i++) {
-        QString name = in.readLine();
-        QString vals = in.readLine();
-        if (name.isNull() || vals.isNull()) break;
-
-        PresetData p;
-        p.name = name.trimmed();
-
-        QTextStream vs(&vals);
-        vs >> p.diskTemp >> p.diskIncl >> p.diskRoll >> p.diskInner >> p.diskOuter
-           >> p.diskOpac >> p.diskDopp >> p.diskBeam >> p.diskGain >> p.diskContr
-           >> p.diskWind >> p.diskSpeed >> p.diskExpo >> p.diskStar;
-
-        presets.append(p);
-    }
-
-    if (!presets.isEmpty()) {
-        m_presetModel->setPresets(presets);
-    } else {
-        initDefaultPresets();
-    }
-
-    setCurrentPresetIndex(0);
-    refreshCurrentPresetProps();
     emit configLoaded();
     qDebug() << "BlackHoleCore: loaded" << m_presetModel->rowCount() << "presets from" << path;
 
-    // 加载子配置文件
+    // 子配置始终加载，不受主配置解析结果影响
     loadAdvancedConfig();
     loadIdleListConfig();
     loadScheduleConfig();
     loadSystemConfig();
+    loadAllLists();
 }
 
 void BlackHoleCore::saveConfig()
@@ -415,6 +434,7 @@ void BlackHoleCore::saveConfig()
     saveIdleListConfig();
     saveScheduleConfig();
     saveSystemConfig();
+    saveAllLists();
 
     emit configSaved();
     qDebug() << "BlackHoleCore: saved" << presets.size() << "presets to" << path;
@@ -1448,6 +1468,145 @@ void BlackHoleCore::loadSystemConfig()
     }
     file.close();
     qDebug() << "BlackHoleCore: loaded system config";
+}
+
+// ====== 多预设列表持久化 ======
+
+void BlackHoleCore::saveAllLists()
+{
+    // 先将当前列表的修改同步回 allLists
+    if (m_currentListIndex >= 0 && m_currentListIndex < m_allLists.size()) {
+        m_allLists[m_currentListIndex] = m_presetModel->presets();
+    }
+
+    QString path = configDir() + "/blackhole_lists.txt";
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning() << "BlackHoleCore: cannot write lists config:" << path;
+        return;
+    }
+
+    QTextStream out(&file);
+    out << "# Blackhole Preset Lists v1\n";
+    out << "listCount " << m_allLists.size() << "\n";
+    out << "currentList " << m_currentListIndex << "\n\n";
+
+    for (int i = 0; i < m_allLists.size(); i++) {
+        const QVector<PresetData> &list = m_allLists[i];
+        out << "[list]\n";
+        out << "listName " << m_listNames[i] << "\n";
+        out << "presetCount " << list.size() << "\n";
+        for (const PresetData &p : list) {
+            out << p.name << "\n";
+            out << QString::number(p.diskTemp,  'f', 0) << " "
+                << QString::number(p.diskIncl,  'f', 2) << " "
+                << QString::number(p.diskRoll,  'f', 2) << " "
+                << QString::number(p.diskInner, 'f', 1) << " "
+                << QString::number(p.diskOuter, 'f', 1) << " "
+                << QString::number(p.diskOpac,  'f', 2) << " "
+                << QString::number(p.diskDopp,  'f', 2) << " "
+                << QString::number(p.diskBeam,  'f', 1) << " "
+                << QString::number(p.diskGain,  'f', 2) << " "
+                << QString::number(p.diskContr, 'f', 2) << " "
+                << QString::number(p.diskWind,  'f', 1) << " "
+                << QString::number(p.diskSpeed, 'f', 1) << " "
+                << QString::number(p.diskExpo,  'f', 2) << " "
+                << QString::number(p.diskStar,  'f', 3) << "\n";
+        }
+        out << "[/list]\n";
+        if (i < m_allLists.size() - 1) out << "\n";
+    }
+    file.close();
+    qDebug() << "BlackHoleCore: saved" << m_allLists.size() << "preset lists";
+}
+
+void BlackHoleCore::loadAllLists()
+{
+    QString path = configDir() + "/blackhole_lists.txt";
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        // 文件不存在 (首次运行或旧版本): 用当前模型数据创建默认列表
+        if (m_allLists.isEmpty()) {
+            QVector<PresetData> current = m_presetModel->presets();
+            if (!current.isEmpty()) {
+                m_allLists.append(current);
+                m_listNames.append(QString::fromUtf8("\xe9\xbb\x98\xe8\xae\xa4"));
+            }
+        }
+        if (m_listNames.isEmpty()) {
+            m_listNames.append(QString::fromUtf8("\xe9\xbb\x98\xe8\xae\xa4"));
+        }
+        m_currentListIndex = 0;
+        m_presetListModel->setNames(m_listNames);
+        return;
+    }
+
+    QTextStream in(&file);
+    m_allLists.clear();
+    m_listNames.clear();
+
+    int savedCurrentList = 0;
+    bool inList = false;
+    QVector<PresetData> currentPresets;
+    QString currentListName;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith('#')) continue;
+
+        if (line.startsWith("listCount ")) {
+            // 跳过，仅用于验证
+        } else if (line.startsWith("currentList ")) {
+            savedCurrentList = line.mid(12).toInt();
+        } else if (line == "[list]") {
+            inList = true;
+            currentPresets.clear();
+            currentListName.clear();
+        } else if (line == "[/list]") {
+            if (inList && !currentListName.isEmpty() && !currentPresets.isEmpty()) {
+                m_allLists.append(currentPresets);
+                m_listNames.append(currentListName);
+            }
+            inList = false;
+        } else if (inList && line.startsWith("listName ")) {
+            currentListName = line.mid(9);
+        } else if (inList && line.startsWith("presetCount ")) {
+            // 跳过，按实际读取行数确定数量
+        } else if (inList) {
+            // 预设名行 + 参数行 成对出现
+            QString presetName = line;
+            QString valsLine = in.readLine();
+            if (valsLine.isNull()) break;
+            valsLine = valsLine.trimmed();
+            if (valsLine.isEmpty()) continue;
+
+            PresetData p;
+            p.name = presetName;
+            QTextStream vs(&valsLine);
+            vs >> p.diskTemp >> p.diskIncl >> p.diskRoll >> p.diskInner >> p.diskOuter
+               >> p.diskOpac >> p.diskDopp >> p.diskBeam >> p.diskGain >> p.diskContr
+               >> p.diskWind >> p.diskSpeed >> p.diskExpo >> p.diskStar;
+            currentPresets.append(p);
+        }
+    }
+    file.close();
+
+    // 兜底: 如果解析为空, 使用当前模型数据
+    if (m_allLists.isEmpty()) {
+        QVector<PresetData> fallback = m_presetModel->presets();
+        if (!fallback.isEmpty()) {
+            m_allLists.append(fallback);
+            m_listNames.append(QString::fromUtf8("\xe9\xbb\x98\xe8\xae\xa4"));
+        }
+    }
+    if (m_listNames.isEmpty()) {
+        m_listNames.append(QString::fromUtf8("\xe9\xbb\x98\xe8\xae\xa4"));
+    }
+
+    m_currentListIndex = (savedCurrentList >= 0 && savedCurrentList < m_allLists.size())
+                         ? savedCurrentList : 0;
+    m_presetListModel->setNames(m_listNames);
+    qDebug() << "BlackHoleCore: loaded" << m_allLists.size() << "preset lists";
 }
 
 // ====== 系统设置 getter/setter ======

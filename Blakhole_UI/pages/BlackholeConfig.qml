@@ -1,4 +1,4 @@
-// BlackholeConfig.qml 闁冲厜鍋撻柍鍏夊亾 濮掓稒鍨剁粈濠囨煀瀹ュ洨鏋傚☉鎾愁煼閵嗗妫?(v2: 閻庝絻顫夌敮?C++ BlackHoleCore + 闁活亞鍠庨悿?Shader 濡澘瀚～?
+﻿// BlackholeConfig.qml 闁冲厜鍋撻柍鍏夊亾 濮掓稒鍨剁粈濠囨煀瀹ュ洨鏋傚☉鎾愁煼閵嗗妫?(v2: 閻庝絻顫夌敮?C++ BlackHoleCore + 闁活亞鍠庨悿?Shader 濡澘瀚～?
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -406,6 +406,19 @@ Item {
                         containerColor: theme.focusColor
                         textColor: "#ffffff"
                         onClicked: { if (bhCore) bhCore.saveConfig() }
+                    }
+                    Components.EButton {
+                        text: "\u5220\u9664\u5217\u8868"
+                        size: "xs"
+                        iconCharacter: "\uf1f8"
+                        backgroundVisible: true
+                        containerColor: "#d32f2f"
+                        textColor: "#ffffff"
+                        onClicked: {
+                            if (bhCore && bhCore.presetListModel && bhCore.presetListModel.rowCount() > 1) {
+                                bhCore.deleteCurrentList()
+                            }
+                        }
                     }
                 }
             }

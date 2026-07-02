@@ -358,6 +358,7 @@ signals:
 private:
     void initDefaultPresets();
     QString configFilePath() const;
+    QString configDir() const;
     void refreshCurrentPresetProps();
     void saveAdvancedConfig();
     void loadAdvancedConfig();
@@ -367,6 +368,8 @@ private:
     void loadScheduleConfig();
     void saveSystemConfig();
     void loadSystemConfig();
+    void saveAllLists();
+    void loadAllLists();
 
     PresetModel *m_presetModel;
 
