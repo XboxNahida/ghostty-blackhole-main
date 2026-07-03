@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 
 Item {
     id: root
@@ -65,12 +66,28 @@ Item {
     // 下拉弹出
     Popup {
         id: popup
-        y: root.height + 4
         x: 0
         width: root.width
         implicitHeight: listView.contentHeight + 8
         padding: 4
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        // 自动检测: 空间不足时向上弹出, 避免超出窗口边界被裁剪
+        // 用 model 长度估算高度, 不依赖 ListView.contentHeight (弹出前可能未布局)
+        property bool dropUp: false
+        readonly property int estimatedHeight: (root.model ? root.model.length : 0) * 32 + 16
+
+        onAboutToShow: {
+            var win = root.Window.window
+            if (!win) { popup.dropUp = false; return }
+            var posInWin = root.mapToItem(win.contentItem, 0, 0)
+            var spaceBelow = win.height - posInWin.y - root.height
+            var spaceAbove = posInWin.y
+            var needed = popup.estimatedHeight + 4
+            popup.dropUp = (spaceBelow < needed) && (spaceAbove >= needed)
+        }
+
+        y: popup.dropUp ? -popup.estimatedHeight - 4 : root.height + 4
 
         background: Rectangle {
             radius: 8

@@ -25,6 +25,7 @@ add_executable(blackhole
     src/imgui/imgui_impl_opengl3.cpp
     src/gl_texture.cpp
     src/win32_gl.cpp
+    src/monitors.cpp
     src/win32_window.cpp
     src/d3d11_renderer.cpp
     resource.rc
@@ -47,6 +48,9 @@ target_link_libraries(blackhole PRIVATE
     runtimeobject
     dwmapi
     comctl32
+    ole32
+    advapi32
+    wtsapi32
 )
 
 # Compile with MSYS2 GCC (ucrt64)
@@ -56,12 +60,19 @@ if(MINGW)
     # Fix windres popen bug on Windows
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
     # 自动拷贝 MSYS2 UCRT64 运行时 DLL 到输出目录
+    # 缺这些会启动报错"找不到 glfw3.dll"等
     set(UCRT64_BIN "C:/msys64/ucrt64/bin")
-    add_custom_command(TARGET blackhole POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${UCRT64_BIN}/libwinpthread-1.dll"
-            "$<TARGET_FILE_DIR:blackhole>/libwinpthread-1.dll"
-        COMMENT "Copying libwinpthread-1.dll to output directory"
-    )
+    foreach(ucrt_dll
+            glfw3.dll
+            libgcc_s_seh-1.dll
+            libstdc++-6.dll
+            libwinpthread-1.dll)
+        add_custom_command(TARGET blackhole POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${UCRT64_BIN}/${ucrt_dll}"
+                "$<TARGET_FILE_DIR:blackhole>/${ucrt_dll}"
+            COMMENT "Copying ${ucrt_dll} to output directory"
+        )
+    endforeach()
 endif()
 

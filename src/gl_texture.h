@@ -15,6 +15,10 @@ bool GLTex_Init(GLTextureUpload& gt, int width, int height);
 
 void GLTex_Upload(GLTextureUpload& gt, const void* data, int stride);
 
+// 上传到 GL 纹理的子区域（用于跨屏拼接）
+void GLTex_UploadRegion(GLTextureUpload& gt, const void* data, int stride,
+                        int dstX, int dstY, int regionW, int regionH);
+
 bool GLTex_Resize(GLTextureUpload& gt, int width, int height);
 
 GLuint GLTex_GetTexture(const GLTextureUpload& gt);

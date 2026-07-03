@@ -5,8 +5,6 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
-#include <QSurfaceFormat>
-#include <QSGRendererInterface>
 #include "core/systemtray.h"
 #include "core/blackholecore.h"
 #include "core/blackholepreviewfbo.h"
@@ -39,6 +37,12 @@ int main(int argc, char *argv[])
     BlackHoleCore blackHoleCore;
     engine.rootContext()->setContextProperty("blackHoleCore", &blackHoleCore);
     blackHoleCore.loadConfig();
+
+    // MSYS2 的 Qt6 编译时硬编码 QML 导入路径为 <exe_dir>/share/qt6/qml/,
+    // 但 windeployqt6 把 QML 模块部署到 <exe_dir>/qml/. 两者不匹配,
+    // 导致运行时报 "module QtQuick.Controls is not installed".
+    // 显式添加 exe 同级 qml/ 目录到导入路径.
+    engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
 
     QObject::connect(
         &engine,

@@ -102,7 +102,7 @@ Item {
                 onClicked: {
                     if (bhCore) {
                         if (bhCore.systemActive) bhCore.stopAll()
-                        else bhCore.applyAndStart()
+                        else bhCore.startRenderer()
                     }
                 }
             }

@@ -1,0 +1,8 @@
+# Blackhole Advanced Overrides
+holeRadius=-1.000
+diskGain=-1.000
+diskTemp=-1.0
+exposure=-1.000
+spd=-1.000
+starGain=-1.000
+diskIncl=-1.000
