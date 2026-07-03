@@ -8,6 +8,20 @@ tuner/dist/
 # Build outputs
 build/
 Blakhole_UI/build/
+Blakhole_UI/build_qt/
+
+# Runtime / debug artifacts
+blackhole_debug.txt
+Blakhole_UI/build_qt/blackhole_*.txt
+Blakhole_UI/build_qt/*.glsl
+Blakhole_UI/build_qt/shaders/
+
+# Stray logs and temp test files
+*.log
+Blakhole_UI/err_*.log
+Blakhole_UI/pp.log
+Blakhole_UI/verbose.log
+Blakhole_UI/test_clean.cpp
 
 # Release (large binaries)
 release/

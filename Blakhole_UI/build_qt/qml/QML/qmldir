@@ -1,6 +1,0 @@
-module QML
-designersupported
-system
-typeinfo plugins.qmltypes
-prefer :/qt-project.org/imports/QML/
-

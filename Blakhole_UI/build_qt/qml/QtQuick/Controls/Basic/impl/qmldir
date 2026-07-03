@@ -1,8 +1,0 @@
-module QtQuick.Controls.Basic.impl
-linktarget Qt6::qtquickcontrols2basicstyleimplplugin
-optional plugin qtquickcontrols2basicstyleimplplugin
-classname QtQuickControls2BasicStyleImplPlugin
-typeinfo plugins.qmltypes
-depends QtQuick auto
-prefer :/qt-project.org/imports/QtQuick/Controls/Basic/impl/
-

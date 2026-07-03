@@ -1,3 +1,0 @@
-set(__QT_DEPLOY_TARGET_appBlakholeUI_FILE D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/appBlakholeUI.exe)
-set(__QT_DEPLOY_TARGET_appBlakholeUI_TYPE EXECUTABLE)
-set(__QT_DEPLOY_TARGET_appBlakholeUI_RUNTIME_DLLS C:/msys64/ucrt64/bin/Qt6Quick.dll;C:/msys64/ucrt64/bin/Qt6Widgets.dll;C:/msys64/ucrt64/bin/Qt6OpenGL.dll;C:/msys64/ucrt64/bin/Qt6QmlMeta.dll;C:/msys64/ucrt64/bin/Qt6QmlWorkerScript.dll;C:/msys64/ucrt64/bin/Qt6QmlModels.dll;C:/msys64/ucrt64/bin/Qt6Qml.dll;C:/msys64/ucrt64/bin/Qt6Network.dll;C:/msys64/ucrt64/bin/Qt6Gui.dll;C:/msys64/ucrt64/bin/Qt6Core.dll)

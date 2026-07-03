@@ -588,7 +588,7 @@ void BlackHoleCore::resetDefaults()
     m_slotSeconds = 5.25f;
     m_videoAsIdle = false;
     m_autoStart   = false;
-    m_captureMode = 0;  // 默认 WGC (Win10/Win11 都可用; DXGI 在某些 Win10 上 DuplicateOutput 会 0x80070005)
+    m_captureMode = -1; // 默认自动检测 (Win10→DXGI 无黄框, Win11 22H2+→WGC)
     m_fixedSize   = false;
     m_fixedLevel  = 1.0f;
 
