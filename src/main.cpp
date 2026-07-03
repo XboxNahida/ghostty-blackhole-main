@@ -614,6 +614,60 @@ static bool isIdle(DWORD ms) {
 static PROCESS_INFORMATION g_pi = {};
 static bool g_sessionLocked = false;  // 跟踪当前会话是否被锁屏
 
+// ---- 一屏一黑洞 (displayMode==3): 子渲染器管理 ----
+// 父渲染器为每个副屏 spawn 一个 "blackhole.exe --render --screen N" 子进程。
+// 用 Job Object 保证父进程退出（含被强杀）时子进程自动终止。
+static HWND FindWindowByPID(DWORD pid);  // 前向声明（定义在下方）
+static HANDLE g_hChildJob = nullptr;
+static std::vector<PROCESS_INFORMATION> g_childRenderers;
+
+static void EnsureChildJob() {
+    if (g_hChildJob) return;
+    g_hChildJob = CreateJobObjectA(nullptr, nullptr);
+    if (!g_hChildJob) return;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+    info.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(g_hChildJob, JobObjectExtendedLimitInformation,
+                            &info, sizeof(info));
+}
+
+static void SpawnChildRenderer(const char* selfPath, int screenIdx) {
+    EnsureChildJob();
+    STARTUPINFOA si = {}; si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    char cmd[MAX_PATH + 32];
+    snprintf(cmd, sizeof(cmd), "\"%s\" --render --screen %d", selfPath, screenIdx);
+    PROCESS_INFORMATION pi = {};
+    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
+                       CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
+        // 必须在挂起状态下加入 Job Object，再恢复主线程，最后关闭线程句柄。
+        // 顺序不能错：AssignProcessToJobObject 要在 ResumeThread 之前完成，
+        // 而 ResumeThread 需要的是线程句柄 (pi.hThread) 不是进程句柄。
+        if (g_hChildJob) AssignProcessToJobObject(g_hChildJob, pi.hProcess);
+        ResumeThread(pi.hThread);
+        CloseHandle(pi.hThread);
+        pi.hThread = NULL;
+        g_childRenderers.push_back(pi);
+    }
+}
+
+static void KillChildRenderers() {
+    for (auto& pi : g_childRenderers) {
+        if (!pi.hProcess) continue;
+        HWND hwnd = FindWindowByPID(pi.dwProcessId);
+        if (hwnd) PostMessage(hwnd, WM_CLOSE, 0, 0);
+    }
+    for (auto& pi : g_childRenderers) {
+        if (!pi.hProcess) continue;
+        if (WaitForSingleObject(pi.hProcess, 2000) == WAIT_TIMEOUT)
+            TerminateProcess(pi.hProcess, 0);
+        CloseHandle(pi.hProcess);
+    }
+    g_childRenderers.clear();
+}
+
 static void MonitorSpawn(const char* selfPath) {
     if (g_pi.hProcess) return;
     STARTUPINFOA si = {}; si.cb = sizeof(si);
@@ -678,8 +732,18 @@ int main(int argc, char* argv[]) {
     bool isConfig = (argc >= 2 && strcmp(argv[1], "--config") == 0);
     bool isMonitor = (argc >= 2 && strcmp(argv[1], "--monitor") == 0);
 
-    // 直接写入调试文件
-    FILE* debugLog = fopen("blackhole_debug.txt", "w");
+    // --screen <idx>: 一屏一黑洞模式的子进程参数，指定渲染到第几个显示器
+    // 父进程不传 --screen，子进程传 --screen N (N>=1)
+    int screenIdx = -1;
+    if (isRenderer && argc >= 4 && strcmp(argv[2], "--screen") == 0) {
+        screenIdx = atoi(argv[3]);
+    }
+
+    // 直接写入调试文件（子进程用独立文件名避免冲突）
+    char debugName[64] = "blackhole_debug.txt";
+    if (screenIdx >= 0)
+        snprintf(debugName, sizeof(debugName), "blackhole_debug_screen%d.txt", screenIdx);
+    FILE* debugLog = fopen(debugName, "w");
     if (debugLog) {
         fprintf(debugLog, "========== BLACKHOLE START ==========\n");
         fprintf(debugLog, "[Init] isRenderer=%d, argc=%d\n", isRenderer, argc);
@@ -716,6 +780,30 @@ int main(int argc, char* argv[]) {
             InitDefaultPresets(cfg);
         LoadAdvancedConfig(cfg);
         cfg.mode = 0;
+
+        // === 一屏一黑洞 (displayMode==3) 多进程分发 ===
+        // 父进程 (screenIdx==-1): 枚举显示器，为副屏 spawn 子进程，本进程负责主屏
+        // 子进程 (screenIdx>=1): 强制 displayMode=0，绑定到指定显示器
+        if (screenIdx < 0 && cfg.displayMode == 3) {
+            auto monitors = EnumerateMonitors();
+            if (monitors.size() <= 1) {
+                if (debugLog) { fprintf(debugLog, "[Init] 一屏一黑洞: 只有 %zu 屏, fallback 到 displayMode=0\n", monitors.size()); fflush(debugLog); }
+                cfg.displayMode = 0;
+            } else {
+                char selfPath[MAX_PATH]; GetModuleFileNameA(nullptr, selfPath, MAX_PATH);
+                // 为 monitors[1..N-1] 各 spawn 一个子进程
+                for (size_t i = 1; i < monitors.size(); i++) {
+                    SpawnChildRenderer(selfPath, (int)i);
+                }
+                // 本进程负责 monitors[0] (主屏)，降级为 displayMode=0
+                cfg.displayMode = 0;
+                if (debugLog) { fprintf(debugLog, "[Init] 一屏一黑洞: 父进程负责屏0, spawn %zu 个子进程\n", monitors.size() - 1); fflush(debugLog); }
+            }
+        } else if (screenIdx >= 0) {
+            // 子进程: 强制 displayMode=0，显示器选择在下方用 screenIdx 覆盖
+            cfg.displayMode = 0;
+            if (debugLog) { fprintf(debugLog, "[Init] 子渲染器 screenIdx=%d, displayMode forced to 0\n", screenIdx); fflush(debugLog); }
+        }
     } else if (isConfig) {
         // === CONFIG ONLY: show config panel, save and exit ===
         if (!glfwInit()) { fprintf(stderr, "glfwInit failed\n"); return 1; }
@@ -856,6 +944,21 @@ int main(int argc, char* argv[]) {
     MonitorInfo monPrimary = GetPrimaryMonitor();
     MonitorInfo monSecondary = GetSecondaryMonitor();
     bool hasSecondary = (monSecondary.hMon != monPrimary.hMon);
+
+    // 一屏一黑洞子进程: 覆盖 monPrimary 为指定显示器
+    if (screenIdx >= 0) {
+        auto monitors = EnumerateMonitors();
+        if ((size_t)screenIdx < monitors.size()) {
+            monPrimary = monitors[screenIdx];
+            if (debugLog) { fprintf(debugLog, "[Init] screenIdx=%d → 绑定到显示器 (%d,%d %dx%d) primary=%d\n",
+                screenIdx, monPrimary.rc.left, monPrimary.rc.top,
+                monPrimary.rc.right - monPrimary.rc.left,
+                monPrimary.rc.bottom - monPrimary.rc.top,
+                (int)monPrimary.isPrimary); fflush(debugLog); }
+        } else {
+            if (debugLog) { fprintf(debugLog, "[WARN] screenIdx=%d 超出显示器数量, fallback 主屏\n", screenIdx); fflush(debugLog); }
+        }
+    }
 
     int winX, winY, winW, winH;
     if (cfg.displayMode == 0) {
@@ -1046,7 +1149,11 @@ int main(int argc, char* argv[]) {
     GLint locPresetOff = gl_GetUniformLocation(program, "uPresetOffset");
 
     // ---- 随机化初始位置、轨迹和预设 ----
-    srand((unsigned)time(nullptr));
+    // 一屏一黑洞: 子进程用 screenIdx 给种子加偏移，确保各屏黑洞行为独立。
+    // 否则同秒启动的父子进程会拿到相同的 time(nullptr) → 相同的 rand() 序列 →
+    // 相同的 home/phase/presetOff，两个屏的黑洞动作完全同步。
+    unsigned seed = (unsigned)time(nullptr) + (unsigned)(screenIdx + 1) * 2654435761u;
+    srand(seed);
     // 随机出生位置：避免边缘，范围 [0.15, 0.85]
     float randHomeX = 0.15f + 0.70f * (float)rand() / (float)RAND_MAX;
     float randHomeY = 0.15f + 0.70f * (float)rand() / (float)RAND_MAX;
@@ -1054,8 +1161,8 @@ int main(int argc, char* argv[]) {
     float randPhase = 6.2831853f * (float)rand() / (float)RAND_MAX;
     // 随机预设偏移：0 ~ 60秒（覆盖多个预设周期）
     float randPresetOff = 60.0f * (float)rand() / (float)RAND_MAX;
-    if (debugLog) { fprintf(debugLog, "[Init] Random spawn: home=(%.2f,%.2f) phase=%.2f presetOff=%.1f\n",
-                            randHomeX, randHomeY, randPhase, randPresetOff); fflush(debugLog); }
+    if (debugLog) { fprintf(debugLog, "[Init] Random spawn: home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
+                            randHomeX, randHomeY, randPhase, randPresetOff, seed, screenIdx); fflush(debugLog); }
 
     gl_UseProgram(0);
 
@@ -1342,6 +1449,9 @@ int main(int argc, char* argv[]) {
     gl_DeleteVertexArrays(1, &vao);
     gl_DeleteBuffers(1, &vbo);
     Win32GL_Shutdown(wgl);
+
+    // 一屏一黑洞: 终止所有子渲染器 (Job Object 也会兜底)
+    KillChildRenderers();
 #else
     {
         Win32Window win;

@@ -12,6 +12,7 @@ Blakhole_UI/build_qt/
 
 # Runtime / debug artifacts
 blackhole_debug.txt
+blackhole_debug_screen*.txt
 Blakhole_UI/build_qt/blackhole_*.txt
 Blakhole_UI/build_qt/*.glsl
 Blakhole_UI/build_qt/shaders/
