@@ -1,0 +1,108 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 17,
+                        "durationMicroseconds": 622,
+                        "errorMessage": "",
+                        "functionName": "source",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 16,
+                        "durationMicroseconds": 114,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 17
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 17,
+                        "durationMicroseconds": 144,
+                        "errorMessage": "",
+                        "functionName": "height",
+                        "line": 18
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 19,
+                        "durationMicroseconds": 147,
+                        "errorMessage": "",
+                        "functionName": "fillMode",
+                        "line": 19
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 88,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 17,
+                        "durationMicroseconds": 144,
+                        "errorMessage": "",
+                        "functionName": "source",
+                        "line": 25
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 21,
+                        "durationMicroseconds": 92,
+                        "errorMessage": "",
+                        "functionName": "maskSource",
+                        "line": 28
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 270,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 26
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 16,
+                        "durationMicroseconds": 130,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 35
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 17,
+                        "durationMicroseconds": 219,
+                        "errorMessage": "",
+                        "functionName": "height",
+                        "line": 36
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 21,
+                        "durationMicroseconds": 194,
+                        "errorMessage": "",
+                        "functionName": "radius",
+                        "line": 42
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 81,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 41
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/EAvatar.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

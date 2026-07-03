@@ -1,0 +1,116 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 27,
+                        "durationMicroseconds": 348,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "isDark",
+                        "line": 9
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 33,
+                        "durationMicroseconds": 223,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "followSystem",
+                        "line": 10
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 34,
+                        "durationMicroseconds": 568,
+                        "errorMessage": "",
+                        "functionName": "primaryColor",
+                        "line": 13
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 406,
+                        "errorMessage": "",
+                        "functionName": "secondaryColor",
+                        "line": 14
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 473,
+                        "errorMessage": "",
+                        "functionName": "textColor",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 33,
+                        "durationMicroseconds": 1368,
+                        "errorMessage": "",
+                        "functionName": "borderColor",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 38,
+                        "durationMicroseconds": 3273,
+                        "errorMessage": "",
+                        "functionName": "blurOverlayColor",
+                        "line": 17
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 266,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "focusColor",
+                        "line": 19
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 33,
+                        "durationMicroseconds": 482,
+                        "errorMessage": "",
+                        "functionName": "shadowColor",
+                        "line": 22
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 5,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Functions without type annotations won't be compiled",
+                        "functionName": "getBorderColor",
+                        "line": 44
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 5,
+                        "durationMicroseconds": 604,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "toggleTheme",
+                        "line": 48
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 22,
+                        "durationMicroseconds": 48,
+                        "errorMessage": "Cannot access value for name followSystem",
+                        "functionName": "onTriggered",
+                        "line": 33
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 143,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 60
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ETheme.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

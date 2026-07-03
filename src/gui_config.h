@@ -35,6 +35,10 @@ struct BlackholeConfig {
     float slotSec        = 5.25f; // 每个预设播放秒数
     bool  videoAsIdle     = false; // 播放视频时视为空闲
     bool  autoStart       = false; // 开机自启
+    bool  fixedSize       = false; // 固定大小（不再随时间增长）
+    float fixedLevel      = 1.0f; // 固定大小级别（0.01~1.0 = 1%~100%）
+    int   captureMode     = -1;   // -1=自动检测, 0=WGC, 1=DXGI
+    int   displayMode     = 0;    // 0=主屏, 1=副屏, 2=主+副穿梭
     bool  confirmed  = false;
 };
 

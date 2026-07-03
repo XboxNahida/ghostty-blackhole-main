@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/qt/qml/BlakholeUI/">
+    <file alias="components/qmldir">D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/BlakholeUI/components/qmldir</file>
+    <file alias="pages/qmldir">D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/BlakholeUI/pages/qmldir</file>
+  </qresource>
+</RCC>
+

@@ -1,0 +1,572 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 29,
+                        "durationMicroseconds": 111,
+                        "errorMessage": "Cannot load property idleWhitelist from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/IdleListConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "whitelist",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 29,
+                        "durationMicroseconds": 39,
+                        "errorMessage": "Cannot load property idleBlacklist from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/IdleListConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "blacklist",
+                        "line": 21
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 5,
+                        "durationMicroseconds": 88,
+                        "errorMessage": "Cannot load property length from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/IdleListConfig.qml)::whitelist with type QVariant.",
+                        "functionName": "refreshModels",
+                        "line": 39
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 19,
+                        "durationMicroseconds": 157,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 11
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 58,
+                        "errorMessage": "Type (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/IdleListConfig.qml)::bhCore with type QVariant does not have a property idleWhitelist for writing",
+                        "functionName": "onCompleted",
+                        "line": 30
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 82,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 51
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 276,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 61
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 30,
+                        "durationMicroseconds": 355,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 59
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 3003,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 67
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 148,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 77
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 108,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 81
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 203,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 89
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 1270,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 87
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 233,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 95
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "wrapMode",
+                        "line": 96
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 134,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 109
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 39,
+                        "durationMicroseconds": 126,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 110
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 251,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 117
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 113,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 119
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 85,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 115
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 272,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 123
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 52,
+                        "durationMicroseconds": 114,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 125
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 382,
+                        "errorMessage": "",
+                        "functionName": "visible",
+                        "line": 126
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 47,
+                        "durationMicroseconds": 81,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 121
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 464,
+                        "errorMessage": "method refreshModels cannot be resolved.",
+                        "functionName": "onClicked",
+                        "line": 137
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 115,
+                        "errorMessage": "",
+                        "functionName": "model",
+                        "line": 154
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 50,
+                        "errorMessage": "Cannot access value for name whiteListView",
+                        "functionName": "width",
+                        "line": 159
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 179,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 162
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 46,
+                        "errorMessage": "Cannot access value for name model",
+                        "functionName": "text",
+                        "line": 168
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 210,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 170
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 53,
+                        "durationMicroseconds": 183,
+                        "errorMessage": "",
+                        "functionName": "verticalCenter",
+                        "line": 165
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 155,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 166
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 66,
+                        "errorMessage": "Cannot access value for name listPage",
+                        "functionName": "onClicked",
+                        "line": 185
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 44,
+                        "durationMicroseconds": 158,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 174
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 53,
+                        "durationMicroseconds": 153,
+                        "errorMessage": "",
+                        "functionName": "verticalCenter",
+                        "line": 176
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 46,
+                        "durationMicroseconds": 141,
+                        "errorMessage": "",
+                        "functionName": "acceptedButtons",
+                        "line": 197
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 80,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 195
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 218,
+                        "errorMessage": "",
+                        "functionName": "text",
+                        "line": 203
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 254,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 205
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 114,
+                        "errorMessage": "",
+                        "functionName": "alignment",
+                        "line": 206
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 131,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 216
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 84,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 220
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 228,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 226
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 228,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 234
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 107,
+                        "errorMessage": "",
+                        "functionName": "wrapMode",
+                        "line": 235
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 248
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 39,
+                        "durationMicroseconds": 126,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 249
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 270,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 256
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 114,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 258
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 472,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 254
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 1094,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 262
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 52,
+                        "durationMicroseconds": 136,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 264
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 1123,
+                        "errorMessage": "",
+                        "functionName": "visible",
+                        "line": 265
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 47,
+                        "durationMicroseconds": 95,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 260
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 750,
+                        "errorMessage": "method refreshModels cannot be resolved.",
+                        "functionName": "onClicked",
+                        "line": 276
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 144,
+                        "errorMessage": "",
+                        "functionName": "model",
+                        "line": 293
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 54,
+                        "errorMessage": "Cannot access value for name blackListView",
+                        "functionName": "width",
+                        "line": 298
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 196,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 301
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 60,
+                        "errorMessage": "Cannot access value for name model",
+                        "functionName": "text",
+                        "line": 307
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 227,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 309
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 53,
+                        "durationMicroseconds": 189,
+                        "errorMessage": "",
+                        "functionName": "verticalCenter",
+                        "line": 304
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 157,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 305
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 75,
+                        "errorMessage": "Cannot access value for name listPage",
+                        "functionName": "onClicked",
+                        "line": 324
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 44,
+                        "durationMicroseconds": 165,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 313
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 53,
+                        "durationMicroseconds": 155,
+                        "errorMessage": "",
+                        "functionName": "verticalCenter",
+                        "line": 315
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 46,
+                        "durationMicroseconds": 168,
+                        "errorMessage": "",
+                        "functionName": "acceptedButtons",
+                        "line": 336
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 85,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 334
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 261,
+                        "errorMessage": "",
+                        "functionName": "text",
+                        "line": 342
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 245,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 344
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 136,
+                        "errorMessage": "",
+                        "functionName": "alignment",
+                        "line": 345
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/IdleListConfig.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

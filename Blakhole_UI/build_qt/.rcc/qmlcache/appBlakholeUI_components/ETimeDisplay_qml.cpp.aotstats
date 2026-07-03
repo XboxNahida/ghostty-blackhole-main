@@ -1,0 +1,140 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 5,
+                        "durationMicroseconds": 1425,
+                        "errorMessage": "Cannot generate efficient code for call to untyped JavaScript function",
+                        "functionName": "updateTime",
+                        "line": 59
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 16,
+                        "durationMicroseconds": 184,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 18
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 80,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 19,
+                        "durationMicroseconds": 49,
+                        "errorMessage": "Cannot access value for name currentHour",
+                        "functionName": "text",
+                        "line": 22
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 34,
+                        "durationMicroseconds": 109,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 25
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 234,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 26
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 20,
+                        "durationMicroseconds": 139,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 27
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 131,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 34
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 22,
+                        "durationMicroseconds": 38,
+                        "errorMessage": "Cannot access value for name separatorVisible",
+                        "functionName": "visible",
+                        "line": 36
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 184,
+                        "errorMessage": "",
+                        "functionName": "horizontalCenter",
+                        "line": 35
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 19,
+                        "durationMicroseconds": 54,
+                        "errorMessage": "Cannot access value for name currentMinute",
+                        "functionName": "text",
+                        "line": 42
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 34,
+                        "durationMicroseconds": 152,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 44
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 243,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 45
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 20,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 46
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 22,
+                        "durationMicroseconds": 98,
+                        "errorMessage": "method updateTime cannot be resolved.",
+                        "functionName": "onTriggered",
+                        "line": 56
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 109,
+                        "errorMessage": "",
+                        "functionName": "onCompleted",
+                        "line": 70
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ETimeDisplay.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

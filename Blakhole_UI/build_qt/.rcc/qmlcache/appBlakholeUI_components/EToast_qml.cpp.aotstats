@@ -1,0 +1,92 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 5,
+                        "durationMicroseconds": 1,
+                        "errorMessage": "Functions without type annotations won't be compiled",
+                        "functionName": "show",
+                        "line": 13
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 16,
+                        "durationMicroseconds": 119,
+                        "errorMessage": "Cannot load property secondaryColor from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/EToast.qml)::theme with type QVariant.",
+                        "functionName": "color",
+                        "line": 22
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 271,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 20
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 55,
+                        "errorMessage": "Cannot load property textColor from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/EToast.qml)::theme with type QVariant.",
+                        "functionName": "color",
+                        "line": 37
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 86,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 36
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 130,
+                        "errorMessage": "",
+                        "functionName": "target",
+                        "line": 46
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 91,
+                        "errorMessage": "",
+                        "functionName": "target",
+                        "line": 47
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 104,
+                        "durationMicroseconds": 167,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 47
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 99,
+                        "errorMessage": "",
+                        "functionName": "target",
+                        "line": 53
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 93,
+                        "errorMessage": "",
+                        "functionName": "target",
+                        "line": 54
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/EToast.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

@@ -1,0 +1,404 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 5,
+                        "durationMicroseconds": 747,
+                        "errorMessage": "",
+                        "functionName": "open",
+                        "line": 27
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 5,
+                        "durationMicroseconds": 81,
+                        "errorMessage": "",
+                        "functionName": "close",
+                        "line": 28
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 19,
+                        "durationMicroseconds": 98,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 9
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 16,
+                        "durationMicroseconds": 375,
+                        "errorMessage": "Cannot generate efficient code for internal conversion with incompatible or ambiguous types: QVariant -> QColor stored as QVariant",
+                        "functionName": "color",
+                        "line": 34
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 33
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 77,
+                        "durationMicroseconds": 118,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 36
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 151,
+                        "errorMessage": "",
+                        "functionName": "acceptedButtons",
+                        "line": 39
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 317,
+                        "errorMessage": "",
+                        "functionName": "onClicked",
+                        "line": 42
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 802,
+                        "errorMessage": "",
+                        "functionName": "onPressed",
+                        "line": 43
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 207,
+                        "errorMessage": "",
+                        "functionName": "onPressed",
+                        "line": 43
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 25,
+                        "durationMicroseconds": 261,
+                        "errorMessage": "",
+                        "functionName": "onReleased",
+                        "line": 44
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 25,
+                        "durationMicroseconds": 387,
+                        "errorMessage": "",
+                        "functionName": "onReleased",
+                        "line": 44
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 107,
+                        "errorMessage": "",
+                        "functionName": "onDoubleClicked",
+                        "line": 45
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 637,
+                        "errorMessage": "",
+                        "functionName": "onDoubleClicked",
+                        "line": 45
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 22,
+                        "durationMicroseconds": 106,
+                        "errorMessage": "",
+                        "functionName": "onWheel",
+                        "line": 46
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 22,
+                        "durationMicroseconds": 66,
+                        "errorMessage": "",
+                        "functionName": "onWheel",
+                        "line": 46
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 84,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 38
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 17,
+                        "durationMicroseconds": 212,
+                        "errorMessage": "",
+                        "functionName": "height",
+                        "line": 54
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 21,
+                        "durationMicroseconds": 101,
+                        "errorMessage": "",
+                        "functionName": "blurSource",
+                        "line": 56
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 74,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 55
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 77,
+                        "durationMicroseconds": 102,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 60
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 75,
+                        "durationMicroseconds": 97,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 61
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 73,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 65
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 262,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 74
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 109,
+                        "errorMessage": "",
+                        "functionName": "wrapMode",
+                        "line": 75
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 203,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 83
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 100,
+                        "errorMessage": "",
+                        "functionName": "wrapMode",
+                        "line": 84
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on visible.",
+                        "functionName": "visible",
+                        "line": 91
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 23,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on text.",
+                        "functionName": "text",
+                        "line": 92
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 93
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 128
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 27,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: checkBox",
+                        "functionName": "text",
+                        "line": 97
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 232,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 99
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 120,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 100
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: checkBox",
+                        "functionName": "x",
+                        "line": 107
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 455,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 108
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 44,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: checkBox",
+                        "functionName": "color",
+                        "line": 110
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: checkBox",
+                        "functionName": "color",
+                        "line": 111
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: checkBox",
+                        "functionName": "visible",
+                        "line": 124
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 88,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 119
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 290,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 121
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 35,
+                        "durationMicroseconds": 130,
+                        "errorMessage": "",
+                        "functionName": "alignment",
+                        "line": 133
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 121,
+                        "errorMessage": "",
+                        "functionName": "text",
+                        "line": 138
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 213,
+                        "errorMessage": "",
+                        "functionName": "visible",
+                        "line": 139
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 214,
+                        "errorMessage": "",
+                        "functionName": "onClicked",
+                        "line": 142
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 27,
+                        "durationMicroseconds": 64,
+                        "errorMessage": "Cannot access value for name cancelText",
+                        "functionName": "text",
+                        "line": 146
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 203,
+                        "errorMessage": "",
+                        "functionName": "onClicked",
+                        "line": 149
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 27,
+                        "durationMicroseconds": 71,
+                        "errorMessage": "Cannot access value for name confirmText",
+                        "functionName": "text",
+                        "line": 152
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 228,
+                        "errorMessage": "",
+                        "functionName": "onClicked",
+                        "line": 155
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/EAlertDialog.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

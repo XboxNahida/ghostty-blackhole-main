@@ -1,0 +1,1644 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 12,
+                        "durationMicroseconds": 1,
+                        "errorMessage": "Cannot resolve property type  for binding on flags.",
+                        "functionName": "flags",
+                        "line": 18
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 12,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on color.",
+                        "functionName": "color",
+                        "line": 43
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 116,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "skipExitDialog",
+                        "line": 47
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 52,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "defaultCloseAction",
+                        "line": 48
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 30,
+                        "durationMicroseconds": 51,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "autoStart",
+                        "line": 49
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 55,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "launchMinimized",
+                        "line": 50
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 116,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "screenTarget",
+                        "line": 51
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 16,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onClosing.",
+                        "functionName": "onClosing",
+                        "line": 721
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onExitRequested.",
+                        "functionName": "onExitRequested",
+                        "line": 32
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: systemTray",
+                        "functionName": "onCompleted",
+                        "line": 31
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 29,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onCompleted",
+                        "line": 35
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 167,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 55
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 20,
+                        "durationMicroseconds": 165,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 61
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 68,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 60
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 139,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 67
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 180,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 68
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 143,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 69
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 35,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 77
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 74,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 75
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 40,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "width",
+                        "line": 87
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 143,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 84
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 144,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 85
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 134,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 86
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 112,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 91
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 92
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 69,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 90
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 36,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "width",
+                        "line": 101
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 146,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 98
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 99
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 136,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 100
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 103,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 105
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 106
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 71,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 104
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 21,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "height",
+                        "line": 115
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 112
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 138,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 113
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 127,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 114
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 96,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 119
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 29,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 120
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 68,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 118
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 21,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "height",
+                        "line": 130
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 126
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 129,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 127
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 128
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 34,
+                        "durationMicroseconds": 179,
+                        "errorMessage": "",
+                        "functionName": "rightMargin",
+                        "line": 129
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 100,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 134
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 135
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 71,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 133
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "width",
+                        "line": 143
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 21,
+                        "durationMicroseconds": 24,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "height",
+                        "line": 144
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 136,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 141
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 198,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 142
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 98,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 148
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 33,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 149
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 67,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 147
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "width",
+                        "line": 157
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 21,
+                        "durationMicroseconds": 24,
+                        "errorMessage": "Cannot access value for name resizeMargin",
+                        "functionName": "height",
+                        "line": 158
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 138,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 155
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 129,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 156
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 94,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 162
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onPressed",
+                        "line": 163
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 71,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 161
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 134,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 172
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 173
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 35,
+                        "durationMicroseconds": 66,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 178
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 47,
+                        "durationMicroseconds": 134,
+                        "errorMessage": "",
+                        "functionName": "horizontalCenter",
+                        "line": 182
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 138,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 184
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 185
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 129,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 186
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 128,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 187
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 188
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 127,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 189
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 160,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 190
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 157,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 191
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 128,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 193
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 83,
+                        "durationMicroseconds": 125,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 194
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 126,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 201
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 47,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "horizontalCenter",
+                        "line": 198
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 21,
+                        "durationMicroseconds": 94,
+                        "errorMessage": "",
+                        "functionName": "height",
+                        "line": 211
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 25,
+                        "durationMicroseconds": 79,
+                        "errorMessage": "",
+                        "functionName": "blurSource",
+                        "line": 212
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 138,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 214
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 128,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 215
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 125,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 216
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 223
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 130,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 224
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 233
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 303,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 234
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 218,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 244
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 35,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onItemClicked",
+                        "line": 258
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 84,
+                        "errorMessage": "",
+                        "functionName": "onItemClicked",
+                        "line": 258
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 144,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 246
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 187,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 247
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 183,
+                        "errorMessage": "",
+                        "functionName": "onClicked",
+                        "line": 272
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 33,
+                        "durationMicroseconds": 234,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 265
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 266
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 224,
+                        "errorMessage": "",
+                        "functionName": "text",
+                        "line": 284
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 167,
+                        "errorMessage": "",
+                        "functionName": "iconCharacter",
+                        "line": 285
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 143,
+                        "errorMessage": "",
+                        "functionName": "onClicked",
+                        "line": 287
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 33,
+                        "durationMicroseconds": 169,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 279
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 140,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 280
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 20,
+                        "durationMicroseconds": 93,
+                        "errorMessage": "",
+                        "functionName": "theme",
+                        "line": 296
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 144,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 297
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 142,
+                        "errorMessage": "",
+                        "functionName": "horizontalCenter",
+                        "line": 298
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 200,
+                        "errorMessage": "",
+                        "functionName": "topMargin",
+                        "line": 299
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 228,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 305
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 223,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 306
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 218,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 307
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 29,
+                        "durationMicroseconds": 220,
+                        "errorMessage": "",
+                        "functionName": "bottom",
+                        "line": 308
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 25,
+                        "durationMicroseconds": 260,
+                        "errorMessage": "Cannot access value for name blackHoleCore",
+                        "functionName": "bhCore",
+                        "line": 316
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 29,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "visible",
+                        "line": 318
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 87,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 317
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 27,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "visible",
+                        "line": 324
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 72,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 323
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 23,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "visible",
+                        "line": 330
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 97,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 329
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 26,
+                        "durationMicroseconds": 34,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "visible",
+                        "line": 336
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 72,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 335
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 157,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 346
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 104,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 352
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 145,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 358
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 234,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 362
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 364
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 114,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 369
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 372
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 72,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 375
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 383
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 96,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 381
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 389
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 38,
+                        "durationMicroseconds": 103,
+                        "errorMessage": "",
+                        "functionName": "checked",
+                        "line": 394
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 40,
+                        "durationMicroseconds": 170,
+                        "errorMessage": "",
+                        "functionName": "onToggled",
+                        "line": 395
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 106,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 403
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 406
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 89,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 409
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 357,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 417
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 112,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 415
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 138,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 423
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 429
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 430
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 34,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: exitAskCheck",
+                        "functionName": "x",
+                        "line": 435
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 352,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 436
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 34,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: exitAskCheck",
+                        "functionName": "color",
+                        "line": 438
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: exitAskCheck",
+                        "functionName": "color",
+                        "line": 439
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: exitAskCheck",
+                        "functionName": "visible",
+                        "line": 450
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 55,
+                        "durationMicroseconds": 76,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 445
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 104,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 447
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 458
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 199,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 461
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 101,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 464
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 166,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 472
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 100,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 470
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 478
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 484
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 485
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: autoStartCheck",
+                        "functionName": "x",
+                        "line": 490
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 322,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 491
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: autoStartCheck",
+                        "functionName": "color",
+                        "line": 493
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 27,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: autoStartCheck",
+                        "functionName": "color",
+                        "line": 494
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 27,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: autoStartCheck",
+                        "functionName": "visible",
+                        "line": 505
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 55,
+                        "durationMicroseconds": 75,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 500
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 100,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 502
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 99,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 513
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 516
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 69,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 519
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 129,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 527
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 93,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 525
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 167,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 534
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 539
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 540
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: launchMinimizedCheck",
+                        "functionName": "x",
+                        "line": 545
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 356,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 546
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 33,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: launchMinimizedCheck",
+                        "functionName": "color",
+                        "line": 548
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 36,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: launchMinimizedCheck",
+                        "functionName": "color",
+                        "line": 549
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 29,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: launchMinimizedCheck",
+                        "functionName": "visible",
+                        "line": 560
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 55,
+                        "durationMicroseconds": 79,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 555
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 101,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 557
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 99,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 569
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 224,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 572
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 92,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 575
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 146,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 583
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 99,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 581
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 589
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 327,
+                        "errorMessage": "Cannot generate efficient code for storing an array in a non-sequence type",
+                        "functionName": "model",
+                        "line": 596
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "currentIndex",
+                        "line": 597
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 42,
+                        "durationMicroseconds": 26,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onActivated",
+                        "line": 598
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 66,
+                        "errorMessage": "",
+                        "functionName": "onActivated",
+                        "line": 598
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 108,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 608
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 611
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 74,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 614
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 134,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 622
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 42,
+                        "durationMicroseconds": 104,
+                        "errorMessage": "",
+                        "functionName": "family",
+                        "line": 620
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 137,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 628
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "color",
+                        "line": 635
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 16,
+                        "durationMicroseconds": 171,
+                        "errorMessage": "",
+                        "functionName": "width",
+                        "line": 651
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 21,
+                        "durationMicroseconds": 75,
+                        "errorMessage": "",
+                        "functionName": "blurSource",
+                        "line": 654
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 22,
+                        "durationMicroseconds": 859,
+                        "errorMessage": "Cannot generate efficient code for internal conversion with incompatible or ambiguous types: QVariant -> QColor stored as QVariant",
+                        "functionName": "borderColor",
+                        "line": 657
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 24,
+                        "durationMicroseconds": 141,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 647
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 22,
+                        "durationMicroseconds": 136,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 648
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 68,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 664
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: systemTray",
+                        "functionName": "onClicked",
+                        "line": 674
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 56,
+                        "errorMessage": "Cannot access value for name skipExitDialog",
+                        "functionName": "onClicked",
+                        "line": 684
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 53,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onConfirm",
+                        "line": 709
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 18,
+                        "durationMicroseconds": 47,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onExtra",
+                        "line": 713
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onCheckboxToggled",
+                        "line": 717
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 61,
+                        "errorMessage": "",
+                        "functionName": "onCheckboxToggled",
+                        "line": 717
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/Main.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

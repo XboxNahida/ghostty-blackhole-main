@@ -1,0 +1,156 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 18,
+                        "durationMicroseconds": 3,
+                        "errorMessage": "Cannot resolve property type  for binding on closePolicy.",
+                        "functionName": "closePolicy",
+                        "line": 15
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 634,
+                        "errorMessage": "",
+                        "functionName": "onCompleted",
+                        "line": 9
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 200,
+                        "errorMessage": "",
+                        "functionName": "onDestruction",
+                        "line": 10
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 23,
+                        "durationMicroseconds": 1321,
+                        "errorMessage": "Cannot generate efficient code for internal conversion with incompatible or ambiguous types: QVariant -> QColor stored as QVariant",
+                        "functionName": "color",
+                        "line": 36
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 119,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 41
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 22,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on running.",
+                        "functionName": "running",
+                        "line": 48
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 77,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 46
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 840,
+                        "errorMessage": "Cannot generate efficient code for internal conversion with incompatible or ambiguous types: conversion to QVariant -> QColor stored as QVariant",
+                        "functionName": "color",
+                        "line": 58
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 154,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 53
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 238,
+                        "errorMessage": "",
+                        "functionName": "right",
+                        "line": 54
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 35,
+                        "durationMicroseconds": 72,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 61
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 117,
+                        "errorMessage": "",
+                        "functionName": "cursorShape",
+                        "line": 71
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: root",
+                        "functionName": "onClicked",
+                        "line": 72
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 68,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 69
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 16799,
+                        "errorMessage": "",
+                        "functionName": "top",
+                        "line": 78
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 27,
+                        "durationMicroseconds": 150,
+                        "errorMessage": "",
+                        "functionName": "left",
+                        "line": 79
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 94
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 26,
+                        "durationMicroseconds": 101,
+                        "errorMessage": "",
+                        "functionName": "type",
+                        "line": 100
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/BlackholeLargePreview.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

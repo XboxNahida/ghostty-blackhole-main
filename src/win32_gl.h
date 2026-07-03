@@ -14,12 +14,14 @@ struct Win32GL {
     int    capOffY = 0;
     int    capFullW = 0;  // 全屏分辨率
     int    capFullH = 0;
+    int    targetX  = 0;  // 窗口目标位置（Show 时用）
+    int    targetY  = 0;  // 窗口目标位置（Show 时用）
     bool   active = false;
 };
 
 // 初始化：创建全屏无边框窗口 + WGL OpenGL 3.3 兼容上下文
-// width/height = 0 表示使用主显示器分辨率
-bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height);
+// x,y = 窗口目标位置（Show 时移到该坐标），width/height = 0 表示用主显示器分辨率
+bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int height);
 
 // 交换帧缓冲
 void Win32GL_SwapBuffers(Win32GL& wgl);

@@ -1,0 +1,17 @@
+# Blackhole Advanced Settings v1
+followMouse=0
+videoAsIdle=0
+randomPath=1
+animationSpeed=1
+screenSwallow=0
+distortion=1.00
+holeSize=1.00
+growEnabled=0
+initialSize=0.30
+holeRadius=-1.0
+diskGain=-1.000
+diskTemp=-1.0
+exposure=-1.000
+spd=-1.0
+starGain=-1.000
+diskIncl=-1.000

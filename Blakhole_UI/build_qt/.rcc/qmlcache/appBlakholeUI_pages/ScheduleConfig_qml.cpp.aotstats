@@ -1,0 +1,796 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 114,
+                        "errorMessage": "Cannot load property scheduleEnabled from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "scheduleEnabled",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 29,
+                        "durationMicroseconds": 29,
+                        "errorMessage": "Cannot load property startHour from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "startHour",
+                        "line": 17
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 31,
+                        "durationMicroseconds": 26,
+                        "errorMessage": "Cannot load property startMinute from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "startMinute",
+                        "line": 18
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 27,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot load property endHour from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "endHour",
+                        "line": 19
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 29,
+                        "durationMicroseconds": 24,
+                        "errorMessage": "Cannot load property endMinute from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "endMinute",
+                        "line": 20
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 37,
+                        "durationMicroseconds": 26,
+                        "errorMessage": "Cannot load property countdownEnabled from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "countdownEnabled",
+                        "line": 21
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 24,
+                        "errorMessage": "Cannot load property countdownMinutes from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "countdownMinutes",
+                        "line": 22
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 19,
+                        "durationMicroseconds": 167,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 11
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 92,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 25
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 244,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 35
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 30,
+                        "durationMicroseconds": 230,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 33
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 199,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 41
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 125,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 51
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 269,
+                        "errorMessage": "",
+                        "functionName": "preferredHeight",
+                        "line": 49
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 87,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 56
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 266,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 64
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 256,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 62
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 134,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 71
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 195,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 82
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 87
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 88
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 34,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: schedCheck",
+                        "functionName": "x",
+                        "line": 94
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 59,
+                        "durationMicroseconds": 512,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 94
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 40,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: schedCheck",
+                        "functionName": "color",
+                        "line": 96
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: schedCheck",
+                        "functionName": "color",
+                        "line": 97
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: schedCheck",
+                        "functionName": "visible",
+                        "line": 103
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 91,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 101
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 276,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 102
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 229,
+                        "errorMessage": "",
+                        "functionName": "opacity",
+                        "line": 113
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 131,
+                        "errorMessage": "",
+                        "functionName": "enabled",
+                        "line": 114
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 52,
+                        "durationMicroseconds": 273,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 118
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 49,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on value.",
+                        "functionName": "value",
+                        "line": 124
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 41,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onValueChanged.",
+                        "functionName": "onValueChanged",
+                        "line": 126
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 150,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 128
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 143,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 129
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 63,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: startHSpin",
+                        "functionName": "text",
+                        "line": 132
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 561,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 133
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 163,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 134
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 106,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 135
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 66,
+                        "durationMicroseconds": 210,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 139
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 62,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on value.",
+                        "functionName": "value",
+                        "line": 143
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 41,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onValueChanged.",
+                        "functionName": "onValueChanged",
+                        "line": 145
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 147
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 122,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 148
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 40,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: startMSpin",
+                        "functionName": "text",
+                        "line": 151
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 272,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 152
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 132,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 153
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 107,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 154
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 203,
+                        "errorMessage": "",
+                        "functionName": "opacity",
+                        "line": 163
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 189,
+                        "errorMessage": "",
+                        "functionName": "enabled",
+                        "line": 164
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 52,
+                        "durationMicroseconds": 276,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 168
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 49,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on value.",
+                        "functionName": "value",
+                        "line": 174
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 41,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onValueChanged.",
+                        "functionName": "onValueChanged",
+                        "line": 176
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 153,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 178
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 123,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 179
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 39,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: endHSpin",
+                        "functionName": "text",
+                        "line": 182
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 266,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 183
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 122,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 184
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 101,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 185
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 66,
+                        "durationMicroseconds": 201,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 189
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 62,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on value.",
+                        "functionName": "value",
+                        "line": 193
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 41,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onValueChanged.",
+                        "functionName": "onValueChanged",
+                        "line": 195
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 130,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 197
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 143,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 198
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 38,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: endMSpin",
+                        "functionName": "text",
+                        "line": 201
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 271,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 202
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 111,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 203
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 110,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 204
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 27,
+                        "durationMicroseconds": 2061,
+                        "errorMessage": "Cannot generate efficient code for call to untyped JavaScript function",
+                        "functionName": "text",
+                        "line": 211
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 254,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 216
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 126,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 227
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 201,
+                        "errorMessage": "",
+                        "functionName": "preferredHeight",
+                        "line": 225
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 77,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 232
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 211,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 240
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 218,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 238
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 125,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 247
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 191,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 257
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 262
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 263
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 36,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: cntCheck",
+                        "functionName": "x",
+                        "line": 269
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 57,
+                        "durationMicroseconds": 351,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 269
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: cntCheck",
+                        "functionName": "color",
+                        "line": 271
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 29,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: cntCheck",
+                        "functionName": "color",
+                        "line": 272
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 42,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: cntCheck",
+                        "functionName": "visible",
+                        "line": 278
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 85,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 276
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 239,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 277
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 204,
+                        "errorMessage": "",
+                        "functionName": "opacity",
+                        "line": 287
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 180,
+                        "errorMessage": "",
+                        "functionName": "enabled",
+                        "line": 288
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 52,
+                        "durationMicroseconds": 205,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 292
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 64,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on value.",
+                        "functionName": "value",
+                        "line": 298
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 41,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onValueChanged.",
+                        "functionName": "onValueChanged",
+                        "line": 300
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 151,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 302
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 127,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 303
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 35,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: cntSpin",
+                        "functionName": "text",
+                        "line": 306
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 254,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 307
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 50,
+                        "durationMicroseconds": 125,
+                        "errorMessage": "",
+                        "functionName": "horizontalAlignment",
+                        "line": 308
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 48,
+                        "durationMicroseconds": 104,
+                        "errorMessage": "",
+                        "functionName": "verticalAlignment",
+                        "line": 309
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 52,
+                        "durationMicroseconds": 205,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 315
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/ScheduleConfig.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

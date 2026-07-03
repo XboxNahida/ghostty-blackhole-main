@@ -1,0 +1,83 @@
+{
+    "classes": [
+        {
+            "className": "SystemTray",
+            "lineNumber": 9,
+            "methods": [
+                {
+                    "access": "public",
+                    "index": 4,
+                    "name": "show",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 5,
+                    "name": "hide",
+                    "returnType": "void"
+                }
+            ],
+            "object": true,
+            "properties": [
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 0,
+                    "name": "visible",
+                    "notify": "visibleChanged",
+                    "read": "isVisible",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "bool",
+                    "user": false,
+                    "write": "setVisible"
+                }
+            ],
+            "qualifiedClassName": "SystemTray",
+            "signals": [
+                {
+                    "access": "public",
+                    "index": 0,
+                    "name": "visibleChanged",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 1,
+                    "name": "activated",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "index": 2,
+                    "name": "exitRequested",
+                    "returnType": "void"
+                }
+            ],
+            "slots": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "window",
+                            "type": "QQuickWindow*"
+                        }
+                    ],
+                    "index": 3,
+                    "name": "setWindow",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "systemtray.h",
+    "outputRevision": 68
+}

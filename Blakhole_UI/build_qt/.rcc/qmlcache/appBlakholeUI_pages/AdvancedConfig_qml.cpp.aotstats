@@ -1,0 +1,1028 @@
+[
+    {
+        "moduleFiles": [
+            {
+                "entries": [
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 106,
+                        "errorMessage": "Cannot load property videoAsIdle from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "videoAsIdle",
+                        "line": 16
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 27,
+                        "errorMessage": "Cannot load property followMouse from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "followMouse",
+                        "line": 17
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 31,
+                        "durationMicroseconds": 23,
+                        "errorMessage": "Cannot load property randomPath from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "randomPath",
+                        "line": 18
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 23,
+                        "errorMessage": "Cannot load property animationSpeed from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "animationSpeed",
+                        "line": 19
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 21,
+                        "errorMessage": "Cannot load property screenSwallow from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "screenSwallow",
+                        "line": 20
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 31,
+                        "durationMicroseconds": 23,
+                        "errorMessage": "Cannot load property distortion from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "distortion",
+                        "line": 21
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 29,
+                        "durationMicroseconds": 21,
+                        "errorMessage": "Cannot load property holeSize from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "holeSize",
+                        "line": 22
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 165,
+                        "errorMessage": "Cannot load property growEnabled from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "growEnabled",
+                        "line": 23
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot load property initialSize from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "initialSize",
+                        "line": 24
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 31,
+                        "durationMicroseconds": 23,
+                        "errorMessage": "Cannot load property captureMode from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "captureMode",
+                        "line": 26
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 30,
+                        "durationMicroseconds": 22,
+                        "errorMessage": "Cannot load property fixedSize from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "fixedSize",
+                        "line": 27
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 31,
+                        "durationMicroseconds": 21,
+                        "errorMessage": "Cannot load property fixedLevel from (component in D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml)::bhCore with type QVariant.",
+                        "functionName": "fixedLevel",
+                        "line": 28
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 19,
+                        "durationMicroseconds": 151,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 11
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 23,
+                        "durationMicroseconds": 74,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 31
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 241,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 41
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 30,
+                        "durationMicroseconds": 258,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 39
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 24,
+                        "durationMicroseconds": 189,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 47
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 113,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 57
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 392,
+                        "errorMessage": "",
+                        "functionName": "preferredHeight",
+                        "line": 55
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 92,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 62
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 232,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 70
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 219,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 68
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 119,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 77
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 180,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 89
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 234,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 95
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 99
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 100
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: videoCheck",
+                        "functionName": "x",
+                        "line": 106
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 341,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 107
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: videoCheck",
+                        "functionName": "color",
+                        "line": 109
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: videoCheck",
+                        "functionName": "color",
+                        "line": 110
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: videoCheck",
+                        "functionName": "visible",
+                        "line": 116
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 76,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 114
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 334,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 115
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 217,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 130
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 366,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 136
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 140
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 141
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 51,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: mouseCheck",
+                        "functionName": "x",
+                        "line": 147
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 489,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 148
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 49,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: mouseCheck",
+                        "functionName": "color",
+                        "line": 150
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 32,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: mouseCheck",
+                        "functionName": "color",
+                        "line": 151
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: mouseCheck",
+                        "functionName": "visible",
+                        "line": 157
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 97,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 155
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 241,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 156
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 126,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 170
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 182,
+                        "errorMessage": "",
+                        "functionName": "preferredHeight",
+                        "line": 168
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 69,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 175
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 188,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 183
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 201,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 181
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 120,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 190
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 213,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 202
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 211,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 208
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 212
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 213
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: swallowCheck",
+                        "functionName": "x",
+                        "line": 219
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 301,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 220
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: swallowCheck",
+                        "functionName": "color",
+                        "line": 222
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: swallowCheck",
+                        "functionName": "color",
+                        "line": 223
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 59,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: swallowCheck",
+                        "functionName": "visible",
+                        "line": 229
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 69,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 227
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 246,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 228
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 93,
+                        "errorMessage": "",
+                        "functionName": "value",
+                        "line": 239
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 154,
+                        "errorMessage": "",
+                        "functionName": "onValueChanged",
+                        "line": 240
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 89,
+                        "errorMessage": "",
+                        "functionName": "value",
+                        "line": 251
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 41,
+                        "durationMicroseconds": 135,
+                        "errorMessage": "",
+                        "functionName": "onValueChanged",
+                        "line": 252
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 43,
+                        "durationMicroseconds": 102,
+                        "errorMessage": "",
+                        "functionName": "alignment",
+                        "line": 258
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 212,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 264
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 268
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 269
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: growCheck",
+                        "functionName": "x",
+                        "line": 279
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 36,
+                        "durationMicroseconds": 323,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 280
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 40,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: growCheck",
+                        "functionName": "color",
+                        "line": 282
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 47,
+                        "durationMicroseconds": 26,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: growCheck",
+                        "functionName": "color",
+                        "line": 283
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 64,
+                        "durationMicroseconds": 25,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: growCheck",
+                        "functionName": "visible",
+                        "line": 289
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 55,
+                        "durationMicroseconds": 69,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 287
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 50,
+                        "durationMicroseconds": 235,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 288
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 97,
+                        "errorMessage": "",
+                        "functionName": "value",
+                        "line": 300
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 37,
+                        "durationMicroseconds": 72,
+                        "errorMessage": "Cannot access value for name bhCore",
+                        "functionName": "onValueChanged",
+                        "line": 301
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 129,
+                        "errorMessage": "",
+                        "functionName": "visible",
+                        "line": 302
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 198,
+                        "errorMessage": "",
+                        "functionName": "implicitHeight",
+                        "line": 303
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 243,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 314
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 209,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 320
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 324
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 325
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 31,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: fixedSizeCheck",
+                        "functionName": "x",
+                        "line": 336
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 316,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 337
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 30,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: fixedSizeCheck",
+                        "functionName": "color",
+                        "line": 339
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 27,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: fixedSizeCheck",
+                        "functionName": "color",
+                        "line": 340
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 26,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: fixedSizeCheck",
+                        "functionName": "visible",
+                        "line": 346
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 71,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 344
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 238,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 345
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 98,
+                        "errorMessage": "",
+                        "functionName": "value",
+                        "line": 356
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 37,
+                        "durationMicroseconds": 71,
+                        "errorMessage": "Cannot access value for name bhCore",
+                        "functionName": "onValueChanged",
+                        "line": 357
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 30,
+                        "durationMicroseconds": 133,
+                        "errorMessage": "",
+                        "functionName": "visible",
+                        "line": 358
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 187,
+                        "errorMessage": "",
+                        "functionName": "implicitHeight",
+                        "line": 359
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 138,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 369
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 174,
+                        "errorMessage": "",
+                        "functionName": "preferredHeight",
+                        "line": 367
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 73,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 374
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 246,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 382
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 213,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 380
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 120,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 389
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 307,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 401
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 244,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 407
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on checked.",
+                        "functionName": "checked",
+                        "line": 411
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 0,
+                        "errorMessage": "Cannot resolve property type  for binding on onToggled.",
+                        "functionName": "onToggled",
+                        "line": 412
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 48,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: pathCheck",
+                        "functionName": "x",
+                        "line": 418
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 32,
+                        "durationMicroseconds": 336,
+                        "errorMessage": "",
+                        "functionName": "y",
+                        "line": 419
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 36,
+                        "durationMicroseconds": 48,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: pathCheck",
+                        "functionName": "color",
+                        "line": 421
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 43,
+                        "durationMicroseconds": 26,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: pathCheck",
+                        "functionName": "color",
+                        "line": 422
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 60,
+                        "durationMicroseconds": 28,
+                        "errorMessage": "Cannot retrieve a non-object type by ID: pathCheck",
+                        "functionName": "visible",
+                        "line": 428
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 51,
+                        "durationMicroseconds": 74,
+                        "errorMessage": "",
+                        "functionName": "centerIn",
+                        "line": 426
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 46,
+                        "durationMicroseconds": 244,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 427
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 28,
+                        "durationMicroseconds": 110,
+                        "errorMessage": "",
+                        "functionName": "value",
+                        "line": 438
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 37,
+                        "durationMicroseconds": 77,
+                        "errorMessage": "Cannot access value for name bhCore",
+                        "functionName": "onValueChanged",
+                        "line": 439
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 20,
+                        "durationMicroseconds": 121,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 451
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 37,
+                        "durationMicroseconds": 173,
+                        "errorMessage": "",
+                        "functionName": "preferredHeight",
+                        "line": 449
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 31,
+                        "durationMicroseconds": 74,
+                        "errorMessage": "",
+                        "functionName": "fill",
+                        "line": 456
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 239,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 464
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 34,
+                        "durationMicroseconds": 341,
+                        "errorMessage": "Cannot access value for name iconFont",
+                        "functionName": "family",
+                        "line": 462
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 28,
+                        "durationMicroseconds": 125,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 471
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 229,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 483
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 212,
+                        "errorMessage": "Cannot access value for name theme",
+                        "functionName": "color",
+                        "line": 489
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 32,
+                        "durationMicroseconds": 273,
+                        "errorMessage": "Cannot generate efficient code for storing an array in a non-sequence type",
+                        "functionName": "model",
+                        "line": 495
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 39,
+                        "durationMicroseconds": 519,
+                        "errorMessage": "",
+                        "functionName": "currentIndex",
+                        "line": 496
+                    },
+                    {
+                        "codegenSuccessfull": false,
+                        "column": 38,
+                        "durationMicroseconds": 129,
+                        "errorMessage": "Cannot access value for name bhCore",
+                        "functionName": "onActivated",
+                        "line": 497
+                    },
+                    {
+                        "codegenSuccessfull": true,
+                        "column": 38,
+                        "durationMicroseconds": 92,
+                        "errorMessage": "",
+                        "functionName": "onActivated",
+                        "line": 497
+                    }
+                ],
+                "filepath": "D:/ghostty-blackhole-main-main/ghostty-blackhole-main/ghostty-blackhole-main/Blakhole_UI/build_qt/AdvancedConfig.qml"
+            }
+        ],
+        "moduleId": "BlakholeUI(appBlakholeUI)"
+    }
+]

@@ -1,0 +1,7 @@
+isDark=0
+followSystem=0
+focusColor=#ff00c4b3
+launchMinimized=0
+screenTarget=0
+skipExitDialog=0
+defaultCloseAction=0

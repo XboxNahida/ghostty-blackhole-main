@@ -16,7 +16,8 @@ struct DXGICapture {
     bool active = false;
 };
 
-bool DXGI_Init(DXGICapture& dxgi);
+// hMon=nullptr → fallback to primary monitor
+bool DXGI_Init(DXGICapture& dxgi, HMONITOR hMon);
 ID3D11Texture2D* DXGI_GetFrame(DXGICapture& dxgi);
 void DXGI_ReleaseFrame(DXGICapture& dxgi);
 bool DXGI_CopyToStaging(DXGICapture& dxgi, ID3D11Texture2D* srcTex,

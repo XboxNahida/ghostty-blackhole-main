@@ -1,0 +1,24 @@
+module BlakholeUI
+typeinfo appBlakholeUI.qmltypes
+prefer :/qt/qml/BlakholeUI/
+Main 1.0 Main.qml
+BlackholeLargePreview 1.0 components/BlackholeLargePreview.qml
+BlackholePreview 1.0 components/BlackholePreview.qml
+BlackholePreviewArea 1.0 components/BlackholePreviewArea.qml
+EAlertDialog 1.0 components/EAlertDialog.qml
+EAvatar 1.0 components/EAvatar.qml
+EBlurCard 1.0 components/EBlurCard.qml
+EButton 1.0 components/EButton.qml
+EDrawer 1.0 components/EDrawer.qml
+EDropDown 1.0 components/EDropDown.qml
+EList 1.0 components/EList.qml
+ESlider 1.0 components/ESlider.qml
+ESwitchButton 1.0 components/ESwitchButton.qml
+ETheme 1.0 components/ETheme.qml
+ETimeDisplay 1.0 components/ETimeDisplay.qml
+EToast 1.0 components/EToast.qml
+AdvancedConfig 1.0 pages/AdvancedConfig.qml
+BlackholeConfig 1.0 pages/BlackholeConfig.qml
+IdleListConfig 1.0 pages/IdleListConfig.qml
+ScheduleConfig 1.0 pages/ScheduleConfig.qml
+
