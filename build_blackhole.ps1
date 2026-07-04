@@ -18,6 +18,7 @@ $resourceFile = if (Test-Path "$ws\build\resource.o") { "$ws\build\resource.o" }
     "$ws\src\capture_dxgi.cpp" `
     "$ws\src\gl_texture.cpp" `
     "$ws\src\gui_config.cpp" `
+    "$ws\src\hotkey.cpp" `
     "$ws\src\win32_gl.cpp" `
     "$ws\src\monitors.cpp" `
     "$ws\src\imgui\imgui.cpp" `

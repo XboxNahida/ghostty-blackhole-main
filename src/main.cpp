@@ -873,6 +873,13 @@ int main(int argc, char* argv[]) {
                 CloseHandle(pi.hProcess);
                 CloseHandle(pi.hThread);
             }
+            if (m == WM_HOTKEY && w == 1) {
+                // 全局热键退出（使用配置的热键）
+                if (MonitorRunning()) MonitorKill();
+                KillChildRenderers();
+                PostQuitMessage(0);
+                return 0;
+            }
             if (m == WM_WTSSESSION_CHANGE) {
                 // 跟踪会话锁/解锁：锁屏时不 spawn，解锁时立即重新评估
                 if (w == WTS_SESSION_LOCK) {
@@ -921,6 +928,19 @@ int main(int argc, char* argv[]) {
         // 注册会话通知（跟踪锁屏/解锁，避免锁屏后 renderer 失效、解锁后黑屏）
         WTSRegisterSessionNotification(monHwnd, NOTIFY_FOR_THIS_SESSION);
 
+        // 注册全局热键用于退出（使用配置中的热键，默认 Ctrl+Shift+Q）
+        if (!cfg.hotkey.IsNone()) {
+            char hkName[128];
+            cfg.hotkey.Format(hkName, sizeof(hkName));
+            if (!cfg.hotkey.Register(monHwnd, 1)) {
+                fprintf(stderr, "[Monitor] RegisterHotKey %s failed (error %lu), hotkey exit disabled\n", hkName, GetLastError());
+            } else {
+                fprintf(stderr, "[Monitor] Global hotkey %s registered\n", hkName);
+            }
+        } else {
+            fprintf(stderr, "[Monitor] No hotkey configured, hotkey exit disabled\n");
+        }
+
         // Start renderer immediately in mode 0
         if (cfg.mode == 0) MonitorSpawn(selfPath);
 
@@ -931,6 +951,7 @@ int main(int argc, char* argv[]) {
         while (GetMessageA(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessageA(&msg); }
 
         KillTimer(monHwnd, 1);
+        cfg.hotkey.Unregister(monHwnd, 1);
         WTSUnRegisterSessionNotification(monHwnd);
         Shell_NotifyIconA(NIM_DELETE, &nid);
         MonitorKill();

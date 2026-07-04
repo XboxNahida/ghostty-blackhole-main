@@ -1,5 +1,6 @@
 // gui_config.h  ImGui config panel with preset editing
 #pragma once
+#include "hotkey.h"
 
 struct DiskPreset {
     float temp  = 5500.0f;
@@ -39,6 +40,7 @@ struct BlackholeConfig {
     float fixedLevel      = 1.0f; // 固定大小级别（0.01~1.0 = 1%~100%）
     int   captureMode     = -1;   // -1=自动检测, 0=WGC, 1=DXGI
     int   displayMode     = 0;    // 0=主屏, 1=副屏, 2=主+副穿梭
+    HotkeyConfig hotkey;          // 全局热键（默认 Ctrl+Shift+Q）
     bool  confirmed  = false;
 };
 
