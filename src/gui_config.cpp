@@ -81,6 +81,10 @@ void SavePresetsToFile(const BlackholeConfig& cfg, const char names[64][64]) {
             p.opac, p.dopp, p.beam, p.gain, p.contr,
             p.wind, p.speed, p.expo, p.star);
     }
+    // Save hotkey config
+    char hkStr[64];
+    cfg.hotkey.ToString(hkStr, sizeof(hkStr));
+    fprintf(f, "HOTKEY:%s\n", hkStr);
     fclose(f);
 }
 
@@ -132,6 +136,13 @@ bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[64][64]) {
             &p.wind, &p.speed, &p.expo, &p.star);
     }
     cfg.presetCount = count;
+    // Try to load hotkey config (optional, appended after presets)
+    if (fgets(line, sizeof(line), f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (strncmp(line, "HOTKEY:", 7) == 0) {
+            cfg.hotkey.FromString(line + 7);
+        }
+    }
     fclose(f);
     return true;
 }
@@ -226,6 +237,52 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
 
         const char* displayModes[] = { "主屏", "副屏", "主+副穿梭" };
         ImGui::Combo("显示器模式", &cfg.displayMode, displayModes, 3);
+
+        // ---- Hotkey config section ----
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.4f,0.7f,1.0f,1.0f), "全局热键");
+        static bool capturingHotkey = false;
+        // Modifier checkboxes
+        bool ctrl   = (cfg.hotkey.modifiers & MOD_CONTROL) != 0;
+        bool shift  = (cfg.hotkey.modifiers & MOD_SHIFT)   != 0;
+        bool alt    = (cfg.hotkey.modifiers & MOD_ALT)     != 0;
+        bool winKey = (cfg.hotkey.modifiers & MOD_WIN)     != 0;
+        if (ImGui::Checkbox("Ctrl", &ctrl))  { if (ctrl) cfg.hotkey.modifiers |= MOD_CONTROL; else cfg.hotkey.modifiers &= ~MOD_CONTROL; }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Shift", &shift)) { if (shift) cfg.hotkey.modifiers |= MOD_SHIFT; else cfg.hotkey.modifiers &= ~MOD_SHIFT; }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Alt", &alt))   { if (alt) cfg.hotkey.modifiers |= MOD_ALT; else cfg.hotkey.modifiers &= ~MOD_ALT; }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Win", &winKey))   { if (winKey) cfg.hotkey.modifiers |= MOD_WIN; else cfg.hotkey.modifiers &= ~MOD_WIN; }
+
+        // Hotkey display / capture button
+        char hkDisplay[128];
+        cfg.hotkey.Format(hkDisplay, sizeof(hkDisplay));
+        if (capturingHotkey) {
+            ImGui::Button("按下任意键...", ImVec2(160, 0));
+            // Detect any key press
+            for (int vk = 0x08; vk < 0xFF; vk++) {
+                if (GetAsyncKeyState(vk) & 0x8000) {
+                    // Ignore pure modifier keys
+                    if (vk == VK_CONTROL || vk == VK_SHIFT || vk == VK_MENU ||
+                        vk == VK_LCONTROL || vk == VK_RCONTROL ||
+                        vk == VK_LSHIFT || vk == VK_RSHIFT ||
+                        vk == VK_LMENU || vk == VK_RMENU ||
+                        vk == VK_LWIN || vk == VK_RWIN) continue;
+                    cfg.hotkey.vk = (UINT)vk;
+                    capturingHotkey = false;
+                    break;
+                }
+            }
+        } else {
+            if (ImGui::Button(hkDisplay, ImVec2(160, 0))) {
+                capturingHotkey = true;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("清除")) { cfg.hotkey.vk = 0; capturingHotkey = false; }
+        ImGui::SameLine();
+        if (ImGui::Button("默认")) { cfg.hotkey.SetDefault(); capturingHotkey = false; }
 
         ImGui::Separator();
         const char* playModes[] = { "顺序播放", "循环播放", "随机播放" };

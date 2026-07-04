@@ -17,6 +17,7 @@ add_executable(blackhole
     src/capture_wgc.cpp
     src/capture_dxgi.cpp
     src/gui_config.cpp
+    src/hotkey.cpp
     src/imgui/imgui.cpp
     src/imgui/imgui_draw.cpp
     src/imgui/imgui_widgets.cpp
