@@ -285,6 +285,11 @@ QString BlackHoleCore::configDir() const
     return QFileInfo(configFilePath()).absolutePath();
 }
 
+QString BlackHoleCore::configPath(const QString &fileName) const
+{
+    return QDir(configDir()).absoluteFilePath(fileName);
+}
+
 
 // ====== blackhole.exe 查找 (与 main.cpp --render 子进程对应) ======
 
@@ -1333,7 +1338,7 @@ void BlackHoleCore::setCountdownMinutes(int v) { if (m_countdownMinutes == v) re
 
 void BlackHoleCore::saveAdvancedConfig()
 {
-    QString path = configDir() + "/blackhole_advanced.txt";
+    QString path = configPath("blackhole_advanced.txt");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
@@ -1359,7 +1364,7 @@ void BlackHoleCore::saveAdvancedConfig()
 }
 void BlackHoleCore::loadAdvancedConfig()
 {
-    QString path = configDir() + "/blackhole_advanced.txt";
+    QString path = configPath("blackhole_advanced.txt");
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "BlackHoleCore: advanced config not found, using defaults";
@@ -1399,8 +1404,7 @@ void BlackHoleCore::loadAdvancedConfig()
 
 void BlackHoleCore::saveIdleListConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_idlelist.txt";
+    QString path = configPath("blackhole_idlelist.txt");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
@@ -1417,8 +1421,7 @@ void BlackHoleCore::saveIdleListConfig()
 
 void BlackHoleCore::loadIdleListConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_idlelist.txt";
+    QString path = configPath("blackhole_idlelist.txt");
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "BlackHoleCore: idle list config not found, using defaults";
@@ -1446,8 +1449,7 @@ void BlackHoleCore::loadIdleListConfig()
 
 void BlackHoleCore::saveScheduleConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_schedule.txt";
+    QString path = configPath("blackhole_schedule.txt");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
@@ -1465,8 +1467,7 @@ void BlackHoleCore::saveScheduleConfig()
 
 void BlackHoleCore::loadScheduleConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_schedule.txt";
+    QString path = configPath("blackhole_schedule.txt");
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "BlackHoleCore: schedule config not found, using defaults";
@@ -1497,8 +1498,7 @@ void BlackHoleCore::loadScheduleConfig()
 
 void BlackHoleCore::saveSystemConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_system.txt";
+    QString path = configPath("blackhole_system.txt");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qWarning() << "BlackHoleCore: cannot write system config:" << path;
@@ -1518,8 +1518,7 @@ void BlackHoleCore::saveSystemConfig()
 
 void BlackHoleCore::loadSystemConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_system.txt";
+    QString path = configPath("blackhole_system.txt");
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "BlackHoleCore: system config not found, using defaults";
@@ -1554,7 +1553,7 @@ void BlackHoleCore::saveAllLists()
         m_allLists[m_currentListIndex] = m_presetModel->presets();
     }
 
-    QString path = configDir() + "/blackhole_lists.txt";
+    QString path = configPath("blackhole_lists.txt");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qWarning() << "BlackHoleCore: cannot write lists config:" << path;
@@ -1597,7 +1596,7 @@ void BlackHoleCore::saveAllLists()
 
 void BlackHoleCore::loadAllLists()
 {
-    QString path = configDir() + "/blackhole_lists.txt";
+    QString path = configPath("blackhole_lists.txt");
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         // 文件不存在 (首次运行或旧版本): 用当前模型数据创建默认列表
