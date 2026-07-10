@@ -243,7 +243,7 @@ Item {
                     }
                 }
 
-                // 黑洞大小 + 逐渐增长
+                // 黑洞大小 + 大小模式
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -265,7 +265,7 @@ Item {
                         Layout.bottomMargin: 4
 
                         Text {
-                            text: "逐渐增长"
+                            text: "自定义渐变"
                             font.pixelSize: 11
                             color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.50)
                         }
@@ -275,7 +275,7 @@ Item {
                             onToggled: {
                                 advPage.growEnabled = checked
                                 if (bhCore) bhCore.growEnabled = checked
-                                // 互斥: 启用逐渐增长时关闭固定大小
+                                // 互斥: 启用自定义渐变时关闭固定大小
                                 if (checked && advPage.fixedSize) {
                                     advPage.fixedSize = false
                                     if (bhCore) bhCore.fixedSize = false
@@ -300,7 +300,15 @@ Item {
                     }
                 }
 
-                // 初始大小(仅勾选逐渐增长时显示)
+                Text {
+                    text: "大小模式: 两者都不选时使用默认出生动画; 自定义渐变可设置初始大小; 固定大小会覆盖所有增长动画。"
+                    font.pixelSize: 11
+                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                // 初始大小(仅勾选自定义渐变时显示)
                 Components.ESlider {
                     label: "初始大小"
                     from: 0.05; to: 1.5; stepSize: 0.05; decimals: 2
@@ -310,7 +318,7 @@ Item {
                     implicitHeight: advPage.growEnabled ? 48 : 0
                 }
 
-                // === 固定大小 (与逐渐增长互斥; 对接 main.cpp uFixedSize/uFixedLevel) ===
+                // === 固定大小 (与自定义渐变互斥; 对接 main.cpp uFixedSize/uFixedLevel) ===
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
@@ -322,7 +330,7 @@ Item {
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: "黑洞保持固定大小,不再随时间增长(覆盖逐渐增长)"
+                        text: "黑洞保持固定大小,不再随时间增长(覆盖自定义渐变和默认出生动画)"
                         font.pixelSize: 11
                         color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
                     }
@@ -332,7 +340,7 @@ Item {
                         onToggled: {
                             advPage.fixedSize = checked
                             if (bhCore) bhCore.fixedSize = checked
-                            // 互斥: 启用固定大小时关闭逐渐增长
+                            // 互斥: 启用固定大小时关闭自定义渐变
                             if (checked && advPage.growEnabled) {
                                 advPage.growEnabled = false
                                 if (bhCore) bhCore.growEnabled = false

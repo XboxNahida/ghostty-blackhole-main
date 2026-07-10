@@ -1333,8 +1333,7 @@ void BlackHoleCore::setCountdownMinutes(int v) { if (m_countdownMinutes == v) re
 
 void BlackHoleCore::saveAdvancedConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_advanced.txt";
+    QString path = configDir() + "/blackhole_advanced.txt";
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
@@ -1360,8 +1359,7 @@ void BlackHoleCore::saveAdvancedConfig()
 }
 void BlackHoleCore::loadAdvancedConfig()
 {
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString path = appDir + "/blackhole_advanced.txt";
+    QString path = configDir() + "/blackhole_advanced.txt";
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "BlackHoleCore: advanced config not found, using defaults";
