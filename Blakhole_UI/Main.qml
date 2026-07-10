@@ -32,6 +32,19 @@ ApplicationWindow {
         onExitRequested: root.close()
     }
 
+    Connections {
+        target: blackHoleCore
+        function onCloseHotkeyEnabledChanged() {
+            root.closeHotkeyEnabled = blackHoleCore.closeHotkeyEnabled
+        }
+        function onCloseHotkeySequenceChanged() {
+            root.closeHotkeySequence = blackHoleCore.closeHotkeySequence
+        }
+        function onCloseHotkeyStatusChanged() {
+            root.closeHotkeyStatus = blackHoleCore.closeHotkeyStatus
+        }
+    }
+
     Component.onCompleted: {
         if (root.launchMinimized && blackHoleCore) {
             root.visible = false
@@ -77,23 +90,32 @@ ApplicationWindow {
         return parts.join("+")
     }
 
-    Keys.onPressed: function(event) {
-        if (!root.recordingHotkey) return
-        var sequence = root.sequenceFromEvent(event)
-        event.accepted = true
-        if (sequence === "Esc") {
-            root.recordingHotkey = false
-            return
-        }
-        if (sequence === "") return
-        root.closeHotkeySequence = sequence
-        if (blackHoleCore) blackHoleCore.closeHotkeySequence = sequence
-        root.recordingHotkey = false
-    }
-
     Item {
         id: contentWrapper
         anchors.fill: parent
+
+        Item {
+            id: hotkeyRecorder
+            width: 1
+            height: 1
+            focus: root.recordingHotkey
+            enabled: root.recordingHotkey
+            z: 10000
+
+            Keys.onPressed: function(event) {
+                if (!root.recordingHotkey) return
+                var sequence = root.sequenceFromEvent(event)
+                event.accepted = true
+                if (sequence === "Esc") {
+                    root.recordingHotkey = false
+                    return
+                }
+                if (sequence === "") return
+                root.closeHotkeySequence = sequence
+                if (blackHoleCore) blackHoleCore.closeHotkeySequence = sequence
+                root.recordingHotkey = false
+            }
+        }
 
         // === 纯色背景(供毛玻璃侧边栏模糊) ===
         Rectangle {
@@ -687,7 +709,7 @@ ApplicationWindow {
                                 text: root.recordingHotkey ? "录制中" : "录制"
                                 onClicked: {
                                     root.recordingHotkey = true
-                                    root.forceActiveFocus()
+                                    hotkeyRecorder.forceActiveFocus()
                                 }
                             }
                         }

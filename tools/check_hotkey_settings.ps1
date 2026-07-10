@@ -28,5 +28,9 @@ Require-Pattern "Blakhole_UI\core\blackholecore.cpp" "closeHotkeySequence=" "sys
 Require-Pattern "Blakhole_UI\Main.qml" "closeHotkeyEnabled" "settings drawer hotkey enabled binding"
 Require-Pattern "Blakhole_UI\Main.qml" "recordingHotkey" "settings drawer hotkey recording state"
 Require-Pattern "Blakhole_UI\Main.qml" "closeHotkeySequence" "settings drawer hotkey sequence binding"
+Require-Pattern "Blakhole_UI\Main.qml" "hotkeyRecorder" "dedicated hotkey recording focus item"
+Require-Pattern "Blakhole_UI\Main.qml" "hotkeyRecorder\.forceActiveFocus" "record button moves focus to recorder"
+Require-Pattern "Blakhole_UI\Main.qml" "onCloseHotkeySequenceChanged" "QML sequence sync from core"
+Require-Pattern "Blakhole_UI\Main.qml" "onCloseHotkeyStatusChanged" "QML status sync from core"
 
 Write-Output "HOTKEY_SETTINGS_OK"
