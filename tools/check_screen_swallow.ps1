@@ -43,6 +43,9 @@ Require-Pattern "src\main.cpp" "projectedDiskP" "preset-projected accretion disk
 Require-Pattern "src\main.cpp" "presetDiskAspect" "preset inclination disk aspect"
 Require-Pattern "src\main.cpp" "projectedDiskRadius" "projected disk radius for collapse mask"
 Require-Pattern "src\main.cpp" "screenTangentDir" "projected disk tangent direction"
+Require-Pattern "src\main.cpp" "geodesicDiskEnergy" "geodesic disk energy driven collapse"
+Require-Pattern "src\main.cpp" "geodesicDiskMask" "geodesic disk mask for real accretion shape"
+Require-Pattern "src\main.cpp" "projectedCollapse" "projected fallback collapse field"
 Require-Pattern "src\main.cpp" "colorlessOuterLens" "colorless outer lens field"
 Require-Pattern "src\main.cpp" "realAccretionMask" "preset-derived accretion mask"
 Require-Pattern "src\main.cpp" "programmaticAccretion" "programmatic accretion disk color"
@@ -87,6 +90,10 @@ if ($mainText -match "collapseToDisk|collapseP|spiralRot|diskLineP") {
 
 if ($mainText -match "diskBandDistance\s*=\s*abs\(r\s*-\s*diskMid\)") {
     throw "Screen swallow still uses a circular radius band instead of preset-projected disk geometry"
+}
+
+if ($mainText -match "adaptiveCollapse\s*=\s*softCollapse\s*\*") {
+    throw "Screen swallow still drives adaptiveCollapse only from projected geometry instead of geodesic disk energy"
 }
 
 if ($mainText -match "col\s*=\s*mix\(col,\s*col\s*\*\s*mix") {
