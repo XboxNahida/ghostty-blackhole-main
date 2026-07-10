@@ -35,6 +35,9 @@ Require-Pattern "src\main.cpp" "ringBirth" "accretion ring birth phase"
 Require-Pattern "src\main.cpp" "ringGlow" "accretion ring glow"
 Require-Pattern "src\main.cpp" "ringWidth" "accretion ring width"
 Require-Pattern "src\main.cpp" "outerLensBlend" "smooth outer lens blend"
+Require-Pattern "src\main.cpp" "softCollapse" "softened collapse boundary"
+Require-Pattern "src\main.cpp" "boundaryDither" "non-circular collapse boundary dither"
+Require-Pattern "src\main.cpp" "luminosityBoost" "swallow brightness compensation"
 Require-Pattern "src\main.cpp" "swallowPhase" "shader injection swallow phase"
 Require-Pattern "src\main.cpp" "continuousSwallow" "continuous runtime swallow phase"
 Require-Pattern "src\main.cpp" "eventHorizonMask" "event horizon blackening"
@@ -52,6 +55,10 @@ if ($mainText -match "swallowPhase\s*=\s*[^;]*1\.0\s*-\s*uBornProgress") {
 
 if ($mainText -match "fragmentCell|fragmentHash|shardGate|cellScramble|tidalFilament|filamentPhase") {
     throw "Screen swallow still uses standalone shard/filament effects instead of amplified original lens collapse"
+}
+
+if ($mainText -match "col\s*=\s*mix\([^;]+collapseToDisk\);") {
+    throw "Screen swallow still darkens the whole collapse disk with a hard radial weight"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
