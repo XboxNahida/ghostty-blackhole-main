@@ -20,6 +20,7 @@ Item {
     property bool randomPath: bhCore ? bhCore.randomPath : true
     property int animationSpeed: bhCore ? bhCore.animationSpeed : 1
     property bool screenSwallow: bhCore ? bhCore.screenSwallow : false
+    property real swallowStrength: bhCore ? bhCore.swallowStrength : 0.65
     property real distortion: bhCore ? bhCore.distortion : 1.0
     property real holeSize: bhCore ? bhCore.holeSize : 1.0
     property bool growEnabled: bhCore ? bhCore.growEnabled : false
@@ -285,6 +286,18 @@ Item {
                             }
                         }
                     }
+                }
+
+                Components.ESlider {
+                    label: "吞噬强度"
+                    from: 0.0; to: 1.0; stepSize: 0.01; decimals: 2
+                    value: advPage.swallowStrength
+                    onValueChanged: {
+                        advPage.swallowStrength = value
+                        if (bhCore) bhCore.swallowStrength = value
+                    }
+                    visible: advPage.screenSwallow
+                    implicitHeight: advPage.screenSwallow ? 48 : 0
                 }
 
                 // 扭曲程度

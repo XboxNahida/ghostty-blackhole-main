@@ -414,8 +414,14 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         size_t p = body.find(oldDefl);
         if (p != std::string::npos) body.replace(p, oldDefl.length(), newDefl);
 
-        const std::string oldNear = "(p + (sp - p) * window * shield) / vec2(aspect, 1.0)";
-        const std::string newNear = "(p + (sp - p) * window * shield * max(uDistortion, 0.0)) / vec2(aspect, 1.0)";
+        const std::string oldNear = "vec2  suv = mirrorUV(center + (p + (sp - p) * window * shield) / vec2(aspect, 1.0));";
+        const std::string newNear =
+            "float swallowPhase = (uScreenSwallow > 0) ? pow(clamp(1.0 - uBornProgress, 0.0, 1.0), 0.72) * clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
+            "            float swallowFalloff = smoothstep(1.45, 0.0, length(p));\n"
+            "            float swallowWarp = swallowPhase * swallowFalloff;\n"
+            "            vec2  lensP = p + (sp - p) * window * shield * max(uDistortion, 0.0);\n"
+            "            vec2  suckedP = lensP * (1.0 + 2.8 * swallowWarp);\n"
+            "            vec2  suv = mirrorUV(center + mix(lensP, suckedP, swallowWarp) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
 
@@ -424,8 +430,10 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         if (p != std::string::npos) {
             body.replace(p, finalColor.length(),
                 "    if (uScreenSwallow > 0) {\n"
-                "        float swallow = (1.0 - uBornProgress) * smoothstep(1.15, 0.0, length((uv - center) * vec2(aspect, 1.0)));\n"
-                "        col *= mix(1.0, 0.45, swallow);\n"
+                "        float swallowPhase = pow(clamp(1.0 - uBornProgress, 0.0, 1.0), 0.72) * clamp(uSwallowStrength, 0.0, 1.0);\n"
+                "        float swallow = swallowPhase * smoothstep(1.35, 0.0, length((uv - center) * vec2(aspect, 1.0)));\n"
+                "        col *= mix(1.0, 0.28, swallow);\n"
+                "        col += vec3(0.015, 0.012, 0.02) * swallowPhase;\n"
                 "    }\n"
                 "    fragColor = vec4(col, 1.0);");
         }
@@ -1184,6 +1192,7 @@ int main(int argc, char* argv[]) {
     GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
     GLint locInitialSize = gl_GetUniformLocation(program, "uInitialSize");
     GLint locScreenSwallow = gl_GetUniformLocation(program, "uScreenSwallow");
+    GLint locSwallowStrength = gl_GetUniformLocation(program, "uSwallowStrength");
     GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
@@ -1316,6 +1325,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
         gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
+        gl_Uniform1f(locSwallowStrength, cfg.swallowStrength);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
@@ -1627,6 +1637,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
         gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
+        gl_Uniform1f(locSwallowStrength, cfg.swallowStrength);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);

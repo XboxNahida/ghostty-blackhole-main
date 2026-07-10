@@ -11,6 +11,7 @@ mouseInertia=0.300
 limitMouseOvershoot=1
 randomPath=1
 screenSwallow=0
+swallowStrength=0.650
 distortion=1.000
 growEnabled=0
 initialSize=0.300

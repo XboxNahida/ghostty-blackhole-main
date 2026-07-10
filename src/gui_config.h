@@ -44,6 +44,7 @@ struct BlackholeConfig {
     bool  limitMouseOvershoot = true; // 是否把过冲限制在鼠标半径内
     bool  randomPath      = true;  // 是否随机出生位置/轨迹/预设偏移
     bool  screenSwallow   = false; // 出生/退出时的屏幕吞噬效果
+    float swallowStrength = 0.65f; // shader 层吞噬强度
     float distortion      = 1.0f;  // 引力透镜扭曲强度
     bool  growEnabled     = false; // 是否从 initialSize 逐渐增长
     float initialSize     = 0.3f;  // 逐渐增长的初始大小（0.01~1.0）

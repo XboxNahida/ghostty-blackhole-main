@@ -631,6 +631,7 @@ void BlackHoleCore::resetDefaults()
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
     m_limitMouseOvershoot = true;
+    m_swallowStrength = 0.65f;
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -650,6 +651,7 @@ void BlackHoleCore::resetDefaults()
     emit randomPathChanged();
     emit animationSpeedChanged();
     emit screenSwallowChanged();
+    emit swallowStrengthChanged();
     emit distortionChanged();
     emit holeSizeChanged();
     emit growEnabledChanged();
@@ -1346,6 +1348,16 @@ void BlackHoleCore::setAnimationSpeed(int v) { if (m_animationSpeed == v) return
 bool BlackHoleCore::screenSwallow() const { return m_screenSwallow; }
 void BlackHoleCore::setScreenSwallow(bool v) { if (m_screenSwallow == v) return; m_screenSwallow = v; emit screenSwallowChanged(); }
 
+float BlackHoleCore::swallowStrength() const { return m_swallowStrength; }
+void BlackHoleCore::setSwallowStrength(float v)
+{
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    if (qFuzzyCompare(m_swallowStrength, v)) return;
+    m_swallowStrength = v;
+    emit swallowStrengthChanged();
+}
+
 float BlackHoleCore::distortion() const { return m_distortion; }
 void BlackHoleCore::setDistortion(float v) { if (qFuzzyCompare(m_distortion, v)) return; m_distortion = v; emit distortionChanged(); }
 
@@ -1406,6 +1418,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "randomPath="    << (m_randomPath ? 1 : 0) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
     out << "screenSwallow=" << (m_screenSwallow ? 1 : 0) << "\n";
+    out << "swallowStrength=" << QString::number(m_swallowStrength, 'f', 2) << "\n";
     out << "distortion="    << QString::number(m_distortion, 'f', 2) << "\n";
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
     out << "growEnabled="   << (m_growEnabled ? 1 : 0) << "\n";
@@ -1442,6 +1455,7 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "randomPath")     m_randomPath     = (val.toInt() != 0);
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
         else if (key == "screenSwallow")  m_screenSwallow  = (val.toInt() != 0);
+        else if (key == "swallowStrength") setSwallowStrength(val.toFloat());
         else if (key == "distortion")     m_distortion     = val.toFloat();
         else if (key == "holeSize")       m_holeSize       = val.toFloat();
         else if (key == "growEnabled")    m_growEnabled    = (val.toInt() != 0);
@@ -1457,6 +1471,7 @@ void BlackHoleCore::loadAdvancedConfig()
     file.close();
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
+    emit swallowStrengthChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }
 

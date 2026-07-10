@@ -405,6 +405,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "limitMouseOvershoot=%d\n", cfg.limitMouseOvershoot ? 1 : 0);
     fprintf(f, "randomPath=%d\n",   cfg.randomPath ? 1 : 0);
     fprintf(f, "screenSwallow=%d\n", cfg.screenSwallow ? 1 : 0);
+    fprintf(f, "swallowStrength=%.3f\n", cfg.swallowStrength);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
     fprintf(f, "initialSize=%.3f\n", cfg.initialSize);
@@ -439,6 +440,11 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
             else if (strcmp(key, "limitMouseOvershoot") == 0) cfg.limitMouseOvershoot = (val != 0.0f);
             else if (strcmp(key, "randomPath") == 0) cfg.randomPath = (val != 0.0f);
             else if (strcmp(key, "screenSwallow") == 0) cfg.screenSwallow = (val != 0.0f);
+            else if (strcmp(key, "swallowStrength") == 0) {
+                if (val < 0.0f) val = 0.0f;
+                if (val > 1.0f) val = 1.0f;
+                cfg.swallowStrength = val;
+            }
             else if (strcmp(key, "distortion") == 0) {
                 if (val < 0.0f) val = 0.0f;
                 cfg.distortion = val;

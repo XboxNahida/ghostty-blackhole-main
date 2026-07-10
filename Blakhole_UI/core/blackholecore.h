@@ -135,6 +135,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool randomPath READ randomPath WRITE setRandomPath NOTIFY randomPathChanged)
     Q_PROPERTY(int animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
     Q_PROPERTY(bool screenSwallow READ screenSwallow WRITE setScreenSwallow NOTIFY screenSwallowChanged)
+    Q_PROPERTY(float swallowStrength READ swallowStrength WRITE setSwallowStrength NOTIFY swallowStrengthChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
     Q_PROPERTY(bool growEnabled READ growEnabled WRITE setGrowEnabled NOTIFY growEnabledChanged)
@@ -244,6 +245,8 @@ public:
     void setAnimationSpeed(int v);
     bool screenSwallow() const;
     void setScreenSwallow(bool v);
+    float swallowStrength() const;
+    void setSwallowStrength(float v);
     float distortion() const;
     void setDistortion(float v);
     float holeSize() const;
@@ -358,6 +361,7 @@ signals:
     void randomPathChanged();
     void animationSpeedChanged();
     void screenSwallowChanged();
+    void swallowStrengthChanged();
     void distortionChanged();
     void holeSizeChanged();
     void growEnabledChanged();
@@ -462,6 +466,7 @@ private:
     bool    m_randomPath     = true;
     int     m_animationSpeed = 1;
     bool    m_screenSwallow  = false;
+    float   m_swallowStrength = 0.65f;
     float   m_distortion     = 1.0f;
     float   m_holeSize       = 1.0f;
     bool    m_growEnabled    = false;
