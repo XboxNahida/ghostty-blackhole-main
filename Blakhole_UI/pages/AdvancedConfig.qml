@@ -15,6 +15,7 @@ Item {
 
     property bool videoAsIdle: bhCore ? bhCore.videoAsIdle : false
     property bool followMouse: bhCore ? bhCore.followMouse : false
+    property real mouseInertia: bhCore ? bhCore.mouseInertia : 0.30
     property bool randomPath: bhCore ? bhCore.randomPath : true
     property int animationSpeed: bhCore ? bhCore.animationSpeed : 1
     property bool screenSwallow: bhCore ? bhCore.screenSwallow : false
@@ -158,6 +159,18 @@ Item {
                             }
                         }
                     }
+                }
+
+                Components.ESlider {
+                    label: "鼠标惯性"
+                    from: 0.0; to: 1.0; stepSize: 0.01; decimals: 2
+                    value: advPage.mouseInertia
+                    onValueChanged: {
+                        advPage.mouseInertia = value
+                        if (bhCore) bhCore.mouseInertia = value
+                    }
+                    visible: advPage.followMouse
+                    implicitHeight: advPage.followMouse ? 48 : 0
                 }
             }
         }

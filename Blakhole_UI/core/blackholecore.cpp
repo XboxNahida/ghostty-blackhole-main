@@ -624,6 +624,7 @@ void BlackHoleCore::resetDefaults()
     m_captureMode = -1; // 默认自动检测 (Win10→DXGI 无黄框, Win11 22H2+→WGC)
     m_fixedSize   = false;
     m_fixedLevel  = 1.0f;
+    m_mouseInertia = 0.30f;
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -638,6 +639,7 @@ void BlackHoleCore::resetDefaults()
 
     setCurrentPresetIndex(0);
     emit followMouseChanged();
+    emit mouseInertiaChanged();
     emit randomPathChanged();
     emit animationSpeedChanged();
     emit screenSwallowChanged();
@@ -1310,6 +1312,16 @@ check_foreground_done:
 bool BlackHoleCore::followMouse() const { return m_followMouse; }
 void BlackHoleCore::setFollowMouse(bool v) { if (m_followMouse == v) return; m_followMouse = v; emit followMouseChanged(); }
 
+float BlackHoleCore::mouseInertia() const { return m_mouseInertia; }
+void BlackHoleCore::setMouseInertia(float v)
+{
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    if (qFuzzyCompare(m_mouseInertia, v)) return;
+    m_mouseInertia = v;
+    emit mouseInertiaChanged();
+}
+
 bool BlackHoleCore::randomPath() const { return m_randomPath; }
 void BlackHoleCore::setRandomPath(bool v) { if (m_randomPath == v) return; m_randomPath = v; emit randomPathChanged(); }
 
@@ -1373,6 +1385,7 @@ void BlackHoleCore::saveAdvancedConfig()
     QTextStream out(&file);
     out << "# Blackhole Advanced Settings v1\n";
     out << "followMouse="   << (m_followMouse ? 1 : 0) << "\n";
+    out << "mouseInertia="  << QString::number(m_mouseInertia, 'f', 2) << "\n";
     out << "videoAsIdle="   << (m_videoAsIdle ? 1 : 0) << "\n";
     out << "randomPath="    << (m_randomPath ? 1 : 0) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
@@ -1407,6 +1420,7 @@ void BlackHoleCore::loadAdvancedConfig()
         QString key = line.left(eq).trimmed();
         QString val = line.mid(eq + 1).trimmed();
         if (key == "followMouse")    m_followMouse    = (val.toInt() != 0);
+        else if (key == "mouseInertia") setMouseInertia(val.toFloat());
         else if (key == "videoAsIdle")   m_videoAsIdle    = (val.toInt() != 0);
         else if (key == "randomPath")     m_randomPath     = (val.toInt() != 0);
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
@@ -1424,6 +1438,7 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "diskIncl")   m_overrideDiskIncl   = val.toFloat();
     }
     file.close();
+    emit mouseInertiaChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }
 

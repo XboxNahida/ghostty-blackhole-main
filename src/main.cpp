@@ -1410,6 +1410,10 @@ int main(int argc, char* argv[]) {
         float frameHomeX = homeX;
         float frameHomeY = homeY;
         if (cfg.followMouse) {
+            float inertia = cfg.mouseInertia;
+            if (inertia < 0.0f) inertia = 0.0f;
+            if (inertia > 1.0f) inertia = 1.0f;
+
             POINT cursorPos;
             if (GetCursorPos(&cursorPos)) {
                 float targetX = ((float)cursorPos.x - (float)wgl.targetX) / (float)((wgl.width > 0) ? wgl.width : 1);
@@ -1418,11 +1422,33 @@ int main(int argc, char* argv[]) {
                 if (targetX > 1.0f) targetX = 1.0f;
                 if (targetY < 0.0f) targetY = 0.0f;
                 if (targetY > 1.0f) targetY = 1.0f;
-                cursorHomeX += (targetX - cursorHomeX) * 0.25f;
-                cursorHomeY += (targetY - cursorHomeY) * 0.25f;
+
+                if (inertia <= 0.0001f) {
+                    cursorHomeX = targetX;
+                    cursorHomeY = targetY;
+                } else {
+                    float followAlpha = 0.42f - 0.36f * inertia;
+                    if (followAlpha < 0.06f) followAlpha = 0.06f;
+                    if (followAlpha > 0.42f) followAlpha = 0.42f;
+                    cursorHomeX += (targetX - cursorHomeX) * followAlpha;
+                    cursorHomeY += (targetY - cursorHomeY) * followAlpha;
+                }
             }
             frameHomeX = cursorHomeX;
             frameHomeY = cursorHomeY;
+
+            if (inertia > 0.0001f) {
+                float wanderRadius = 0.035f * inertia;
+                float wanderX = cosf(t * 1.7f + phaseOffset) * wanderRadius;
+                float wanderY = sinf(t * 1.3f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
+                frameHomeX += wanderX;
+                frameHomeY += wanderY;
+            }
+
+            if (frameHomeX < 0.0f) frameHomeX = 0.0f;
+            if (frameHomeX > 1.0f) frameHomeX = 1.0f;
+            if (frameHomeY < 0.0f) frameHomeY = 0.0f;
+            if (frameHomeY > 1.0f) frameHomeY = 1.0f;
         }
 
         // 黑洞生长/湮灭进度

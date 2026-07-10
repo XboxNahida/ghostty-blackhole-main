@@ -7,6 +7,7 @@ spd=-1.000
 starGain=-1.000
 diskIncl=-1.000
 followMouse=0
+mouseInertia=0.300
 randomPath=1
 screenSwallow=0
 distortion=1.000

@@ -129,6 +129,7 @@ class BlackHoleCore : public QObject {
 
     // 高级设置
     Q_PROPERTY(bool followMouse READ followMouse WRITE setFollowMouse NOTIFY followMouseChanged)
+    Q_PROPERTY(float mouseInertia READ mouseInertia WRITE setMouseInertia NOTIFY mouseInertiaChanged)
     Q_PROPERTY(bool randomPath READ randomPath WRITE setRandomPath NOTIFY randomPathChanged)
     Q_PROPERTY(int animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
     Q_PROPERTY(bool screenSwallow READ screenSwallow WRITE setScreenSwallow NOTIFY screenSwallowChanged)
@@ -228,6 +229,8 @@ public:
     // 高级设置
     bool followMouse() const;
     void setFollowMouse(bool v);
+    float mouseInertia() const;
+    void setMouseInertia(float v);
     bool randomPath() const;
     void setRandomPath(bool v);
     int animationSpeed() const;
@@ -336,6 +339,7 @@ signals:
 
     // 高级设置信号
     void followMouseChanged();
+    void mouseInertiaChanged();
     void randomPathChanged();
     void animationSpeedChanged();
     void screenSwallowChanged();
@@ -431,6 +435,7 @@ private:
 
     // 高级设置
     bool    m_followMouse    = false;
+    float   m_mouseInertia   = 0.30f;
     bool    m_randomPath     = true;
     int     m_animationSpeed = 1;
     bool    m_screenSwallow  = false;
