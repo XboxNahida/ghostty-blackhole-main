@@ -625,6 +625,7 @@ void BlackHoleCore::resetDefaults()
     m_fixedSize   = false;
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
+    m_limitMouseOvershoot = true;
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -640,6 +641,7 @@ void BlackHoleCore::resetDefaults()
     setCurrentPresetIndex(0);
     emit followMouseChanged();
     emit mouseInertiaChanged();
+    emit limitMouseOvershootChanged();
     emit randomPathChanged();
     emit animationSpeedChanged();
     emit screenSwallowChanged();
@@ -1322,6 +1324,14 @@ void BlackHoleCore::setMouseInertia(float v)
     emit mouseInertiaChanged();
 }
 
+bool BlackHoleCore::limitMouseOvershoot() const { return m_limitMouseOvershoot; }
+void BlackHoleCore::setLimitMouseOvershoot(bool v)
+{
+    if (m_limitMouseOvershoot == v) return;
+    m_limitMouseOvershoot = v;
+    emit limitMouseOvershootChanged();
+}
+
 bool BlackHoleCore::randomPath() const { return m_randomPath; }
 void BlackHoleCore::setRandomPath(bool v) { if (m_randomPath == v) return; m_randomPath = v; emit randomPathChanged(); }
 
@@ -1386,6 +1396,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "# Blackhole Advanced Settings v1\n";
     out << "followMouse="   << (m_followMouse ? 1 : 0) << "\n";
     out << "mouseInertia="  << QString::number(m_mouseInertia, 'f', 2) << "\n";
+    out << "limitMouseOvershoot=" << (m_limitMouseOvershoot ? 1 : 0) << "\n";
     out << "videoAsIdle="   << (m_videoAsIdle ? 1 : 0) << "\n";
     out << "randomPath="    << (m_randomPath ? 1 : 0) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
@@ -1421,6 +1432,7 @@ void BlackHoleCore::loadAdvancedConfig()
         QString val = line.mid(eq + 1).trimmed();
         if (key == "followMouse")    m_followMouse    = (val.toInt() != 0);
         else if (key == "mouseInertia") setMouseInertia(val.toFloat());
+        else if (key == "limitMouseOvershoot") setLimitMouseOvershoot(val.toInt() != 0);
         else if (key == "videoAsIdle")   m_videoAsIdle    = (val.toInt() != 0);
         else if (key == "randomPath")     m_randomPath     = (val.toInt() != 0);
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
@@ -1439,6 +1451,7 @@ void BlackHoleCore::loadAdvancedConfig()
     }
     file.close();
     emit mouseInertiaChanged();
+    emit limitMouseOvershootChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }
 

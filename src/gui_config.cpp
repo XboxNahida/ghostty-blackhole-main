@@ -402,6 +402,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "diskIncl=%.3f\n",   cfg.diskIncl);
     fprintf(f, "followMouse=%d\n",  cfg.followMouse ? 1 : 0);
     fprintf(f, "mouseInertia=%.3f\n", cfg.mouseInertia);
+    fprintf(f, "limitMouseOvershoot=%d\n", cfg.limitMouseOvershoot ? 1 : 0);
     fprintf(f, "randomPath=%d\n",   cfg.randomPath ? 1 : 0);
     fprintf(f, "screenSwallow=%d\n", cfg.screenSwallow ? 1 : 0);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
@@ -435,6 +436,7 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
                 if (val > 1.0f) val = 1.0f;
                 cfg.mouseInertia = val;
             }
+            else if (strcmp(key, "limitMouseOvershoot") == 0) cfg.limitMouseOvershoot = (val != 0.0f);
             else if (strcmp(key, "randomPath") == 0) cfg.randomPath = (val != 0.0f);
             else if (strcmp(key, "screenSwallow") == 0) cfg.screenSwallow = (val != 0.0f);
             else if (strcmp(key, "distortion") == 0) {

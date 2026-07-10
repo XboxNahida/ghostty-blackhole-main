@@ -16,6 +16,7 @@ Item {
     property bool videoAsIdle: bhCore ? bhCore.videoAsIdle : false
     property bool followMouse: bhCore ? bhCore.followMouse : false
     property real mouseInertia: bhCore ? bhCore.mouseInertia : 0.30
+    property bool limitMouseOvershoot: bhCore ? bhCore.limitMouseOvershoot : true
     property bool randomPath: bhCore ? bhCore.randomPath : true
     property int animationSpeed: bhCore ? bhCore.animationSpeed : 1
     property bool screenSwallow: bhCore ? bhCore.screenSwallow : false
@@ -171,6 +172,47 @@ Item {
                     }
                     visible: advPage.followMouse
                     implicitHeight: advPage.followMouse ? 48 : 0
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    visible: advPage.followMouse
+
+                    Text {
+                        text: "限制冲出范围"
+                        font.pixelSize: 14
+                        color: theme.textColor
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: "关闭后可被鼠标甩飞"
+                        font.pixelSize: 11
+                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                    }
+                    CheckBox {
+                        id: overshootCheck
+                        checked: advPage.limitMouseOvershoot
+                        onToggled: {
+                            advPage.limitMouseOvershoot = checked
+                            if (bhCore) bhCore.limitMouseOvershoot = checked
+                        }
+                        indicator: Rectangle {
+                            implicitWidth: 20; implicitHeight: 20
+                            x: overshootCheck.leftPadding
+                            y: parent.height / 2 - height / 2
+                            radius: 4
+                            color: overshootCheck.checked ? theme.focusColor : "transparent"
+                            border.color: overshootCheck.checked ? theme.focusColor : theme.borderColor
+                            border.width: 2
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Text {
+                                anchors.centerIn: parent; text: "\uf00c"
+                                font.family: iconFont.name; font.pixelSize: 12
+                                color: "#ffffff"; visible: overshootCheck.checked
+                            }
+                        }
+                    }
                 }
             }
         }

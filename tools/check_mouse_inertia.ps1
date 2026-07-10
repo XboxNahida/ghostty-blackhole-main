@@ -17,18 +17,27 @@ function Require-Pattern {
 }
 
 Require-Pattern 'Blakhole_UI\core\blackholecore.h' 'Q_PROPERTY\(float\s+mouseInertia' 'Qt property'
+Require-Pattern 'Blakhole_UI\core\blackholecore.h' 'Q_PROPERTY\(bool\s+limitMouseOvershoot' 'Qt overshoot limit property'
 Require-Pattern 'Blakhole_UI\core\blackholecore.h' 'mouseInertiaChanged' 'Qt signal'
+Require-Pattern 'Blakhole_UI\core\blackholecore.h' 'limitMouseOvershootChanged' 'Qt overshoot limit signal'
 Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'mouseInertia=' 'Qt config save/read key'
+Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'limitMouseOvershoot=' 'Qt overshoot limit save/read key'
 Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'mouseInertia' 'QML local property'
 Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'bhCore\.mouseInertia' 'QML core binding'
+Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'limitMouseOvershoot' 'QML overshoot limit property'
+Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'bhCore\.limitMouseOvershoot' 'QML overshoot limit binding'
 Require-Pattern 'src\gui_config.h' 'mouseInertia' 'renderer config field'
+Require-Pattern 'src\gui_config.h' 'limitMouseOvershoot' 'renderer overshoot limit field'
 Require-Pattern 'src\gui_config.cpp' 'mouseInertia=' 'renderer config save/read key'
+Require-Pattern 'src\gui_config.cpp' 'limitMouseOvershoot=' 'renderer overshoot limit save/read key'
 Require-Pattern 'src\main.cpp' 'cfg\.mouseInertia' 'renderer mouse inertia logic'
+Require-Pattern 'src\main.cpp' 'cfg\.limitMouseOvershoot' 'renderer overshoot limit branch'
 Require-Pattern 'src\main.cpp' 'wanderRadius' 'mouse wander radius'
 Require-Pattern 'src\main.cpp' 'mouseVelX' 'mouse velocity state'
 Require-Pattern 'src\main.cpp' 'maxSpeed' 'velocity clamp'
 Require-Pattern 'src\main.cpp' 'allowedRadius' 'bounded overshoot radius'
 Require-Pattern 'src\main.cpp' 'pullStrength' 'mass-like attraction strength'
+Require-Pattern 'src\main.cpp' 'nearBrakeRadius' 'near-cursor braking radius'
 Require-Pattern 'src\main.cpp' 'mouseDist' 'distance-to-cursor boundary check'
 
 $mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'src\main.cpp')
@@ -37,6 +46,12 @@ if ($mainText -match 'float\s+spring\s*=') {
 }
 if ($mainText -match 'float\s+damping\s*=') {
     throw 'Elastic damping model is still present in src\main.cpp'
+}
+if ($mainText -match 'orbitForce') {
+    throw 'Continuous orbit force is still present in src\main.cpp'
+}
+if ($mainText -match 'tangent[XY]') {
+    throw 'Continuous tangent force is still present in src\main.cpp'
 }
 
 'MOUSE_INERTIA_LINK_OK'

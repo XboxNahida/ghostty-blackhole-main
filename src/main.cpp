@@ -1436,29 +1436,43 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float maxSpeed = 0.0045f + 0.0045f * (1.0f - inertia);
-                    float pullStrength = 0.010f + 0.018f * (1.0f - inertia);
-                    float driftKeep = 0.965f - 0.085f * (1.0f - inertia);
+                    float maxSpeed = cfg.limitMouseOvershoot
+                        ? (0.0038f + 0.0038f * (1.0f - inertia))
+                        : (0.0050f + 0.0025f * (1.0f - inertia));
+                    float pullStrength = cfg.limitMouseOvershoot
+                        ? (0.008f + 0.014f * (1.0f - inertia))
+                        : (0.0035f + 0.0065f * (1.0f - inertia));
+                    float driftKeep = cfg.limitMouseOvershoot
+                        ? (0.960f - 0.075f * (1.0f - inertia))
+                        : (0.990f - 0.020f * (1.0f - inertia));
+                    float nearBrakeRadius = allowedRadius * (1.10f + 0.55f * inertia);
 
                     float toMouseX = targetX - cursorHomeX;
                     float toMouseY = targetY - cursorHomeY;
                     float mouseDist = sqrtf(toMouseX * toMouseX + toMouseY * toMouseY);
 
-                    if (mouseDist > allowedRadius) {
-                        float excess = mouseDist - allowedRadius;
-                        mouseVelX += (toMouseX / mouseDist) * excess * pullStrength;
-                        mouseVelY += (toMouseY / mouseDist) * excess * pullStrength;
-                    } else {
-                        float orbit = (allowedRadius > 0.000001f) ? (mouseDist / allowedRadius) : 0.0f;
-                        float tangentX = -toMouseY;
-                        float tangentY = toMouseX;
-                        float tangentLen = sqrtf(tangentX * tangentX + tangentY * tangentY);
-                        if (tangentLen > 0.000001f) {
-                            tangentX /= tangentLen;
-                            tangentY /= tangentLen;
-                            float orbitForce = (0.00010f + 0.00028f * inertia) * (1.0f - orbit * 0.35f);
-                            mouseVelX += tangentX * orbitForce;
-                            mouseVelY += tangentY * orbitForce;
+                    if (mouseDist > 0.000001f) {
+                        float dirX = toMouseX / mouseDist;
+                        float dirY = toMouseY / mouseDist;
+                        if (cfg.limitMouseOvershoot) {
+                            if (mouseDist > allowedRadius) {
+                                float excess = mouseDist - allowedRadius;
+                                mouseVelX += dirX * excess * pullStrength;
+                                mouseVelY += dirY * excess * pullStrength;
+                            }
+                        } else {
+                            float nearRatio = (nearBrakeRadius > 0.000001f) ? (mouseDist / nearBrakeRadius) : 1.0f;
+                            if (nearRatio > 1.0f) nearRatio = 1.0f;
+                            float pullFalloff = 0.20f + 0.80f * nearRatio;
+                            mouseVelX += dirX * mouseDist * pullStrength * pullFalloff;
+                            mouseVelY += dirY * mouseDist * pullStrength * pullFalloff;
+
+                            float radialVel = mouseVelX * dirX + mouseVelY * dirY;
+                            if (mouseDist < nearBrakeRadius && radialVel > 0.0f) {
+                                float brake = (0.12f + 0.18f * inertia) * (1.0f - nearRatio);
+                                mouseVelX -= dirX * radialVel * brake;
+                                mouseVelY -= dirY * radialVel * brake;
+                            }
                         }
                     }
 
@@ -1478,7 +1492,7 @@ int main(int argc, char* argv[]) {
                     float afterX = cursorHomeX - targetX;
                     float afterY = cursorHomeY - targetY;
                     float afterDist = sqrtf(afterX * afterX + afterY * afterY);
-                    if (afterDist > allowedRadius && afterDist > 0.000001f) {
+                    if (cfg.limitMouseOvershoot && afterDist > allowedRadius && afterDist > 0.000001f) {
                         float limitScale = allowedRadius / afterDist;
                         cursorHomeX = targetX + afterX * limitScale;
                         cursorHomeY = targetY + afterY * limitScale;
@@ -1500,7 +1514,7 @@ int main(int argc, char* argv[]) {
                 float frameDx = frameHomeX - mouseTargetX;
                 float frameDy = frameHomeY - mouseTargetY;
                 float frameDist = sqrtf(frameDx * frameDx + frameDy * frameDy);
-                if (frameDist > allowedRadius && frameDist > 0.000001f) {
+                if (cfg.limitMouseOvershoot && frameDist > allowedRadius && frameDist > 0.000001f) {
                     float frameScale = allowedRadius / frameDist;
                     frameHomeX = mouseTargetX + frameDx * frameScale;
                     frameHomeY = mouseTargetY + frameDy * frameScale;
