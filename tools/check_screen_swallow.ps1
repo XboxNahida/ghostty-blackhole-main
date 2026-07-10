@@ -28,7 +28,16 @@ Require-Pattern "src\gui_config.cpp" "swallowStrength=" "renderer config save/re
 Require-Pattern "src\main.cpp" "uSwallowStrength" "renderer swallow strength uniform"
 Require-Pattern "src\main.cpp" "cfg\.swallowStrength" "renderer swallow strength upload"
 Require-Pattern "shaders\frag_desktop_header.glsl" "uSwallowStrength" "desktop shader swallow strength uniform"
-Require-Pattern "src\main.cpp" "swallowWarp" "shader injection radial swallow warp"
+Require-Pattern "src\main.cpp" "fragmentCell" "shader injection fragment grid"
+Require-Pattern "src\main.cpp" "fragmentHash" "shader injection deterministic fragment hash"
+Require-Pattern "src\main.cpp" "tidalStretch" "shader injection tidal stretch"
+Require-Pattern "src\main.cpp" "spiralAngle" "shader injection spiral infall"
+Require-Pattern "src\main.cpp" "fragmentMask" "shader injection fragmented sampling mask"
 Require-Pattern "src\main.cpp" "swallowPhase" "shader injection swallow phase"
+
+$mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot "..\src\main.cpp")
+if ($mainText -match "vec2\s+suckedP\s*=\s*lensP\s*\*\s*\(1\.0\s*\+\s*2\.8\s*\*\s*swallowWarp\)") {
+    throw "Screen swallow still uses continuous radial warp instead of fragmented tidal infall"
+}
 
 Write-Output "SCREEN_SWALLOW_OK"

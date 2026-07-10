@@ -416,12 +416,28 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
 
         const std::string oldNear = "vec2  suv = mirrorUV(center + (p + (sp - p) * window * shield) / vec2(aspect, 1.0));";
         const std::string newNear =
-            "float swallowPhase = (uScreenSwallow > 0) ? pow(clamp(1.0 - uBornProgress, 0.0, 1.0), 0.72) * clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
-            "            float swallowFalloff = smoothstep(1.45, 0.0, length(p));\n"
-            "            float swallowWarp = swallowPhase * swallowFalloff;\n"
             "            vec2  lensP = p + (sp - p) * window * shield * max(uDistortion, 0.0);\n"
-            "            vec2  suckedP = lensP * (1.0 + 2.8 * swallowWarp);\n"
-            "            vec2  suv = mirrorUV(center + mix(lensP, suckedP, swallowWarp) / vec2(aspect, 1.0));";
+            "            float swallowPhase = (uScreenSwallow > 0) ? pow(clamp(1.0 - uBornProgress, 0.0, 1.0), 0.72) * clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
+            "            float fragmentMask = smoothstep(0.025, 0.42, window * shield) * swallowPhase;\n"
+            "            vec2  fragmentSpace = p * mix(18.0, 58.0, clamp(uSwallowStrength, 0.0, 1.0));\n"
+            "            vec2  fragmentCell = floor(fragmentSpace + vec2(19.17, 43.31));\n"
+            "            vec2  fragmentLocal = fract(fragmentSpace) - 0.5;\n"
+            "            float fragmentHash = fract(sin(dot(fragmentCell, vec2(127.1, 311.7))) * 43758.5453);\n"
+            "            float fragmentHash2 = fract(sin(dot(fragmentCell + 17.0, vec2(269.5, 183.3))) * 24634.6345);\n"
+            "            float r = max(length(lensP), 0.0005);\n"
+            "            vec2  radialDir = lensP / r;\n"
+            "            vec2  tangentDir = vec2(-radialDir.y, radialDir.x);\n"
+            "            float fragmentDelay = smoothstep(fragmentHash * 0.70, 1.0, swallowPhase);\n"
+            "            float spiralAngle = (2.4 + 3.2 * fragmentHash2) * fragmentDelay * fragmentMask / (0.18 + r);\n"
+            "            mat2  spiralRot = mat2(cos(spiralAngle), -sin(spiralAngle), sin(spiralAngle), cos(spiralAngle));\n"
+            "            float tidalStretch = fragmentMask * fragmentDelay * (0.20 + 0.85 / (0.16 + r));\n"
+            "            float shardShape = smoothstep(0.48, 0.18, abs(fragmentLocal.y + (fragmentHash - 0.5) * 0.45)) * smoothstep(0.58, 0.08, abs(fragmentLocal.x));\n"
+            "            float shardGate = step(0.18 + 0.35 * fragmentHash, shardShape + fragmentMask * 0.25);\n"
+            "            vec2  shardPull = radialDir * fragmentDelay * fragmentMask * (0.16 + 0.72 / (0.25 + r));\n"
+            "            vec2  shardShear = tangentDir * (fragmentHash2 - 0.5) * fragmentMask * fragmentDelay * 0.22;\n"
+            "            vec2  stretchedP = lensP + radialDir * dot(fragmentLocal, radialDir) * tidalStretch * 0.018 - tangentDir * dot(fragmentLocal, tangentDir) * tidalStretch * 0.006;\n"
+            "            vec2  swallowP = spiralRot * (stretchedP + shardPull + shardShear);\n"
+            "            vec2  suv = mirrorUV(center + mix(lensP, swallowP, shardGate * fragmentMask) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
 
@@ -431,9 +447,11 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             body.replace(p, finalColor.length(),
                 "    if (uScreenSwallow > 0) {\n"
                 "        float swallowPhase = pow(clamp(1.0 - uBornProgress, 0.0, 1.0), 0.72) * clamp(uSwallowStrength, 0.0, 1.0);\n"
-                "        float swallow = swallowPhase * smoothstep(1.35, 0.0, length((uv - center) * vec2(aspect, 1.0)));\n"
-                "        col *= mix(1.0, 0.28, swallow);\n"
-                "        col += vec3(0.015, 0.012, 0.02) * swallowPhase;\n"
+                "        vec2 fragmentCell = floor((uv - center) * vec2(aspect, 1.0) * mix(22.0, 74.0, clamp(uSwallowStrength, 0.0, 1.0)));\n"
+                "        float fragmentHash = fract(sin(dot(fragmentCell, vec2(91.7, 213.1))) * 15731.743);\n"
+                "        float fragmentMask = smoothstep(0.04, 0.64, window * shield) * swallowPhase;\n"
+                "        float tidalStretch = smoothstep(0.0, 1.0, fragmentMask) * (0.55 + 0.45 * fragmentHash);\n"
+                "        col *= mix(1.0, mix(0.38, 0.82, fragmentHash), fragmentMask * tidalStretch);\n"
                 "    }\n"
                 "    fragColor = vec4(col, 1.0);");
         }
