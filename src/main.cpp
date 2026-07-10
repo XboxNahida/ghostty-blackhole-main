@@ -1436,16 +1436,10 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float maxSpeed = cfg.limitMouseOvershoot
-                        ? (0.0038f + 0.0038f * (1.0f - inertia))
-                        : (0.0050f + 0.0025f * (1.0f - inertia));
-                    float pullStrength = cfg.limitMouseOvershoot
-                        ? (0.008f + 0.014f * (1.0f - inertia))
-                        : (0.0035f + 0.0065f * (1.0f - inertia));
-                    float driftKeep = cfg.limitMouseOvershoot
-                        ? (0.960f - 0.075f * (1.0f - inertia))
-                        : (0.990f - 0.020f * (1.0f - inertia));
-                    float nearBrakeRadius = allowedRadius * (1.10f + 0.55f * inertia);
+                    float gravityStrength = 0.000010f + 0.000030f * (1.0f - inertia);
+                    float gravitySoftening = 0.018f + 0.035f * inertia;
+                    float driftKeep = 0.9970f - 0.0060f * (1.0f - inertia);
+                    float maxSeparation = 0.26f + 0.30f * inertia;
 
                     float toMouseX = targetX - cursorHomeX;
                     float toMouseY = targetY - cursorHomeY;
@@ -1454,37 +1448,14 @@ int main(int argc, char* argv[]) {
                     if (mouseDist > 0.000001f) {
                         float dirX = toMouseX / mouseDist;
                         float dirY = toMouseY / mouseDist;
-                        if (cfg.limitMouseOvershoot) {
-                            if (mouseDist > allowedRadius) {
-                                float excess = mouseDist - allowedRadius;
-                                mouseVelX += dirX * excess * pullStrength;
-                                mouseVelY += dirY * excess * pullStrength;
-                            }
-                        } else {
-                            float nearRatio = (nearBrakeRadius > 0.000001f) ? (mouseDist / nearBrakeRadius) : 1.0f;
-                            if (nearRatio > 1.0f) nearRatio = 1.0f;
-                            float pullFalloff = 0.20f + 0.80f * nearRatio;
-                            mouseVelX += dirX * mouseDist * pullStrength * pullFalloff;
-                            mouseVelY += dirY * mouseDist * pullStrength * pullFalloff;
-
-                            float radialVel = mouseVelX * dirX + mouseVelY * dirY;
-                            if (mouseDist < nearBrakeRadius && radialVel > 0.0f) {
-                                float brake = (0.12f + 0.18f * inertia) * (1.0f - nearRatio);
-                                mouseVelX -= dirX * radialVel * brake;
-                                mouseVelY -= dirY * radialVel * brake;
-                            }
-                        }
+                        float softenedDist = sqrtf(mouseDist * mouseDist + gravitySoftening * gravitySoftening);
+                        float gravityAccel = gravityStrength / (softenedDist * softenedDist);
+                        mouseVelX += dirX * gravityAccel;
+                        mouseVelY += dirY * gravityAccel;
                     }
 
                     mouseVelX *= driftKeep;
                     mouseVelY *= driftKeep;
-
-                    float speed = sqrtf(mouseVelX * mouseVelX + mouseVelY * mouseVelY);
-                    if (speed > maxSpeed && speed > 0.000001f) {
-                        float scale = maxSpeed / speed;
-                        mouseVelX *= scale;
-                        mouseVelY *= scale;
-                    }
 
                     cursorHomeX += mouseVelX;
                     cursorHomeY += mouseVelY;
@@ -1492,10 +1463,18 @@ int main(int argc, char* argv[]) {
                     float afterX = cursorHomeX - targetX;
                     float afterY = cursorHomeY - targetY;
                     float afterDist = sqrtf(afterX * afterX + afterY * afterY);
-                    if (cfg.limitMouseOvershoot && afterDist > allowedRadius && afterDist > 0.000001f) {
-                        float limitScale = allowedRadius / afterDist;
+                    if (cfg.limitMouseOvershoot && afterDist > maxSeparation && afterDist > 0.000001f) {
+                        float limitScale = maxSeparation / afterDist;
                         cursorHomeX = targetX + afterX * limitScale;
                         cursorHomeY = targetY + afterY * limitScale;
+
+                        float outwardX = afterX / afterDist;
+                        float outwardY = afterY / afterDist;
+                        float outwardVel = mouseVelX * outwardX + mouseVelY * outwardY;
+                        if (outwardVel > 0.0f) {
+                            mouseVelX -= outwardX * outwardVel * 0.85f;
+                            mouseVelY -= outwardY * outwardVel * 0.85f;
+                        }
                     }
                 }
             }
@@ -1514,8 +1493,9 @@ int main(int argc, char* argv[]) {
                 float frameDx = frameHomeX - mouseTargetX;
                 float frameDy = frameHomeY - mouseTargetY;
                 float frameDist = sqrtf(frameDx * frameDx + frameDy * frameDy);
-                if (cfg.limitMouseOvershoot && frameDist > allowedRadius && frameDist > 0.000001f) {
-                    float frameScale = allowedRadius / frameDist;
+                float maxSeparation = 0.26f + 0.30f * inertia;
+                if (cfg.limitMouseOvershoot && frameDist > maxSeparation && frameDist > 0.000001f) {
+                    float frameScale = maxSeparation / frameDist;
                     frameHomeX = mouseTargetX + frameDx * frameScale;
                     frameHomeY = mouseTargetY + frameDy * frameScale;
                 }

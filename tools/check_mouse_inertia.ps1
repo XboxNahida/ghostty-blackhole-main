@@ -34,10 +34,11 @@ Require-Pattern 'src\main.cpp' 'cfg\.mouseInertia' 'renderer mouse inertia logic
 Require-Pattern 'src\main.cpp' 'cfg\.limitMouseOvershoot' 'renderer overshoot limit branch'
 Require-Pattern 'src\main.cpp' 'wanderRadius' 'mouse wander radius'
 Require-Pattern 'src\main.cpp' 'mouseVelX' 'mouse velocity state'
-Require-Pattern 'src\main.cpp' 'maxSpeed' 'velocity clamp'
+Require-Pattern 'src\main.cpp' 'gravityStrength' 'gravity well attraction strength'
+Require-Pattern 'src\main.cpp' 'gravitySoftening' 'gravity well softening distance'
+Require-Pattern 'src\main.cpp' 'maxSeparation' 'large-distance safety boundary'
 Require-Pattern 'src\main.cpp' 'allowedRadius' 'bounded overshoot radius'
-Require-Pattern 'src\main.cpp' 'pullStrength' 'mass-like attraction strength'
-Require-Pattern 'src\main.cpp' 'nearBrakeRadius' 'near-cursor braking radius'
+Require-Pattern 'src\main.cpp' 'outwardVel' 'outward velocity boundary damping'
 Require-Pattern 'src\main.cpp' 'mouseDist' 'distance-to-cursor boundary check'
 
 $mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'src\main.cpp')
@@ -52,6 +53,12 @@ if ($mainText -match 'orbitForce') {
 }
 if ($mainText -match 'tangent[XY]') {
     throw 'Continuous tangent force is still present in src\main.cpp'
+}
+if ($mainText -match 'nearBrakeRadius') {
+    throw 'Near-cursor braking model is still present in src\main.cpp'
+}
+if ($mainText -match 'float\s+maxSpeed\s*=') {
+    throw 'Hard velocity clamp is still present in src\main.cpp'
 }
 
 'MOUSE_INERTIA_LINK_OK'
