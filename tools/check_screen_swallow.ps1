@@ -59,6 +59,8 @@ Require-Pattern "src\main.cpp" "programmaticAccretion" "programmatic accretion d
 Require-Pattern "src\main.cpp" "uiFreeAccretion" "UI-free accretion disk color"
 Require-Pattern "src\main.cpp" "uiSuppression" "UI color suppression near accretion disk"
 Require-Pattern "src\main.cpp" "nearFieldUiCutoff" "near-field UI sample cutoff"
+Require-Pattern "src\main.cpp" "wideTidalErase" "wide tidal UI debris erasure"
+Require-Pattern "src\main.cpp" "uiDebrisSuppression" "broad warped UI debris suppression"
 Require-Pattern "src\main.cpp" "tidalUiErase" "tidal UI color erasure near disk"
 Require-Pattern "src\main.cpp" "opacityWake" "disk opacity wake for swallowed UI"
 Require-Pattern "src\main.cpp" "photonRingFeather" "soft photon ring feather"
@@ -123,6 +125,10 @@ if ($mainText -match "mix\s*\(\s*mix\s*\(\s*baseLensP\s*,\s*singleLensP\s*,\s*ou
 
 if ($mainText -match "swallowedColor\s*=\s*deUiBg\s*\*\s*trans") {
     throw "Screen swallow still lets sampled UI color feed the accretion disk"
+}
+
+if ($mainText -match "uiSuppression\s*=\s*clamp\s*\(\s*max\s*\(\s*tidalUiErase\s*,\s*photonRingFeather") {
+    throw "Screen swallow still suppresses only the near disk and leaves warped UI debris visible"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
