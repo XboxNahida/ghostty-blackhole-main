@@ -28,17 +28,16 @@ Require-Pattern "src\gui_config.cpp" "swallowStrength=" "renderer config save/re
 Require-Pattern "src\main.cpp" "uSwallowStrength" "renderer swallow strength uniform"
 Require-Pattern "src\main.cpp" "cfg\.swallowStrength" "renderer swallow strength upload"
 Require-Pattern "shaders\frag_desktop_header.glsl" "uSwallowStrength" "desktop shader swallow strength uniform"
-Require-Pattern "src\main.cpp" "tidalStretch" "shader injection tidal stretch"
-Require-Pattern "src\main.cpp" "tidalFilament" "shader injection tidal filament bands"
-Require-Pattern "src\main.cpp" "differentialRotation" "shader injection differential disk rotation"
-Require-Pattern "src\main.cpp" "filamentMask" "shader injection filament sampling mask"
-Require-Pattern "src\main.cpp" "filamentPhase" "shader injection animated filament phase"
-Require-Pattern "src\main.cpp" "innerLineFlow" "shader injection inner line flow"
+Require-Pattern "src\main.cpp" "lensAmplification" "original lens amplification"
+Require-Pattern "src\main.cpp" "dimensionCollapse" "near-field dimension collapse"
+Require-Pattern "src\main.cpp" "collapseToDisk" "collapse into accretion disk"
+Require-Pattern "src\main.cpp" "ringBirth" "accretion ring birth phase"
+Require-Pattern "src\main.cpp" "ringGlow" "accretion ring glow"
+Require-Pattern "src\main.cpp" "ringWidth" "accretion ring width"
+Require-Pattern "src\main.cpp" "outerLensBlend" "smooth outer lens blend"
 Require-Pattern "src\main.cpp" "swallowPhase" "shader injection swallow phase"
 Require-Pattern "src\main.cpp" "continuousSwallow" "continuous runtime swallow phase"
 Require-Pattern "src\main.cpp" "eventHorizonMask" "event horizon blackening"
-Require-Pattern "src\main.cpp" "accretionScramble" "unrecognizable accretion disk zone"
-Require-Pattern "src\main.cpp" "recognizableOuterLens" "recognizable outer lens zone"
 Require-Pattern "src\main.cpp" "effectiveShaderSpeed" "slow shader trajectory speed in swallow mode"
 Require-Pattern "src\main.cpp" "swallowMotionScale" "slow mouse-follow motion in swallow mode"
 
@@ -51,8 +50,8 @@ if ($mainText -match "swallowPhase\s*=\s*[^;]*1\.0\s*-\s*uBornProgress") {
     throw "Screen swallow still depends on birth/die progress instead of running continuously"
 }
 
-if ($mainText -match "fragmentCell|fragmentHash|shardGate|cellScramble") {
-    throw "Screen swallow still uses fixed fragment-cell shards instead of rotating tidal filaments"
+if ($mainText -match "fragmentCell|fragmentHash|shardGate|cellScramble|tidalFilament|filamentPhase") {
+    throw "Screen swallow still uses standalone shard/filament effects instead of amplified original lens collapse"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
