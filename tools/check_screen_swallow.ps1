@@ -30,15 +30,19 @@ Require-Pattern "src\main.cpp" "cfg\.swallowStrength" "renderer swallow strength
 Require-Pattern "shaders\frag_desktop_header.glsl" "uSwallowStrength" "desktop shader swallow strength uniform"
 Require-Pattern "src\main.cpp" "lensAmplification" "original lens amplification"
 Require-Pattern "src\main.cpp" "dimensionCollapse" "near-field dimension collapse"
-Require-Pattern "src\main.cpp" "collapseToDisk" "collapse into accretion disk"
 Require-Pattern "src\main.cpp" "ringBirth" "accretion ring birth phase"
-Require-Pattern "src\main.cpp" "ringGlow" "accretion ring glow"
-Require-Pattern "src\main.cpp" "ringWidth" "accretion ring width"
 Require-Pattern "src\main.cpp" "outerLensBlend" "smooth outer lens blend"
 Require-Pattern "src\main.cpp" "longTailLens" "screen-wide long-tail lens field"
 Require-Pattern "src\main.cpp" "swallowLensField" "edge-free swallow lens field"
 Require-Pattern "src\main.cpp" "screenWideLensBlend" "screen-wide lens blend without a hard shell"
 Require-Pattern "src\main.cpp" "edgeFreeWarp" "edge-free warp displacement"
+Require-Pattern "src\main.cpp" "singleLensP" "single-pass swallow lens sample"
+Require-Pattern "src\main.cpp" "adaptiveCollapse" "distance-adaptive disk collapse"
+Require-Pattern "src\main.cpp" "curvatureFalloff" "distance-dependent line curvature"
+Require-Pattern "src\main.cpp" "colorlessOuterLens" "colorless outer lens field"
+Require-Pattern "src\main.cpp" "realAccretionMask" "preset-derived accretion mask"
+Require-Pattern "src\main.cpp" "programmaticAccretion" "programmatic accretion disk color"
+Require-Pattern "src\main.cpp" "uiSuppression" "UI color suppression near accretion disk"
 Require-Pattern "src\main.cpp" "softCollapse" "softened collapse boundary"
 Require-Pattern "src\main.cpp" "boundaryDither" "non-circular collapse boundary dither"
 Require-Pattern "src\main.cpp" "luminosityBoost" "swallow brightness compensation"
@@ -67,6 +71,18 @@ if ($mainText -match "col\s*=\s*mix\([^;]+collapseToDisk\);") {
 
 if ($mainText -match "smoothstep\(0\.03,\s*0\.72,\s*originalWindow\)") {
     throw "Screen swallow still uses originalWindow as a visible lens boundary"
+}
+
+if ($mainText -match "ringRadius\s*=\s*mix|ringWidth\s*=\s*mix|ringGlow|accretionMatter") {
+    throw "Screen swallow still uses a fixed synthetic colored ring instead of the preset disk"
+}
+
+if ($mainText -match "collapseToDisk|collapseP|spiralRot|diskLineP") {
+    throw "Screen swallow still applies a second collapse/spiral warp after lensing"
+}
+
+if ($mainText -match "col\s*=\s*mix\(col,\s*col\s*\*\s*mix") {
+    throw "Screen swallow still tints the outer lens like a glass shell"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
