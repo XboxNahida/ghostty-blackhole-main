@@ -18,6 +18,8 @@
 #include <tlhelp32.h>
 #endif
 
+static constexpr int kCloseHotkeyId = 0x4248;
+
 // ========== PresetModel ==========
 
 PresetModel::PresetModel(QObject *parent)
@@ -194,6 +196,7 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     , m_rendererProcess(nullptr)
 {
     initDefaultPresets();
+    QCoreApplication::instance()->installNativeEventFilter(this);
 
     // 空闲检测定时器
     m_idleTimer = new QTimer(this);
@@ -217,6 +220,8 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
 
 BlackHoleCore::~BlackHoleCore()
 {
+    unregisterCloseHotkey();
+    QCoreApplication::instance()->removeNativeEventFilter(this);
     stopRenderer();
 }
 
@@ -1565,6 +1570,8 @@ void BlackHoleCore::saveSystemConfig()
     out << "launchMinimized=" << (m_launchMinimized ? 1 : 0) << "\n";
     out << "skipExitDialog=" << (m_skipExitDialog ? 1 : 0) << "\n";
     out << "defaultCloseAction=" << m_defaultCloseAction << "\n";
+    out << "closeHotkeyEnabled=" << (m_closeHotkeyEnabled ? 1 : 0) << "\n";
+    out << "closeHotkeySequence=" << m_closeHotkeySequence << "\n";
     file.close();
     qDebug() << "BlackHoleCore: saved system config";
 }
@@ -1574,6 +1581,7 @@ void BlackHoleCore::loadSystemConfig()
     QFile file;
     if (!openConfigForRead(file, "blackhole_system.txt")) {
         qDebug() << "BlackHoleCore: system config not found, using defaults";
+        updateCloseHotkeyRegistration();
         return;
     }
 
@@ -1591,8 +1599,11 @@ void BlackHoleCore::loadSystemConfig()
         else if (key == "launchMinimized") m_launchMinimized = (val.toInt() != 0);
         else if (key == "skipExitDialog")    m_skipExitDialog     = (val.toInt() != 0);
         else if (key == "defaultCloseAction") m_defaultCloseAction = val.toInt();
+        else if (key == "closeHotkeyEnabled") m_closeHotkeyEnabled = (val.toInt() != 0);
+        else if (key == "closeHotkeySequence") m_closeHotkeySequence = normalizedHotkeySequence(val);
     }
     file.close();
+    updateCloseHotkeyRegistration();
     qDebug() << "BlackHoleCore: loaded system config";
 }
 
@@ -1750,6 +1761,148 @@ void BlackHoleCore::setSkipExitDialog(bool v) { if (m_skipExitDialog == v) retur
 
 int BlackHoleCore::defaultCloseAction() const { return m_defaultCloseAction; }
 void BlackHoleCore::setDefaultCloseAction(int v) { if (m_defaultCloseAction == v) return; m_defaultCloseAction = v; emit defaultCloseActionChanged(); }
+
+bool BlackHoleCore::closeHotkeyEnabled() const { return m_closeHotkeyEnabled; }
+void BlackHoleCore::setCloseHotkeyEnabled(bool v)
+{
+    if (m_closeHotkeyEnabled == v) return;
+    m_closeHotkeyEnabled = v;
+    emit closeHotkeyEnabledChanged();
+    updateCloseHotkeyRegistration();
+}
+
+QString BlackHoleCore::closeHotkeySequence() const { return m_closeHotkeySequence; }
+void BlackHoleCore::setCloseHotkeySequence(const QString &v)
+{
+    QString normalized = normalizedHotkeySequence(v);
+    if (normalized.isEmpty()) normalized = QStringLiteral("Ctrl+Alt+B");
+    if (m_closeHotkeySequence == normalized) return;
+    m_closeHotkeySequence = normalized;
+    emit closeHotkeySequenceChanged();
+    updateCloseHotkeyRegistration();
+}
+
+QString BlackHoleCore::closeHotkeyStatus() const { return m_closeHotkeyStatus; }
+
+bool BlackHoleCore::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result)
+{
+    Q_UNUSED(eventType);
+    Q_UNUSED(result);
+#ifdef Q_OS_WIN
+    MSG *msg = static_cast<MSG*>(message);
+    if (msg && msg->message == WM_HOTKEY && msg->wParam == kCloseHotkeyId) {
+        stopAll();
+        return true;
+    }
+#else
+    Q_UNUSED(message);
+#endif
+    return false;
+}
+
+void BlackHoleCore::updateCloseHotkeyRegistration()
+{
+#ifdef Q_OS_WIN
+    unregisterCloseHotkey();
+    if (!m_closeHotkeyEnabled) {
+        m_closeHotkeyStatus = QStringLiteral("已禁用");
+        emit closeHotkeyStatusChanged();
+        return;
+    }
+
+    quint32 modifiers = 0;
+    quint32 key = 0;
+    if (!parseHotkeySequence(m_closeHotkeySequence, &modifiers, &key)) {
+        m_closeHotkeyStatus = QStringLiteral("快捷键无效");
+        emit closeHotkeyStatusChanged();
+        return;
+    }
+
+    if (RegisterHotKey(nullptr, kCloseHotkeyId, modifiers | MOD_NOREPEAT, key)) {
+        m_closeHotkeyRegistered = true;
+        m_closeHotkeyStatus = QStringLiteral("已绑定 ") + m_closeHotkeySequence;
+    } else {
+        m_closeHotkeyStatus = QStringLiteral("注册失败，可能被其他程序占用");
+    }
+    emit closeHotkeyStatusChanged();
+#else
+    m_closeHotkeyStatus = QStringLiteral("当前系统不支持全局快捷键");
+    emit closeHotkeyStatusChanged();
+#endif
+}
+
+void BlackHoleCore::unregisterCloseHotkey()
+{
+#ifdef Q_OS_WIN
+    if (m_closeHotkeyRegistered) {
+        UnregisterHotKey(nullptr, kCloseHotkeyId);
+        m_closeHotkeyRegistered = false;
+    }
+#endif
+}
+
+bool BlackHoleCore::parseHotkeySequence(const QString &sequence, quint32 *modifiers, quint32 *key) const
+{
+    if (!modifiers || !key) return false;
+    *modifiers = 0;
+    *key = 0;
+
+    const QStringList parts = sequence.split('+', Qt::SkipEmptyParts);
+    for (QString part : parts) {
+        part = part.trimmed();
+        const QString lower = part.toLower();
+        if (lower == "ctrl" || lower == "control") {
+            *modifiers |= MOD_CONTROL;
+        } else if (lower == "alt") {
+            *modifiers |= MOD_ALT;
+        } else if (lower == "shift") {
+            *modifiers |= MOD_SHIFT;
+        } else if (lower == "win" || lower == "meta") {
+            *modifiers |= MOD_WIN;
+        } else if (part.length() == 1 && part.at(0).isLetterOrNumber()) {
+            const ushort ch = part.at(0).toUpper().unicode();
+            *key = ch;
+        } else if (lower.startsWith('f')) {
+            bool ok = false;
+            int f = lower.mid(1).toInt(&ok);
+            if (ok && f >= 1 && f <= 24) *key = VK_F1 + static_cast<quint32>(f - 1);
+        } else if (lower == "escape" || lower == "esc") {
+            *key = VK_ESCAPE;
+        } else if (lower == "space") {
+            *key = VK_SPACE;
+        } else if (lower == "delete" || lower == "del") {
+            *key = VK_DELETE;
+        }
+    }
+
+    return *key != 0 && *modifiers != 0;
+}
+
+QString BlackHoleCore::normalizedHotkeySequence(const QString &sequence) const
+{
+    QStringList out;
+    QString keyPart;
+    const QStringList parts = sequence.split('+', Qt::SkipEmptyParts);
+    for (QString part : parts) {
+        part = part.trimmed();
+        const QString lower = part.toLower();
+        if ((lower == "ctrl" || lower == "control") && !out.contains("Ctrl")) out << "Ctrl";
+        else if (lower == "alt" && !out.contains("Alt")) out << "Alt";
+        else if (lower == "shift" && !out.contains("Shift")) out << "Shift";
+        else if ((lower == "win" || lower == "meta") && !out.contains("Win")) out << "Win";
+        else if (part.length() == 1 && part.at(0).isLetterOrNumber()) keyPart = part.toUpper();
+        else if (lower.startsWith('f')) {
+            bool ok = false;
+            int f = lower.mid(1).toInt(&ok);
+            if (ok && f >= 1 && f <= 24) keyPart = QStringLiteral("F%1").arg(f);
+        } else if (lower == "escape" || lower == "esc") keyPart = "Esc";
+        else if (lower == "space") keyPart = "Space";
+        else if (lower == "delete" || lower == "del") keyPart = "Delete";
+    }
+    if (keyPart.isEmpty()) return QString();
+    out << keyPart;
+    return out.join('+');
+}
 
 // ====== 渲染器覆盖参数 getter/setter ======
 

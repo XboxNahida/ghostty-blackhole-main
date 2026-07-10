@@ -49,6 +49,47 @@ ApplicationWindow {
     property bool autoStart: blackHoleCore ? blackHoleCore.autoStart : false
     property bool launchMinimized: blackHoleCore ? blackHoleCore.launchMinimized : false
     property int screenTarget: blackHoleCore ? blackHoleCore.screenTarget : 0
+    property bool closeHotkeyEnabled: blackHoleCore ? blackHoleCore.closeHotkeyEnabled : true
+    property string closeHotkeySequence: blackHoleCore ? blackHoleCore.closeHotkeySequence : "Ctrl+Alt+B"
+    property string closeHotkeyStatus: blackHoleCore ? blackHoleCore.closeHotkeyStatus : ""
+    property bool recordingHotkey: false
+
+    function hotkeyKeyName(key) {
+        if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
+        if (key >= Qt.Key_0 && key <= Qt.Key_9) return String.fromCharCode("0".charCodeAt(0) + key - Qt.Key_0)
+        if (key >= Qt.Key_F1 && key <= Qt.Key_F24) return "F" + (key - Qt.Key_F1 + 1)
+        if (key === Qt.Key_Escape) return "Esc"
+        if (key === Qt.Key_Space) return "Space"
+        if (key === Qt.Key_Delete) return "Delete"
+        return ""
+    }
+
+    function sequenceFromEvent(event) {
+        var keyName = hotkeyKeyName(event.key)
+        if (keyName === "" || keyName === "Esc") return keyName
+        var parts = []
+        if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
+        if (event.modifiers & Qt.AltModifier) parts.push("Alt")
+        if (event.modifiers & Qt.ShiftModifier) parts.push("Shift")
+        if (event.modifiers & Qt.MetaModifier) parts.push("Win")
+        if (parts.length === 0) return ""
+        parts.push(keyName)
+        return parts.join("+")
+    }
+
+    Keys.onPressed: function(event) {
+        if (!root.recordingHotkey) return
+        var sequence = root.sequenceFromEvent(event)
+        event.accepted = true
+        if (sequence === "Esc") {
+            root.recordingHotkey = false
+            return
+        }
+        if (sequence === "") return
+        root.closeHotkeySequence = sequence
+        if (blackHoleCore) blackHoleCore.closeHotkeySequence = sequence
+        root.recordingHotkey = false
+    }
 
     Item {
         id: contentWrapper
@@ -564,6 +605,99 @@ ApplicationWindow {
                                 }
                             }
 
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 86
+                    radius: 12
+                    color: theme.secondaryColor
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 12
+
+                            Text {
+                                text: "\uf11c"
+                                font.family: iconFont.name
+                                font.pixelSize: 18
+                                color: theme.focusColor
+                            }
+
+                            Text {
+                                text: "关闭渲染快捷键"
+                                font.pixelSize: 15
+                                color: theme.textColor
+                                Layout.fillWidth: true
+                            }
+
+                            CheckBox {
+                                id: hotkeyEnabledCheck
+                                checked: root.closeHotkeyEnabled
+                                onToggled: {
+                                    root.closeHotkeyEnabled = checked
+                                    if (blackHoleCore) blackHoleCore.closeHotkeyEnabled = checked
+                                }
+
+                                indicator: Rectangle {
+                                    implicitWidth: 20
+                                    implicitHeight: 20
+                                    x: hotkeyEnabledCheck.leftPadding
+                                    y: parent.height / 2 - height / 2
+                                    radius: 4
+                                    color: hotkeyEnabledCheck.checked ? theme.focusColor : "transparent"
+                                    border.color: hotkeyEnabledCheck.checked ? theme.focusColor : theme.borderColor
+                                    border.width: 2
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "\uf00c"
+                                        font.family: iconFont.name
+                                        font.pixelSize: 12
+                                        color: "#ffffff"
+                                        visible: hotkeyEnabledCheck.checked
+                                    }
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Text {
+                                text: root.recordingHotkey ? "请按组合键，Esc 取消" : root.closeHotkeySequence
+                                font.pixelSize: 13
+                                color: root.recordingHotkey ? theme.focusColor : Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.72)
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+
+                            Components.EButton {
+                                width: 78
+                                height: 28
+                                radius: 8
+                                backgroundVisible: true
+                                text: root.recordingHotkey ? "录制中" : "录制"
+                                onClicked: {
+                                    root.recordingHotkey = true
+                                    root.forceActiveFocus()
+                                }
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.closeHotkeyStatus
+                            font.pixelSize: 11
+                            color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                            elide: Text.ElideRight
                         }
                     }
                 }

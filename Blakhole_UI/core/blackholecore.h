@@ -5,6 +5,7 @@
 #include <QProcess>
 #include <QTimer>
 #include <QAbstractListModel>
+#include <QAbstractNativeEventFilter>
 #include <QVector>
 #include <QString>
 #include <QColor>
@@ -78,7 +79,7 @@ private:
 };
 
 // 黑洞核心 — 配置管理 + 进程控制
-class BlackHoleCore : public QObject {
+class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_OBJECT
 
     // 全局设置
@@ -158,6 +159,9 @@ class BlackHoleCore : public QObject {
     Q_PROPERTY(QColor focusColor READ focusColor WRITE setFocusColor NOTIFY focusColorChanged)
     Q_PROPERTY(bool skipExitDialog READ skipExitDialog WRITE setSkipExitDialog NOTIFY skipExitDialogChanged)
     Q_PROPERTY(int defaultCloseAction READ defaultCloseAction WRITE setDefaultCloseAction NOTIFY defaultCloseActionChanged)
+    Q_PROPERTY(bool closeHotkeyEnabled READ closeHotkeyEnabled WRITE setCloseHotkeyEnabled NOTIFY closeHotkeyEnabledChanged)
+    Q_PROPERTY(QString closeHotkeySequence READ closeHotkeySequence WRITE setCloseHotkeySequence NOTIFY closeHotkeySequenceChanged)
+    Q_PROPERTY(QString closeHotkeyStatus READ closeHotkeyStatus NOTIFY closeHotkeyStatusChanged)
 
 
     // 渲染器覆盖参数 (默认 -1.0 = 不覆盖，使用预设值)
@@ -278,6 +282,13 @@ public:
     void setSkipExitDialog(bool v);
     int defaultCloseAction() const;
     void setDefaultCloseAction(int v);
+    bool closeHotkeyEnabled() const;
+    void setCloseHotkeyEnabled(bool v);
+    QString closeHotkeySequence() const;
+    void setCloseHotkeySequence(const QString &v);
+    QString closeHotkeyStatus() const;
+
+    bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
     // 渲染器覆盖参数
     float overrideHoleRadius() const;
@@ -369,6 +380,9 @@ signals:
     void focusColorChanged();
     void skipExitDialogChanged();
     void defaultCloseActionChanged();
+    void closeHotkeyEnabledChanged();
+    void closeHotkeySequenceChanged();
+    void closeHotkeyStatusChanged();
 
     // 渲染器覆盖信号
     void overrideHoleRadiusChanged();
@@ -402,6 +416,10 @@ private:
     void loadSystemConfig();
     void saveAllLists();
     void loadAllLists();
+    void updateCloseHotkeyRegistration();
+    void unregisterCloseHotkey();
+    bool parseHotkeySequence(const QString &sequence, quint32 *modifiers, quint32 *key) const;
+    QString normalizedHotkeySequence(const QString &sequence) const;
 
     PresetModel *m_presetModel;
 
@@ -468,6 +486,10 @@ private:
     QColor  m_focusColor         = QColor("#00C4B3");
     bool    m_skipExitDialog     = false;
     int     m_defaultCloseAction = 0;
+    bool    m_closeHotkeyEnabled = true;
+    QString m_closeHotkeySequence = QStringLiteral("Ctrl+Alt+B");
+    QString m_closeHotkeyStatus;
+    bool    m_closeHotkeyRegistered = false;
 
     // 渲染器覆盖参数
     float   m_overrideHoleRadius = -1.0f;
