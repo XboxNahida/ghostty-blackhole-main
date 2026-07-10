@@ -66,48 +66,18 @@ Qt UI 的 `CMakeLists.txt` 已在 post-build 阶段执行两件事：
 
 ### 2.1 一键打包脚本
 
-在项目根目录创建 `package_release.ps1`:
+项目根目录已提供 `package_release.ps1`。先完成 Release 构建，然后执行:
 
 ```powershell
-$ErrorActionPreference = "Stop"
-
-# 路径配置
-$ProjectRoot = $PSScriptRoot
-$UiBuildDir = "$ProjectRoot\Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release"
-$CoreBuildDir = "$ProjectRoot\build"
-$ReleaseDir = "$ProjectRoot\release"
-
-# 1. 创建 release 目录。默认不清空,避免误删手工放入的发布说明/压缩包。
-Write-Host "[1/4] 准备 release 目录..."
-New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
-
-# 2. 复制主渲染器及运行时
-Write-Host "[2/4] 复制 blackhole.exe 和基础运行时..."
-Copy-Item "$CoreBuildDir\blackhole.exe" $ReleaseDir -Force
-Copy-Item "$CoreBuildDir\*.dll" $ReleaseDir -Force -ErrorAction SilentlyContinue
-
-# 3. 复制 Qt UI 构建输出。该目录已由 CMake post-build 调用 windeployqt6 部署 Qt/QML 依赖。
-Write-Host "[3/4] 复制 appBlakholeUI.exe 和 Qt 运行时..."
-Copy-Item "$UiBuildDir\appBlakholeUI.exe" $ReleaseDir -Force
-Copy-Item "$UiBuildDir\*.dll" $ReleaseDir -Force -ErrorAction SilentlyContinue
-foreach ($dir in @("generic","iconengines","imageformats","networkinformation","platforms","qml","qmltooling","styles","tls","translations","shaders","BlakholeUI")) {
-    $src = Join-Path $UiBuildDir $dir
-    if (Test-Path $src) {
-        robocopy $src (Join-Path $ReleaseDir $dir) /E | Out-Null
-    }
-}
-
-# 4. 复制源码侧 shader、图标和默认配置，确保运行时读取的是最新文本资源。
-Write-Host "[4/4] 复制 shader、图标和配置..."
-robocopy "$ProjectRoot\shaders" "$ReleaseDir\shaders" /E | Out-Null
-Copy-Item "$ProjectRoot\blackhole.glsl" $ReleaseDir -Force
-Copy-Item "$ProjectRoot\blackhole.ico" $ReleaseDir -Force
-Copy-Item "$ProjectRoot\blackhole_presets.txt" $ReleaseDir -Force
-Copy-Item "$ProjectRoot\blackhole_advanced.txt" $ReleaseDir -Force -ErrorAction SilentlyContinue
-
-Write-Host "打包完成: $ReleaseDir"
-Get-ChildItem $ReleaseDir -Filter "*.exe" | Select-Object Name, @{N="MB";E={[math]::Round($_.Length/1MB,1)}}
+.\package_release.ps1
 ```
+
+脚本会:
+- 默认不清空 `release/`，避免误删本地测试配置、日志或手工放入的文件。
+- 复制 `build\blackhole.exe`。
+- 复制 `Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release\appBlakholeUI.exe` 与 Qt 部署运行时。
+- 复制 shader、图标和默认配置文件。
+- 检查关键文件是否存在，缺失时直接报错。
 
 ### 2.2 手动步骤
 
