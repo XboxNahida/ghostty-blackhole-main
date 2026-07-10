@@ -1,4 +1,4 @@
-﻿// ETimeDisplay.qml
+// ETimeDisplay.qml
 import QtQuick
 import QtQuick.Controls
 

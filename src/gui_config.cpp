@@ -67,11 +67,11 @@ static bool       g_hasClipboard = false;
 void SavePresetsToFile(const BlackholeConfig& cfg, const char names[64][64]) {
     // 更新注册表开机自启设置
     SetAutoStart(cfg.autoStart);
-    
+
     FILE* f = fopen("blackhole_presets.txt", "w");
     if (!f) return;
     fprintf(f, "# Blackhole Presets v4\n");
-    fprintf(f, "%d %d %.3f %d %d %d\n", cfg.mode, cfg.idleSec, cfg.slotSec, cfg.playMode, (int)cfg.videoAsIdle, (int)cfg.autoStart);
+    fprintf(f, "%d %d %.3f %d %d %d %d %.3f %d %d\n", cfg.mode, cfg.idleSec, cfg.slotSec, cfg.playMode, (int)cfg.videoAsIdle, (int)cfg.autoStart, (int)cfg.fixedSize, cfg.fixedLevel, cfg.captureMode, cfg.displayMode);
     fprintf(f, "%d\n", cfg.presetCount);
     for (int i = 0; i < cfg.presetCount; i++) {
         const DiskPreset& p = cfg.presets[i];
@@ -100,17 +100,22 @@ bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[64][64]) {
         return false;
     }
     if (!fgets(line, sizeof(line), f)) { fclose(f); return false; }
-    // Try v3 format (mode idleSec slotSec playMode videoAsIdle autoStart)
-    int mode=1, idle=300, pmode=1, vidAsIdle=0, autoSt=0; float ss=5.25f;
-    int nf = sscanf(line, "%d %d %f %d %d %d", &mode, &idle, &ss, &pmode, &vidAsIdle, &autoSt);
+    // Try v4 format (mode idleSec slotSec playMode videoAsIdle autoStart fixedSize fixedLevel captureMode displayMode)
+    int mode=1, idle=300, pmode=1, vidAsIdle=0, autoSt=0, fixedSz=0, capMode=-1, dispMode=0; float ss=5.25f, fixedLvl=1.0f;
+    int nf = sscanf(line, "%d %d %f %d %d %d %d %f %d %d", &mode, &idle, &ss, &pmode, &vidAsIdle, &autoSt, &fixedSz, &fixedLvl, &capMode, &dispMode);
     if (nf >= 3) {
         cfg.mode = mode; cfg.idleSec = idle; cfg.slotSec = ss; cfg.playMode = pmode;
         cfg.videoAsIdle = (nf >= 5) ? (bool)vidAsIdle : false;
         cfg.autoStart = (nf >= 6) ? (bool)autoSt : false;
+        cfg.fixedSize = (nf >= 7) ? (bool)fixedSz : false;
+        cfg.fixedLevel = (nf >= 8) ? fixedLvl : 1.0f;
+        cfg.captureMode = (nf >= 9) ? capMode : -1;
+        cfg.displayMode = (nf >= 10) ? dispMode : 0;
         if (!fgets(line, sizeof(line), f)) { fclose(f); return false; }
     } else {
         cfg.mode = 1; cfg.idleSec = 300; cfg.slotSec = 5.25f; cfg.playMode = 1;
         cfg.videoAsIdle = false; cfg.autoStart = false;
+        cfg.fixedSize = false; cfg.fixedLevel = 1.0f; cfg.captureMode = -1; cfg.displayMode = 0;
     }
     int count = atoi(line);
     if (count < 1 || count > 64) { fclose(f); return false; }
@@ -199,6 +204,28 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
         }
 
         ImGui::Checkbox("开机自启", &cfg.autoStart);
+
+        ImGui::Checkbox("固定大小", &cfg.fixedSize);
+        if (cfg.fixedSize) {
+            float percent = cfg.fixedLevel * 100.0f;
+            ImGui::SliderFloat("大小", &percent, 1.0f, 100.0f, "%.0f%%");
+            cfg.fixedLevel = percent / 100.0f;
+            if (cfg.fixedLevel < 0.01f) cfg.fixedLevel = 0.01f;
+            if (cfg.fixedLevel > 1.0f) cfg.fixedLevel = 1.0f;
+        }
+
+        const char* captureModes[] = { "自动检测", "WGC (Win11 22H2+)", "DXGI (兼容 Win10)" };
+        // UI 索引 ↔ cfg.captureMode 映射（main.cpp 用 -1=auto, 0=WGC, 1=DXGI）
+        // UI: 0=自动检测, 1=WGC, 2=DXGI
+        int capCombo = (cfg.captureMode == 0) ? 1 : (cfg.captureMode == 1) ? 2 : 0;
+        if (ImGui::Combo("捕获方式", &capCombo, captureModes, 3)) {
+            if (capCombo == 0)      cfg.captureMode = -1;  // 自动检测
+            else if (capCombo == 1) cfg.captureMode = 0;   // WGC
+            else                   cfg.captureMode = 1;   // DXGI
+        }
+
+        const char* displayModes[] = { "主屏", "副屏", "主+副穿梭" };
+        ImGui::Combo("显示器模式", &cfg.displayMode, displayModes, 3);
 
         ImGui::Separator();
         const char* playModes[] = { "顺序播放", "循环播放", "随机播放" };

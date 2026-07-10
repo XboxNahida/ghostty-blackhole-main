@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <dwmapi.h>
+#include <wtsapi32.h>
 
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
@@ -59,25 +60,34 @@ static LRESULT CALLBACK WGLWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_MOUSEACTIVATE:return MA_NOACTIVATEANDEAT;
     case WM_NCCALCSIZE:   return 0;
     case WM_ERASEBKGND:   return 1;
+    // 锁屏时主动退出：让 monitor 重新拉起干净的 renderer，
+    // 避免 DXGI/WGC 捕获器在锁屏后失效返回黑帧、窗口遮住桌面
+    case WM_WTSSESSION_CHANGE:
+        fprintf(stderr, "[Win32GL] WM_WTSSESSION_CHANGE w=%llu\n", (unsigned long long)wp);
+        if (wp == WTS_SESSION_LOCK && state) state->shouldClose = true;
+        return 0;
     }
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
 // ---- 公开 API ----
 
-bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height) {
+bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int height) {
     wgl.active = false;
+    wgl.targetX = x;
+    wgl.targetY = y;
 
     // 声明DPI感知，获取真实分辨率
     SetProcessDPIAware();
 
-    // 获取主显示器真实分辨率
+    // 获取主显示器真实分辨率（保留 capFullW/H 作为参考）
     HMONITOR hMon = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
     MONITORINFO mi = { sizeof(mi) };
     GetMonitorInfoW(hMon, &mi);
     wgl.capFullW = mi.rcMonitor.right - mi.rcMonitor.left;
     wgl.capFullH = mi.rcMonitor.bottom - mi.rcMonitor.top;
 
+    // width/height <= 0 时 fallback 到主屏尺寸
     if (width <= 0 || height <= 0) {
         width  = wgl.capFullW;
         height = wgl.capFullH;
@@ -217,6 +227,11 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int width, int height) {
     state->newHeight   = height;
     SetWindowLongPtrW(wgl.hwnd, GWLP_USERDATA, (LONG_PTR)state);
 
+    // 12. 注册会话通知（用于锁屏时主动退出）
+    BOOL wtsOk = WTSRegisterSessionNotification(wgl.hwnd, NOTIFY_FOR_THIS_SESSION);
+    fprintf(stderr, "[Win32GL] WTSRegisterSessionNotification: %s (err=%lu)\n",
+            wtsOk ? "OK" : "FAILED", wtsOk ? 0 : GetLastError());
+
     DwmFlush();
 
     wgl.active = true;
@@ -317,19 +332,19 @@ void Win32GL_DrainMessages(Win32GL& wgl) {
 
 void Win32GL_Show(Win32GL& wgl) {
     if (!wgl.active || !wgl.hwnd) return;
-    
-    // 将窗口从屏幕外移回屏幕左上角，显式设置全屏大小
-    SetWindowPos(wgl.hwnd, HWND_TOPMOST, 0, 0, wgl.width, wgl.height,
+
+    // 将窗口从屏幕外移回目标位置，显式设置全屏大小
+    SetWindowPos(wgl.hwnd, HWND_TOPMOST, wgl.targetX, wgl.targetY, wgl.width, wgl.height,
                  SWP_NOACTIVATE | SWP_NOSENDCHANGING);
-    
+
     // 显示窗口
     ShowWindow(wgl.hwnd, SW_SHOWNOACTIVATE);
-    
+
     // 再次确保位置、大小和置顶
-    SetWindowPos(wgl.hwnd, HWND_TOPMOST, 0, 0, wgl.width, wgl.height,
+    SetWindowPos(wgl.hwnd, HWND_TOPMOST, wgl.targetX, wgl.targetY, wgl.width, wgl.height,
                  SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    
-    fprintf(stderr, "[Win32GL] Window moved to screen and shown\n");
+
+    fprintf(stderr, "[Win32GL] Window moved to screen and shown at (%d,%d)\n", wgl.targetX, wgl.targetY);
 }
 
 void Win32GL_EnableLayered(Win32GL& wgl) {
@@ -404,6 +419,8 @@ void Win32GL_Shutdown(Win32GL& wgl) {
     if (wgl.hwnd) {
         SetWindowPos(wgl.hwnd, nullptr, -32000, -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
         ShowWindow(wgl.hwnd, SW_HIDE);
+        // 注销会话通知（与 Init 中的 WTSRegisterSessionNotification 配对）
+        WTSUnRegisterSessionNotification(wgl.hwnd);
     }
 
     // 安全措施：确保系统光标已恢复（正常流程不会隐藏光标，

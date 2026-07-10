@@ -1,4 +1,4 @@
-﻿// ESwitchButton.qml
+// ESwitchButton.qml
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects

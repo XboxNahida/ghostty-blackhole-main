@@ -1,4 +1,4 @@
-﻿// EDrawer.qml
+// EDrawer.qml
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects

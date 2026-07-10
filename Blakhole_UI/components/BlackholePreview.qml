@@ -1,4 +1,4 @@
-﻿// BlackholePreview.qml — Canvas 黑洞预览组件
+// BlackholePreview.qml — Canvas 黑洞预览组件
 import QtQuick
 import QtQuick.Controls
 

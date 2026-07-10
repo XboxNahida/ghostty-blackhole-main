@@ -1,4 +1,4 @@
-﻿// EToast.qml
+// EToast.qml
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects

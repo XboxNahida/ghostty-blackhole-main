@@ -22,6 +22,9 @@ uniform float uDiskIncl   = -1.0;
 
 uniform float uBornProgress = 1.0;
 
+uniform int   uFixedSize   = 0;     // 0=正常生长, 1=固定大小
+uniform float uFixedLevel   = 1.0;   // 固定大小值 (0.1~1.0)
+
 // Demo preset overrides (negative = use hardcoded default)
 #define MAX_PRESETS 64
 uniform int   uPresetCount = 0;

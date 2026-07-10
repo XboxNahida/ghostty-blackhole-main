@@ -1,4 +1,4 @@
-﻿// EBlurCard.qml
+// EBlurCard.qml
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects

@@ -1,4 +1,4 @@
-﻿// BlackholeLargePreview.qml — 黑洞放大预览弹窗
+// BlackholeLargePreview.qml — 黑洞放大预览弹窗
 import QtQuick
 import QtQuick.Controls
 import BlakholeUI 1.0

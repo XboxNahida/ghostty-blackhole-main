@@ -1,4 +1,4 @@
-﻿// ScheduleConfig.qml — 定时显示设置页面
+// ScheduleConfig.qml — 定时显示设置页面
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts

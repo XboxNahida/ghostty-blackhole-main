@@ -1,4 +1,4 @@
-﻿#version 330
+#version 330
 // frag_preview_header.glsl  Shader预览头——无桌面纹理，用于 QQuickFramebufferObject
 uniform vec3 iResolution;
 uniform float iTime;

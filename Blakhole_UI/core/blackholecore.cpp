@@ -1,4 +1,4 @@
-﻿// blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
+// blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
 
 #include <QCoreApplication>
@@ -255,13 +255,21 @@ void BlackHoleCore::initDefaultPresets()
 
 QString BlackHoleCore::configFilePath() const
 {
-    // 优先使用应用目录，回退到项目根目录
+    // 优先使用 blackhole.exe --render 实际读取的"项目根"目录,
+    // 保证 Qt UI 与渲染器子进程读写同一份 blackhole_presets.txt.
+    // blackhole.exe main.cpp:670-674 把 cwd 设为 build/ 的父目录, 即项目根.
+    QString projectRoot;
+    findRendererExe(&projectRoot);
+    if (!projectRoot.isEmpty()) {
+        return projectRoot + "/blackhole_presets.txt";
+    }
+
+    // 回退: 找不到 blackhole.exe 时, 仍按原逻辑用 appDir 或其上溯目录
     QString appDir = QCoreApplication::applicationDirPath();
     QString cfgPath = appDir + "/blackhole_presets.txt";
     if (QFileInfo::exists(cfgPath))
         return cfgPath;
 
-    // 从 build 目录上溯到项目根目录
     QDir dir(appDir);
     dir.cdUp(); // build → project root
     cfgPath = dir.absoluteFilePath("blackhole_presets.txt");
@@ -277,6 +285,42 @@ QString BlackHoleCore::configDir() const
     return QFileInfo(configFilePath()).absolutePath();
 }
 
+
+// ====== blackhole.exe 查找 (与 main.cpp --render 子进程对应) ======
+
+QString BlackHoleCore::findRendererExe(QString *projectRootOut) const
+{
+    QString appDir = QCoreApplication::applicationDirPath();
+    QStringList searchPaths;
+    QDir dir(appDir);
+    // 顺序: 同级 → 上溯各级 → 兄弟 build 目录
+    searchPaths << dir.absoluteFilePath("blackhole.exe");
+    searchPaths << dir.absoluteFilePath("../blackhole.exe");
+    searchPaths << dir.absoluteFilePath("../../blackhole.exe");
+    searchPaths << dir.absoluteFilePath("../../build/blackhole.exe");       // Qt UI 默认: Blakhole_UI/build_qt → 项目根/build/
+    searchPaths << dir.absoluteFilePath("../../../blackhole.exe");
+    searchPaths << dir.absoluteFilePath("../../../build/blackhole.exe");
+    searchPaths << dir.absoluteFilePath("../../../release/blackhole.exe");
+
+    for (const QString &p : searchPaths) {
+        if (QFileInfo::exists(p)) {
+            if (projectRootOut) {
+                QFileInfo fi(p);
+                QDir exeDir = fi.dir();
+                // blackhole.exe main.cpp 假设 exe 在 <root>/build/, 项目根 = build 的父目录
+                QString parent = exeDir.absolutePath();
+                if (exeDir.dirName() == "build" || exeDir.dirName() == "Build") {
+                    QDir root = exeDir;
+                    root.cdUp();
+                    parent = root.absolutePath();
+                }
+                *projectRootOut = parent;
+            }
+            return p;
+        }
+    }
+    return QString();
+}
 
 // ====== 配置读写 (v4 格式，与原始项目完全兼容) ======
 
@@ -302,7 +346,8 @@ void BlackHoleCore::loadConfig()
         }
 
         if (parsed) {
-            // Line 2: mode idleSec slotSec playMode videoAsIdle autoStart
+            // Line 2: mode idleSec slotSec playMode videoAsIdle autoStart [fixedSize fixedLevel captureMode displayMode]
+            // 后 4 字段为扩展，旧文件缺这些字段时保留默认值
             line = in.readLine();
             if (line.isNull()) {
                 parsed = false;
@@ -312,6 +357,15 @@ void BlackHoleCore::loadConfig()
                 ls >> m_displayMode >> m_idleSeconds >> m_slotSeconds >> m_playMode >> vidAsIdle >> autoSt;
                 m_videoAsIdle = (vidAsIdle != 0);
                 m_autoStart   = (autoSt != 0);
+                // 扩展字段: fixedSize fixedLevel captureMode displayMode(screenTarget)
+                // QTextStream 读到 EOF 或非数字时返回 0 / 不修改变量
+                int fixedSz = 0;  ls >> fixedSz;
+                if (!ls.atEnd()) {
+                    m_fixedSize = (fixedSz != 0);
+                    float fl = 1.0f;  ls >> fl;  if (fl > 0.0f) m_fixedLevel = fl;
+                    int cm = -1;      ls >> cm; m_captureMode = cm;
+                    int dm = 0;       ls >> dm; if (!ls.atEnd()) m_screenTarget = dm;
+                }
             }
         }
 
@@ -365,6 +419,10 @@ void BlackHoleCore::loadConfig()
     emit slotSecondsChanged();
     emit videoAsIdleChanged();
     emit autoStartChanged();
+    emit fixedSizeChanged();
+    emit fixedLevelChanged();
+    emit captureModeChanged();
+    emit screenTargetChanged();
     emit configLoaded();
     qDebug() << "BlackHoleCore: loaded" << m_presetModel->rowCount() << "presets from" << path;
 
@@ -388,10 +446,17 @@ void BlackHoleCore::saveConfig()
     QTextStream out(&file);
 
     out << "# Blackhole Presets v4\n";
+    // 第 2 行 10 字段（与 ImGui UI / main.cpp 共用）:
+    //   mode idleSec slotSec playMode videoAsIdle autoStart
+    //   fixedSize fixedLevel captureMode displayMode
     out << m_displayMode << " " << m_idleSeconds << " "
         << QString::number(m_slotSeconds, 'f', 3) << " "
         << m_playMode << " " << (m_videoAsIdle ? 1 : 0) << " "
-        << (m_autoStart ? 1 : 0) << "\n";
+        << (m_autoStart ? 1 : 0) << " "
+        << (m_fixedSize ? 1 : 0) << " "
+        << QString::number(m_fixedLevel, 'f', 3) << " "
+        << m_captureMode << " "
+        << m_screenTarget << "\n";
 
     QVector<PresetData> presets = m_presetModel->presets();
     out << presets.size() << "\n";
@@ -523,6 +588,9 @@ void BlackHoleCore::resetDefaults()
     m_slotSeconds = 5.25f;
     m_videoAsIdle = false;
     m_autoStart   = false;
+    m_captureMode = -1; // 默认自动检测 (Win10→DXGI 无黄框, Win11 22H2+→WGC)
+    m_fixedSize   = false;
+    m_fixedLevel  = 1.0f;
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -530,6 +598,10 @@ void BlackHoleCore::resetDefaults()
     emit slotSecondsChanged();
     emit videoAsIdleChanged();
     emit autoStartChanged();
+    emit captureModeChanged();
+    emit fixedSizeChanged();
+    emit fixedLevelChanged();
+    emit screenTargetChanged();
 
     setCurrentPresetIndex(0);
     emit followMouseChanged();
@@ -562,26 +634,12 @@ void BlackHoleCore::startRenderer()
     // 先保存配置到文件（blackhole.exe --render 从文件读取配置）
     saveConfig();
 
-    // 查找 blackhole.exe（多级上溯，适配嵌套构建目录）
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString exePath = appDir + "/blackhole.exe";
+    // 查找 blackhole.exe + 它的项目根目录 (保证读写同一份 presets + shaders)
+    QString projectRoot;
+    QString exePath = findRendererExe(&projectRoot);
 
-    if (!QFileInfo::exists(exePath)) {
-        QStringList searchPaths;
-        QDir dir(appDir);
-        searchPaths << dir.absoluteFilePath("../blackhole.exe");
-        searchPaths << dir.absoluteFilePath("../../blackhole.exe");
-        searchPaths << dir.absoluteFilePath("../../../blackhole.exe");
-        searchPaths << dir.absoluteFilePath("../../../build/blackhole.exe");
-        searchPaths << dir.absoluteFilePath("../../../release/blackhole.exe");
-        for (const QString &p : searchPaths) {
-            if (QFileInfo::exists(p)) { exePath = p; break; }
-        }
-    }
-
-    if (!QFileInfo::exists(exePath)) {
-        QString msg = QStringLiteral("找不到 blackhole.exe");
-        qWarning() << "BlackHoleCore:" << msg;
+    if (exePath.isEmpty()) {
+        qWarning() << "BlackHoleCore: blackhole.exe not found";
         emit rendererError(QStringLiteral("找不到 blackhole.exe，请确认程序位置"));
         return;
     }
@@ -614,7 +672,13 @@ void BlackHoleCore::startRenderer()
         });
     }
 
-    qDebug() << "BlackHoleCore: starting" << exePath << "--render";
+    // 设 working directory 到项目根, 与 blackhole.exe main.cpp 的 SetCurrentDirectory 一致,
+    // 让渲染器从项目根读 shaders/ + blackhole_presets.txt (与 Qt UI 写入的同一份)
+    if (!projectRoot.isEmpty()) {
+        m_rendererProcess->setWorkingDirectory(projectRoot);
+    }
+
+    qDebug() << "BlackHoleCore: starting" << exePath << "--render" << "cwd:" << projectRoot;
     m_rendererProcess->start(exePath, QStringList() << "--render");
 }
 void BlackHoleCore::stopRenderer()
@@ -633,6 +697,7 @@ void BlackHoleCore::stopRenderer()
 
 void BlackHoleCore::applyAndStart()
 {
+    qDebug() << "BlackHoleCore: applyAndStart() called, displayMode=" << m_displayMode;
     saveConfig();
     if (m_displayMode == 0) {
         // 始终显示模式: 直接启动渲染器
@@ -701,6 +766,20 @@ void BlackHoleCore::setLaunchMinimized(bool v)     { if (m_launchMinimized == v)
 
 int BlackHoleCore::screenTarget() const { return m_screenTarget; }
 void BlackHoleCore::setScreenTarget(int v) { if (m_screenTarget == v) return; m_screenTarget = v; emit screenTargetChanged(); }
+
+int BlackHoleCore::captureMode() const { return m_captureMode; }
+void BlackHoleCore::setCaptureMode(int v) { if (m_captureMode == v) return; m_captureMode = v; emit captureModeChanged(); }
+
+bool BlackHoleCore::fixedSize() const { return m_fixedSize; }
+void BlackHoleCore::setFixedSize(bool v) { if (m_fixedSize == v) return; m_fixedSize = v; emit fixedSizeChanged(); }
+
+float BlackHoleCore::fixedLevel() const { return m_fixedLevel; }
+void BlackHoleCore::setFixedLevel(float v) {
+    if (v < 0.01f) v = 0.01f;
+    if (v > 1.0f) v = 1.0f;
+    if (qFuzzyCompare(m_fixedLevel, v)) return;
+    m_fixedLevel = v; emit fixedLevelChanged();
+}
 
 int BlackHoleCore::currentPresetIndex() const { return m_currentPresetIndex; }
 void BlackHoleCore::setCurrentPresetIndex(int index)
@@ -1433,7 +1512,6 @@ void BlackHoleCore::saveSystemConfig()
     out << "followSystem=" << (m_followSystem ? 1 : 0) << "\n";
     out << "focusColor=" << m_focusColor.name(QColor::HexArgb) << "\n";
     out << "launchMinimized=" << (m_launchMinimized ? 1 : 0) << "\n";
-    out << "screenTarget=" << m_screenTarget << "\n";
     out << "skipExitDialog=" << (m_skipExitDialog ? 1 : 0) << "\n";
     out << "defaultCloseAction=" << m_defaultCloseAction << "\n";
     file.close();
@@ -1462,7 +1540,6 @@ void BlackHoleCore::loadSystemConfig()
         else if (key == "followSystem")      m_followSystem       = (val.toInt() != 0);
         else if (key == "focusColor")        m_focusColor         = QColor(val);
         else if (key == "launchMinimized") m_launchMinimized = (val.toInt() != 0);
-        else if (key == "screenTarget")    m_screenTarget = val.toInt();
         else if (key == "skipExitDialog")    m_skipExitDialog     = (val.toInt() != 0);
         else if (key == "defaultCloseAction") m_defaultCloseAction = val.toInt();
     }

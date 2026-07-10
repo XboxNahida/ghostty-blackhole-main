@@ -1,4 +1,4 @@
-﻿// systemtray.h — 系统托盘管理
+// systemtray.h — 系统托盘管理
 #pragma once
 
 #include <QObject>

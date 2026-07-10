@@ -61,6 +61,25 @@ void GLTex_Upload(GLTextureUpload& gt, const void* data, int stride) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+void GLTex_UploadRegion(GLTextureUpload& gt, const void* data, int stride,
+                        int dstX, int dstY, int regionW, int regionH) {
+    if (!gt.active || !data || regionW <= 0 || regionH <= 0) return;
+
+    glBindTexture(GL_TEXTURE_2D, gt.tex);
+
+    if (stride == regionW * 4) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, dstX, dstY, regionW, regionH,
+                        GL_BGRA_EXT, GL_UNSIGNED_BYTE, data);
+    } else {
+        glPixelStorei(0x0CF2 /* GL_UNPACK_ROW_LENGTH */, stride / 4);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, dstX, dstY, regionW, regionH,
+                        GL_BGRA_EXT, GL_UNSIGNED_BYTE, data);
+        glPixelStorei(0x0CF2 /* GL_UNPACK_ROW_LENGTH */, 0);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 bool GLTex_Resize(GLTextureUpload& gt, int width, int height) {
     if (!gt.active) return GLTex_Init(gt, width, height);
 

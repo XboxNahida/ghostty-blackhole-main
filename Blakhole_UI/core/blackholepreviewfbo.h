@@ -1,4 +1,4 @@
-﻿// blackholepreviewfbo.h — QQuickFramebufferObject 黑洞实时预览
+// blackholepreviewfbo.h — QQuickFramebufferObject 黑洞实时预览
 // 在 QML 界面中嵌入真实 blackhole.glsl Shader 渲染
 #pragma once
 

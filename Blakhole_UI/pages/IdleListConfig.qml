@@ -1,4 +1,4 @@
-﻿// IdleListConfig.qml — 空闲检测名单管理
+// IdleListConfig.qml — 空闲检测名单管理
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts

@@ -1,4 +1,4 @@
-﻿// EButton.qml
+// EButton.qml
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects

@@ -1,4 +1,4 @@
-﻿// blackholecore.h — 黑洞配置管理 + 进程控制
+// blackholecore.h — 黑洞配置管理 + 进程控制
 #pragma once
 
 #include <QObject>
@@ -89,6 +89,11 @@ class BlackHoleCore : public QObject {
     Q_PROPERTY(bool launchMinimized READ launchMinimized WRITE setLaunchMinimized NOTIFY launchMinimizedChanged)
     // 多显示器
     Q_PROPERTY(int screenTarget READ screenTarget WRITE setScreenTarget NOTIFY screenTargetChanged)
+    // 捕获方式 (-1=自动检测, 0=WGC, 1=DXGI) — 与 ImGui UI / main.cpp 共用 presets.txt 第 2 行字段
+    Q_PROPERTY(int captureMode READ captureMode WRITE setCaptureMode NOTIFY captureModeChanged)
+    // 固定大小 (黑洞不再随时间增长，保持固定比例)
+    Q_PROPERTY(bool fixedSize READ fixedSize WRITE setFixedSize NOTIFY fixedSizeChanged)
+    Q_PROPERTY(float fixedLevel READ fixedLevel WRITE setFixedLevel NOTIFY fixedLevelChanged)
 
     // 进程状态
     Q_PROPERTY(bool rendererRunning READ rendererRunning NOTIFY rendererRunningChanged)
@@ -182,6 +187,12 @@ public:
     void setLaunchMinimized(bool v);
     int screenTarget() const;
     void setScreenTarget(int v);
+    int captureMode() const;
+    void setCaptureMode(int v);
+    bool fixedSize() const;
+    void setFixedSize(bool v);
+    float fixedLevel() const;
+    void setFixedLevel(float v);
 
     // 进程状态
     bool rendererRunning() const;
@@ -307,6 +318,9 @@ signals:
     void launchMinimizedChanged();
 
     void screenTargetChanged();
+    void captureModeChanged();
+    void fixedSizeChanged();
+    void fixedLevelChanged();
     void rendererRunningChanged();
     void systemActiveChanged();
     void currentPresetIndexChanged();
@@ -359,6 +373,11 @@ private:
     void initDefaultPresets();
     QString configFilePath() const;
     QString configDir() const;
+    // 查找 blackhole.exe (与 main.cpp --render 子进程对应). 若 projectRootOut 非空, 输出
+    // 该 exe 的"项目根目录" (exe 在 <root>/build/ 下时取其父目录, 否则取 exe 同级目录).
+    // Qt UI 与 blackhole.exe --render 必须读写同一份 blackhole_presets.txt + shaders/, 这要求
+    // 两者工作目录一致 — Qt UI 用此函数定位项目根, 让 configFilePath() 与 startRenderer() 都对齐.
+    QString findRendererExe(QString *projectRootOut = nullptr) const;
     void refreshCurrentPresetProps();
     void saveAdvancedConfig();
     void loadAdvancedConfig();
@@ -383,6 +402,9 @@ private:
     bool    m_launchMinimized  = false;
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
+    int     m_captureMode  = -1; // -1=自动检测, 0=WGC, 1=DXGI (对齐 main.cpp)
+    bool    m_fixedSize    = false;  // 固定大小（不随时间增长）
+    float   m_fixedLevel   = 1.0f;   // 固定大小级别 (0.01~1.0 = 1%~100%)
 
     // 当前预设
     int     m_currentPresetIndex = 0;

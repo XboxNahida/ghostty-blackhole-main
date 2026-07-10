@@ -1,4 +1,4 @@
-﻿// AdvancedConfig.qml — 高级行为设置页面
+// AdvancedConfig.qml — 高级行为设置页面
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -22,6 +22,10 @@ Item {
     property real holeSize: bhCore ? bhCore.holeSize : 1.0
     property bool growEnabled: bhCore ? bhCore.growEnabled : false
     property real initialSize: bhCore ? bhCore.initialSize : 0.3
+    // 新增：捕获方式 / 固定大小（对齐 ImGui UI / main.cpp 后端）
+    property int captureMode: bhCore ? bhCore.captureMode : -1  // -1=自动 0=WGC 1=DXGI
+    property bool fixedSize: bhCore ? bhCore.fixedSize : false
+    property real fixedLevel: bhCore ? bhCore.fixedLevel : 1.0   // 0.01~1.0
 
     ColumnLayout {
         anchors.fill: parent
@@ -262,7 +266,14 @@ Item {
                         CheckBox {
                             id: growCheck
                             checked: advPage.growEnabled
-                            onToggled: advPage.growEnabled = checked
+                            onToggled: {
+                                advPage.growEnabled = checked
+                                // 互斥: 启用逐渐增长时关闭固定大小
+                                if (checked && advPage.fixedSize) {
+                                    advPage.fixedSize = false
+                                    if (bhCore) bhCore.fixedSize = false
+                                }
+                            }
                             indicator: Rectangle {
                                 implicitWidth: 20; implicitHeight: 20
                                 x: growCheck.leftPadding
@@ -290,6 +301,62 @@ Item {
                     onValueChanged: { advPage.initialSize = value; if (bhCore) bhCore.initialSize = value }
                     visible: advPage.growEnabled
                     implicitHeight: advPage.growEnabled ? 48 : 0
+                }
+
+                // === 固定大小 (与逐渐增长互斥; 对接 main.cpp uFixedSize/uFixedLevel) ===
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Text {
+                        text: "固定大小"
+                        font.pixelSize: 14
+                        color: theme.textColor
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: "黑洞保持固定大小,不再随时间增长(覆盖逐渐增长)"
+                        font.pixelSize: 11
+                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                    }
+                    CheckBox {
+                        id: fixedSizeCheck
+                        checked: advPage.fixedSize
+                        onToggled: {
+                            advPage.fixedSize = checked
+                            if (bhCore) bhCore.fixedSize = checked
+                            // 互斥: 启用固定大小时关闭逐渐增长
+                            if (checked && advPage.growEnabled) {
+                                advPage.growEnabled = false
+                                if (bhCore) bhCore.growEnabled = false
+                            }
+                        }
+                        indicator: Rectangle {
+                            implicitWidth: 20; implicitHeight: 20
+                            x: fixedSizeCheck.leftPadding
+                            y: parent.height / 2 - height / 2
+                            radius: 4
+                            color: fixedSizeCheck.checked ? theme.focusColor : "transparent"
+                            border.color: fixedSizeCheck.checked ? theme.focusColor : theme.borderColor
+                            border.width: 2
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Text {
+                                anchors.centerIn: parent; text: "\uf00c"
+                                font.family: iconFont.name; font.pixelSize: 12
+                                color: "#ffffff"; visible: fixedSizeCheck.checked
+                            }
+                        }
+                    }
+                }
+
+                // 固定大小级别(仅勾选固定大小时显示)
+                Components.ESlider {
+                    label: "固定大小级别"
+                    from: 0.01; to: 1.0; stepSize: 0.01; decimals: 2
+                    value: advPage.fixedLevel
+                    onValueChanged: { advPage.fixedLevel = value; if (bhCore) bhCore.fixedLevel = value }
+                    visible: advPage.fixedSize
+                    implicitHeight: advPage.fixedSize ? 48 : 0
                 }
             }
         }
@@ -373,6 +440,67 @@ Item {
                 }
 
 
+            }
+        }
+
+        // === 捕获与显示 ===
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: captureCol.implicitHeight + 24
+            radius: 16
+            color: theme.secondaryColor
+            opacity: 0.85
+
+            ColumnLayout {
+                id: captureCol
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 4
+
+                Text {
+                    text: "\uf030  捕获与显示"
+                    font.family: iconFont.name
+                    font.pixelSize: 14
+                    color: theme.focusColor
+                    font.bold: true
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: theme.borderColor
+                    opacity: 0.2
+                }
+
+                // 捕获方式 (WGC/DXGI/自动; 对接 main.cpp cfg.captureMode)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Text {
+                        text: "捕获方式"
+                        font.pixelSize: 14
+                        color: theme.textColor
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: "Win11 22H2+ 用 WGC,旧系统回退 DXGI"
+                        font.pixelSize: 11
+                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                    }
+                    Components.EDropDown {
+                        id: captureModeDrop
+                        preferredWidth: 180
+                        // UI 索引 0=自动检测 1=WGC 2=DXGI; cfg.captureMode -1=auto 0=WGC 1=DXGI
+                        model: ["自动检测", "WGC (Win11 22H2+)", "DXGI (兼容 Win10)"]
+                        currentIndex: (advPage.captureMode === 0) ? 1 : (advPage.captureMode === 1) ? 2 : 0
+                        onActivated: function(index) {
+                            var m = (index === 1) ? 0 : (index === 2) ? 1 : -1
+                            advPage.captureMode = m
+                            if (bhCore) bhCore.captureMode = m
+                        }
+                    }
+                }
             }
         }
 

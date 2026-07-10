@@ -1,4 +1,4 @@
-﻿// blackholepreviewfbo.cpp ── QQuickFramebufferObject 黑洞实时预览 实现
+// blackholepreviewfbo.cpp ── QQuickFramebufferObject 黑洞实时预览 实现
 #include "blackholepreviewfbo.h"
 #include "blackholecore.h"
 
@@ -262,7 +262,7 @@ bool BlackholePreviewRenderer::initBlackTexture()
 
     if (!img.isNull()) {
         // 上传 PNG 纹理
-        img = img.convertToFormat(QImage::Format_RGB888).flipped(Qt::Vertical); // OpenGL 期望原点在左下
+        img = img.convertToFormat(QImage::Format_RGB888).mirrored(false, true); // OpenGL 期望原点在左下
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.width(), img.height(),
                      0, GL_RGB, GL_UNSIGNED_BYTE, img.bits());
     } else {

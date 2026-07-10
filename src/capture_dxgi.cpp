@@ -1,12 +1,17 @@
-// capture_dxgi.cpp  DXGI Desktop Duplication 闂?stable, no DWM composition race
+// capture_dxgi.cpp  DXGI Desktop Duplication — stable, no DWM composition race
 #include "capture_dxgi.h"
 #include <cstdio>
 #include <windows.h>
 
-bool DXGI_Init(DXGICapture& dxgi) {
+bool DXGI_Init(DXGICapture& dxgi, HMONITOR hMon) {
     dxgi.active = false;
-    dxgi.width  = GetSystemMetrics(SM_CXSCREEN);
-    dxgi.height = GetSystemMetrics(SM_CYSCREEN);
+    if (!hMon) hMon = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
+
+    // 用传入 hMon 的真实尺寸（避免 DPI 虚拟化）
+    MONITORINFO mi = { sizeof(mi) };
+    GetMonitorInfoW(hMon, &mi);
+    dxgi.width  = mi.rcMonitor.right - mi.rcMonitor.left;
+    dxgi.height = mi.rcMonitor.bottom - mi.rcMonitor.top;
 
     // Create D3D11 device
     D3D_FEATURE_LEVEL featLevel;
@@ -30,10 +35,20 @@ bool DXGI_Init(DXGICapture& dxgi) {
     dxgiDev->Release();
     if (FAILED(hr)) { DXGI_Release(dxgi); return false; }
 
+    // 遍历 outputs 找匹配 hMon 的那个
     IDXGIOutput* output = nullptr;
-    hr = adapter->EnumOutputs(0, &output);
+    bool found = false;
+    for (UINT i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; i++) {
+        DXGI_OUTPUT_DESC desc;
+        if (SUCCEEDED(output->GetDesc(&desc)) && desc.Monitor == hMon) {
+            found = true;
+            break;
+        }
+        output->Release();
+        output = nullptr;
+    }
     adapter->Release();
-    if (FAILED(hr)) { DXGI_Release(dxgi); return false; }
+    if (!found || !output) { DXGI_Release(dxgi); return false; }
 
     IDXGIOutput1* output1 = nullptr;
     hr = output->QueryInterface(__uuidof(IDXGIOutput1), (void**)&output1);
@@ -50,7 +65,7 @@ bool DXGI_Init(DXGICapture& dxgi) {
 
     // Staging texture will be created on first frame (to match format)
     // DXGI desktop backbuffer may use HDR or different format.
-    
+
 
     dxgi.active = true;
     fprintf(stderr, "[DXGI] Capture ready: %dx%d\n", dxgi.width, dxgi.height);
@@ -84,7 +99,7 @@ static bool DXGI_Reinit(DXGICapture& dxgi) {
         fprintf(stderr, "[DXGI] Reinit DuplicateOutput failed: 0x%08X\n", (unsigned)hr);
         return false;
     }
-    
+
     return true;
 }
 
@@ -96,7 +111,7 @@ ID3D11Texture2D* DXGI_GetFrame(DXGICapture& dxgi) {
     HRESULT hr = dxgi.dupl->AcquireNextFrame(100, &frameInfo, &frameRes);
 
     if (hr == DXGI_ERROR_ACCESS_LOST) {
-        
+
         if (!DXGI_Reinit(dxgi)) {
             dxgi.active = false;
             return nullptr;
@@ -115,7 +130,7 @@ ID3D11Texture2D* DXGI_GetFrame(DXGICapture& dxgi) {
     ID3D11Texture2D* tex = nullptr;
     hr = frameRes->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
     frameRes->Release();
-    // Always return the texture 閳?caller must always call DXGI_ReleaseFrame
+    // Always return the texture — caller must always call DXGI_ReleaseFrame
     // after processing, regardless of success/failure.
     return tex;
 }

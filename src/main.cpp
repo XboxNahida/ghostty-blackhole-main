@@ -17,12 +17,14 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <dwmapi.h>
+#include <wtsapi32.h>
 
 #include "capture_wgc.h"
 #include "capture_dxgi.h"
 #include "gl_texture.h"
 #include "gui_config.h"
 #include "win32_gl.h"
+#include "monitors.h"
 #ifdef BLACKHOLE_USE_D3D11
 #include "d3d11_renderer.h"
 #include "win32_window.h"
@@ -133,7 +135,7 @@ static std::string readFile(const char* path) {
     if (!f) { fprintf(stderr, "Cannot open %s\n", path); return ""; }
     std::stringstream ss; ss << f.rdbuf();
     std::string content = ss.str();
-    
+
     // 移除 UTF-8 BOM (0xEF 0xBB 0xBF) - 使用 unsigned char 比较
     if (content.size() >= 3) {
         unsigned char c0 = static_cast<unsigned char>(content[0]);
@@ -157,14 +159,14 @@ static GLuint compileShader(GLenum type, const std::string& source, FILE* debugL
         fprintf(debugLog, "[SHADER_ERROR][%s] %s\n", type==GL_VERTEX_SHADER?"vert":"frag", log);
         fflush(debugLog);
     }
-    if (!ok) { 
+    if (!ok) {
         if (debugLog) {
             fprintf(debugLog, "[FAIL] Shader compilation failed (type=%s)\n", type==GL_VERTEX_SHADER?"vert":"frag");
             fprintf(debugLog, "[SOURCE] First 500 chars:\n%s\n", source.substr(0, 500).c_str());
             fflush(debugLog);
         }
-        gl_DeleteShader(shader); 
-        return 0; 
+        gl_DeleteShader(shader);
+        return 0;
     }
     if (debugLog) { fprintf(debugLog, "[OK] Shader compiled (type=%s, ID=%u)\n", type==GL_VERTEX_SHADER?"vert":"frag", shader); fflush(debugLog); }
     return shader;
@@ -186,9 +188,9 @@ static GLuint createProgram(const std::string& vert, const std::string& frag, FI
         fprintf(debugLog, "[LINK_ERROR] %s\n", log);
         fflush(debugLog);
     }
-    if (!ok) { 
+    if (!ok) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Program link failed\n"); fflush(debugLog); }
-        gl_DeleteProgram(prog); gl_DeleteShader(vs); gl_DeleteShader(fs); return 0; 
+        gl_DeleteProgram(prog); gl_DeleteShader(vs); gl_DeleteShader(fs); return 0;
     }
     if (debugLog) { fprintf(debugLog, "[OK] Program linked (ID=%u)\n", prog); fflush(debugLog); }
     gl_DeleteShader(vs); gl_DeleteShader(fs);
@@ -202,14 +204,14 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Shader file empty: header=%zu, body=%zu\n", header.size(), body.size()); fflush(debugLog); }
         return false;
     }
-    
+
     // 检查是否还有 BOM
     if (debugLog) {
-        fprintf(debugLog, "[DEBUG] header first 3 bytes: %02x %02x %02x\n", 
+        fprintf(debugLog, "[DEBUG] header first 3 bytes: %02x %02x %02x\n",
                 header.size() >= 3 ? (unsigned char)header[0] : 0,
                 header.size() >= 3 ? (unsigned char)header[1] : 0,
                 header.size() >= 3 ? (unsigned char)header[2] : 0);
-        fprintf(debugLog, "[DEBUG] body first 3 bytes: %02x %02x %02x\n", 
+        fprintf(debugLog, "[DEBUG] body first 3 bytes: %02x %02x %02x\n",
                 body.size() >= 3 ? (unsigned char)body[0] : 0,
                 body.size() >= 3 ? (unsigned char)body[1] : 0,
                 body.size() >= 3 ? (unsigned char)body[2] : 0);
@@ -301,10 +303,11 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         body.replace(pos, 29, "#define SIZE_MODE MODE_DEMO");
 
     // Remove time wrapping from hole size: grow to full and stay there
+    // uFixedSize=1 → use uFixedLevel directly; uFixedSize=0 → time-based growth
     {
         size_t lp = body.find("mod(iTime, DEMO_SEC) / DEMO_GROW_SEC");
         if (lp != std::string::npos)
-            body.replace(lp, 36, "iTime / DEMO_GROW_SEC");
+            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : min(iTime / DEMO_GROW_SEC, 1.0))");
     }
 
     // Apply uBornProgress to sz for smooth hole birth/die
@@ -330,6 +333,32 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             size_t ve = body.find(";", sp);
             if (ve != std::string::npos)
                 body.replace(sp, ve - sp + 1, "float shield = vis;");
+        }
+    }
+
+    // ---- Multi-monitor range expansion: let hole roam entire screen, not just home quadrant ----
+    // fullLo.x: min(xPad, 0.5) → xPad           (allow left edge, not clamped to right of center)
+    // fullHi.x: max(0.5, 1.0 - xPad) → 1.0 - xPad (allow right edge)
+    // reach:    mix(0.06, max(TOKEN_REACH, 0.06), g) → mix(0.30, max(TOKEN_REACH, 1.0), g)
+    //           (start at 30% roam box, expand to full screen at g=1; preserves small-to-large anim)
+    {
+        {
+            const std::string oldLo = "vec2  fullLo = vec2(min(xPad, 0.5), marg);";
+            const std::string newLo = "vec2  fullLo = vec2(xPad, marg);";
+            size_t p = body.find(oldLo);
+            if (p != std::string::npos) body.replace(p, oldLo.length(), newLo);
+        }
+        {
+            const std::string oldHi = "vec2  fullHi = vec2(max(0.5, 1.0 - xPad),";
+            const std::string newHi = "vec2  fullHi = vec2(1.0 - xPad,";
+            size_t p = body.find(oldHi);
+            if (p != std::string::npos) body.replace(p, oldHi.length(), newHi);
+        }
+        {
+            const std::string oldR = "float reach  = mix(0.06, max(TOKEN_REACH, 0.06), g);";
+            const std::string newR = "float reach  = mix(0.30, max(TOKEN_REACH, 1.0), g);";
+            size_t p = body.find(oldR);
+            if (p != std::string::npos) body.replace(p, oldR.length(), newR);
         }
     }
 
@@ -500,12 +529,12 @@ static bool isWatchingVideo() {
     if (isGameLauncher) return true;
     // Not a known video app or browser  no need for audio check
     if (!isDedicatedVideoPlayer && !isBrowser && !isUWPVideo) return false;
-    
+
     // For browsers: need window title with video keywords AND significant audio
     if (isBrowser && !uwpDetected) {
         WCHAR wtitle[256] = {};
         GetWindowTextW(fg, wtitle, 256);
-        bool hasVideoKeyword = (wcsstr(wtitle, L"YouTube") || wcsstr(wtitle, L"Youtube") || 
+        bool hasVideoKeyword = (wcsstr(wtitle, L"YouTube") || wcsstr(wtitle, L"Youtube") ||
                                 wcsstr(wtitle, L"youtube") || wcsstr(wtitle, L"Bilibili") ||
                                 wcsstr(wtitle, L"bilibili") || wcsstr(wtitle, L"哔哩") ||
                                 wcsstr(wtitle, L"视频") || wcsstr(wtitle, L"Video") ||
@@ -583,6 +612,61 @@ static bool isIdle(DWORD ms) {
 
 // ---- Renderer process management (monitor mode) ----
 static PROCESS_INFORMATION g_pi = {};
+static bool g_sessionLocked = false;  // 跟踪当前会话是否被锁屏
+
+// ---- 一屏一黑洞 (displayMode==3): 子渲染器管理 ----
+// 父渲染器为每个副屏 spawn 一个 "blackhole.exe --render --screen N" 子进程。
+// 用 Job Object 保证父进程退出（含被强杀）时子进程自动终止。
+static HWND FindWindowByPID(DWORD pid);  // 前向声明（定义在下方）
+static HANDLE g_hChildJob = nullptr;
+static std::vector<PROCESS_INFORMATION> g_childRenderers;
+
+static void EnsureChildJob() {
+    if (g_hChildJob) return;
+    g_hChildJob = CreateJobObjectA(nullptr, nullptr);
+    if (!g_hChildJob) return;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+    info.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(g_hChildJob, JobObjectExtendedLimitInformation,
+                            &info, sizeof(info));
+}
+
+static void SpawnChildRenderer(const char* selfPath, int screenIdx) {
+    EnsureChildJob();
+    STARTUPINFOA si = {}; si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    char cmd[MAX_PATH + 32];
+    snprintf(cmd, sizeof(cmd), "\"%s\" --render --screen %d", selfPath, screenIdx);
+    PROCESS_INFORMATION pi = {};
+    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
+                       CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
+        // 必须在挂起状态下加入 Job Object，再恢复主线程，最后关闭线程句柄。
+        // 顺序不能错：AssignProcessToJobObject 要在 ResumeThread 之前完成，
+        // 而 ResumeThread 需要的是线程句柄 (pi.hThread) 不是进程句柄。
+        if (g_hChildJob) AssignProcessToJobObject(g_hChildJob, pi.hProcess);
+        ResumeThread(pi.hThread);
+        CloseHandle(pi.hThread);
+        pi.hThread = NULL;
+        g_childRenderers.push_back(pi);
+    }
+}
+
+static void KillChildRenderers() {
+    for (auto& pi : g_childRenderers) {
+        if (!pi.hProcess) continue;
+        HWND hwnd = FindWindowByPID(pi.dwProcessId);
+        if (hwnd) PostMessage(hwnd, WM_CLOSE, 0, 0);
+    }
+    for (auto& pi : g_childRenderers) {
+        if (!pi.hProcess) continue;
+        if (WaitForSingleObject(pi.hProcess, 2000) == WAIT_TIMEOUT)
+            TerminateProcess(pi.hProcess, 0);
+        CloseHandle(pi.hProcess);
+    }
+    g_childRenderers.clear();
+}
 
 static void MonitorSpawn(const char* selfPath) {
     if (g_pi.hProcess) return;
@@ -648,14 +732,26 @@ int main(int argc, char* argv[]) {
     bool isConfig = (argc >= 2 && strcmp(argv[1], "--config") == 0);
     bool isMonitor = (argc >= 2 && strcmp(argv[1], "--monitor") == 0);
 
-    // 直接写入调试文件
-    FILE* debugLog = fopen("blackhole_debug.txt", "w");
+    // --screen <idx>: 一屏一黑洞模式的子进程参数，指定渲染到第几个显示器
+    // 父进程不传 --screen，子进程传 --screen N (N>=1)
+    int screenIdx = -1;
+    if (isRenderer && argc >= 4 && strcmp(argv[2], "--screen") == 0) {
+        screenIdx = atoi(argv[3]);
+    }
+
+    // 直接写入调试文件（子进程用独立文件名避免冲突）
+    char debugName[64] = "blackhole_debug.txt";
+    if (screenIdx >= 0)
+        snprintf(debugName, sizeof(debugName), "blackhole_debug_screen%d.txt", screenIdx);
+    FILE* debugLog = fopen(debugName, "w");
     if (debugLog) {
         fprintf(debugLog, "========== BLACKHOLE START ==========\n");
         fprintf(debugLog, "[Init] isRenderer=%d, argc=%d\n", isRenderer, argc);
         if (argc >= 2) fprintf(debugLog, "[Init] argv[1]='%s'\n", argv[1]);
         fflush(debugLog);
     }
+    // 让 WGC 捕获模块也把诊断写到同一个 debug 日志（用于排查黄边框）
+    WGC_SetDebugLog(debugLog);
 
     // 主程序启动时杀掉旧的 blackhole 进程（避免新旧实例冲突）
     // --render 子进程不杀（它由 monitor 管理）
@@ -684,6 +780,30 @@ int main(int argc, char* argv[]) {
             InitDefaultPresets(cfg);
         LoadAdvancedConfig(cfg);
         cfg.mode = 0;
+
+        // === 一屏一黑洞 (displayMode==3) 多进程分发 ===
+        // 父进程 (screenIdx==-1): 枚举显示器，为副屏 spawn 子进程，本进程负责主屏
+        // 子进程 (screenIdx>=1): 强制 displayMode=0，绑定到指定显示器
+        if (screenIdx < 0 && cfg.displayMode == 3) {
+            auto monitors = EnumerateMonitors();
+            if (monitors.size() <= 1) {
+                if (debugLog) { fprintf(debugLog, "[Init] 一屏一黑洞: 只有 %zu 屏, fallback 到 displayMode=0\n", monitors.size()); fflush(debugLog); }
+                cfg.displayMode = 0;
+            } else {
+                char selfPath[MAX_PATH]; GetModuleFileNameA(nullptr, selfPath, MAX_PATH);
+                // 为 monitors[1..N-1] 各 spawn 一个子进程
+                for (size_t i = 1; i < monitors.size(); i++) {
+                    SpawnChildRenderer(selfPath, (int)i);
+                }
+                // 本进程负责 monitors[0] (主屏)，降级为 displayMode=0
+                cfg.displayMode = 0;
+                if (debugLog) { fprintf(debugLog, "[Init] 一屏一黑洞: 父进程负责屏0, spawn %zu 个子进程\n", monitors.size() - 1); fflush(debugLog); }
+            }
+        } else if (screenIdx >= 0) {
+            // 子进程: 强制 displayMode=0，显示器选择在下方用 screenIdx 覆盖
+            cfg.displayMode = 0;
+            if (debugLog) { fprintf(debugLog, "[Init] 子渲染器 screenIdx=%d, displayMode forced to 0\n", screenIdx); fflush(debugLog); }
+        }
     } else if (isConfig) {
         // === CONFIG ONLY: show config panel, save and exit ===
         if (!glfwInit()) { fprintf(stderr, "glfwInit failed\n"); return 1; }
@@ -691,6 +811,7 @@ int main(int argc, char* argv[]) {
         // Save config and exit
         char names[64][64] = {};
         SavePresetsToFile(cfg, names);
+        SaveAdvancedConfig(cfg);
         glfwTerminate();
         return 0;
     } else {
@@ -711,6 +832,7 @@ int main(int argc, char* argv[]) {
             if (!GUI_ShowConfigPanel(cfg)) { glfwTerminate(); return 0; }
             char names[64][64] = {};
             SavePresetsToFile(cfg, names);
+            SaveAdvancedConfig(cfg);
             glfwTerminate();
         }
 
@@ -751,9 +873,26 @@ int main(int argc, char* argv[]) {
                 CloseHandle(pi.hProcess);
                 CloseHandle(pi.hThread);
             }
+            if (m == WM_WTSSESSION_CHANGE) {
+                // 跟踪会话锁/解锁：锁屏时不 spawn，解锁时立即重新评估
+                if (w == WTS_SESSION_LOCK) {
+                    g_sessionLocked = true;
+                    // 锁屏时主动杀掉 renderer（双保险，避免 renderer 在锁屏期间继续消耗 GPU）
+                    if (MonitorRunning()) MonitorKill();
+                } else if (w == WTS_SESSION_UNLOCK) {
+                    g_sessionLocked = false;
+                }
+                return 0;
+            }
             if (m == WM_TIMER && w == 1) {
                 auto* pSelf = (char*)GetWindowLongPtrA(h, GWLP_USERDATA);
                 auto* pCfg  = (BlackholeConfig*)(pSelf + MAX_PATH);
+                // 锁屏期间不 spawn renderer（避免 spin-kill 循环）
+                if (g_sessionLocked) {
+                    bool running = MonitorRunning();
+                    if (running) MonitorKill();
+                    return DefWindowProcA(h, m, w, l);
+                }
                 bool idle = isIdle((DWORD)pCfg->idleSec * 1000) && (pCfg->videoAsIdle || !isWatchingVideo());
                 bool running = MonitorRunning();
                 if (pCfg->mode == 0) {
@@ -779,6 +918,9 @@ int main(int argc, char* argv[]) {
         nid.hWnd = monHwnd;
         Shell_NotifyIconA(NIM_ADD, &nid);
 
+        // 注册会话通知（跟踪锁屏/解锁，避免锁屏后 renderer 失效、解锁后黑屏）
+        WTSRegisterSessionNotification(monHwnd, NOTIFY_FOR_THIS_SESSION);
+
         // Start renderer immediately in mode 0
         if (cfg.mode == 0) MonitorSpawn(selfPath);
 
@@ -789,6 +931,7 @@ int main(int argc, char* argv[]) {
         while (GetMessageA(&msg, NULL, 0, 0)) { TranslateMessage(&msg); DispatchMessageA(&msg); }
 
         KillTimer(monHwnd, 1);
+        WTSUnRegisterSessionNotification(monHwnd);
         Shell_NotifyIconA(NIM_DELETE, &nid);
         MonitorKill();
         return 0;
@@ -797,16 +940,62 @@ int main(int argc, char* argv[]) {
 
     // === OpenGL/WGL ===
 #ifndef BLACKHOLE_USE_D3D11
+    // ---- 显示器选择 ----
+    MonitorInfo monPrimary = GetPrimaryMonitor();
+    MonitorInfo monSecondary = GetSecondaryMonitor();
+    bool hasSecondary = (monSecondary.hMon != monPrimary.hMon);
+
+    // 一屏一黑洞子进程: 覆盖 monPrimary 为指定显示器
+    if (screenIdx >= 0) {
+        auto monitors = EnumerateMonitors();
+        if ((size_t)screenIdx < monitors.size()) {
+            monPrimary = monitors[screenIdx];
+            if (debugLog) { fprintf(debugLog, "[Init] screenIdx=%d → 绑定到显示器 (%d,%d %dx%d) primary=%d\n",
+                screenIdx, monPrimary.rc.left, monPrimary.rc.top,
+                monPrimary.rc.right - monPrimary.rc.left,
+                monPrimary.rc.bottom - monPrimary.rc.top,
+                (int)monPrimary.isPrimary); fflush(debugLog); }
+        } else {
+            if (debugLog) { fprintf(debugLog, "[WARN] screenIdx=%d 超出显示器数量, fallback 主屏\n", screenIdx); fflush(debugLog); }
+        }
+    }
+
+    int winX, winY, winW, winH;
+    if (cfg.displayMode == 0) {
+        // 主屏
+        winX = monPrimary.rc.left; winY = monPrimary.rc.top;
+        winW = monPrimary.rc.right - monPrimary.rc.left;
+        winH = monPrimary.rc.bottom - monPrimary.rc.top;
+    } else if (cfg.displayMode == 1) {
+        // 副屏（无副屏则 fallback 到主屏）
+        winX = monSecondary.rc.left; winY = monSecondary.rc.top;
+        winW = monSecondary.rc.right - monSecondary.rc.left;
+        winH = monSecondary.rc.bottom - monSecondary.rc.top;
+    } else {
+        // 主+副穿梭（虚拟桌面）
+        winX = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        winY = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        winW = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        winH = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        if (!hasSecondary) {
+            if (debugLog) { fprintf(debugLog, "[WARN] No secondary monitor, cross-screen mode fallback to primary\n"); fflush(debugLog); }
+            winX = monPrimary.rc.left; winY = monPrimary.rc.top;
+            winW = monPrimary.rc.right - monPrimary.rc.left;
+            winH = monPrimary.rc.bottom - monPrimary.rc.top;
+        }
+    }
+    if (debugLog) { fprintf(debugLog, "[Init] displayMode=%d window=%dx%d @(%d,%d)\n", cfg.displayMode, winW, winH, winX, winY); fflush(debugLog); }
+
     // ---- Create fullscreen black hole window via Win32 + WGL ----
     char winTitle[64];
     snprintf(winTitle, sizeof(winTitle), "BH_%u", GetCurrentProcessId());
     Win32GL wgl;
     if (debugLog) { fprintf(debugLog, "[Init] Creating window...\n"); fflush(debugLog); }
-    if (!Win32GL_Init(wgl, winTitle, 0, 0)) {
+    if (!Win32GL_Init(wgl, winTitle, winX, winY, winW, winH)) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Win32GL_Init failed!\n"); fclose(debugLog); }
         return 1;
     }
-    if (debugLog) { fprintf(debugLog, "[OK] Window created: %dx%d\n", wgl.width, wgl.height); fflush(debugLog); }
+    if (debugLog) { fprintf(debugLog, "[OK] Window created: %dx%d @(%d,%d)\n", wgl.width, wgl.height, wgl.targetX, wgl.targetY); fflush(debugLog); }
 
     setbuf(stderr, NULL);
 
@@ -817,23 +1006,66 @@ int main(int argc, char* argv[]) {
     }
     if (debugLog) { fprintf(debugLog, "[OK] GL functions loaded\n"); fflush(debugLog); }
 
-    // ---- Capture (WGC default) ----
-    WGCCapture wgc; DXGICapture dxgi;
-    bool useWGC = true;
-    int capW=0, capH=0; bool capOk;
-    if (debugLog) { fprintf(debugLog, "[Init] Initializing WGC capture...\n"); fflush(debugLog); }
-    capOk = WGC_Init(wgc); capW=wgc.width; capH=wgc.height;
-    if (!capOk) {
-        if (debugLog) { fprintf(debugLog, "[FAIL] WGC_Init failed!\n"); fclose(debugLog); }
-        Win32GL_Shutdown(wgl); return 1;
+    // ---- Capture: auto-detect border support, allow manual override ----
+    // captureMode: -1=auto, 0=WGC, 1=DXGI
+    // displayMode 2 (跨屏) 时两个捕获器都建，其余只建主屏一个
+    WGCCapture wgcPri, wgcSec; DXGICapture dxgiPri, dxgiSec;
+    bool useWGC = false;
+    if (cfg.captureMode == 0) {
+        useWGC = true;
+    } else if (cfg.captureMode == 1) {
+        useWGC = false;
+    } else {
+        if (debugLog) { fprintf(debugLog, "[Init] Auto-detecting capture backend...\n"); fflush(debugLog); }
+        useWGC = WGC_ProbeBorderSupport();
+        if (debugLog) { fprintf(debugLog, "[Init] Auto-detect result: useWGC=%d\n", (int)useWGC); fflush(debugLog); }
     }
-    if (debugLog) { fprintf(debugLog, "[OK] WGC initialized: %dx%d\n", capW, capH); fflush(debugLog); }
+
+    bool crossScreen = (cfg.displayMode == 2) && hasSecondary;
+    HMONITOR hMonPri = monPrimary.hMon;
+    HMONITOR hMonSec = monSecondary.hMon;
+    // 副屏模式：主捕获器要绑到副屏 hMon
+    if (cfg.displayMode == 1) hMonPri = hMonSec;
+
+    int capW=0, capH=0; bool capOk;
+    if (useWGC) {
+        if (debugLog) { fprintf(debugLog, "[Init] Initializing WGC primary...\n"); fflush(debugLog); }
+        capOk = WGC_Init(wgcPri, hMonPri); capW=wgcPri.width; capH=wgcPri.height;
+        if (!capOk) {
+            if (debugLog) { fprintf(debugLog, "[FAIL] WGC_Init primary failed!\n"); fclose(debugLog); }
+            Win32GL_Shutdown(wgl); return 1;
+        }
+        if (crossScreen) {
+            if (debugLog) { fprintf(debugLog, "[Init] Initializing WGC secondary...\n"); fflush(debugLog); }
+            if (!WGC_Init(wgcSec, hMonSec)) {
+                if (debugLog) { fprintf(debugLog, "[WARN] WGC secondary failed, falling back to primary-only\n"); fflush(debugLog); }
+                crossScreen = false;
+            }
+        }
+    } else {
+        if (debugLog) { fprintf(debugLog, "[Init] Initializing DXGI primary...\n"); fflush(debugLog); }
+        capOk = DXGI_Init(dxgiPri, hMonPri); capW=dxgiPri.width; capH=dxgiPri.height;
+        if (!capOk) {
+            if (debugLog) { fprintf(debugLog, "[FAIL] DXGI_Init primary failed!\n"); fclose(debugLog); }
+            Win32GL_Shutdown(wgl); return 1;
+        }
+        if (crossScreen) {
+            if (debugLog) { fprintf(debugLog, "[Init] Initializing DXGI secondary...\n"); fflush(debugLog); }
+            if (!DXGI_Init(dxgiSec, hMonSec)) {
+                if (debugLog) { fprintf(debugLog, "[WARN] DXGI secondary failed, falling back to primary-only\n"); fflush(debugLog); }
+                crossScreen = false;
+            }
+        }
+    }
+    if (debugLog) { fprintf(debugLog, "[OK] Primary capture: %dx%d, crossScreen=%d\n", capW, capH, (int)crossScreen); fflush(debugLog); }
 
     GLTextureUpload glTex;
     if (debugLog) { fprintf(debugLog, "[Init] Creating GL texture...\n"); fflush(debugLog); }
-    if (!GLTex_Init(glTex, capW, capH)) {
+    if (!GLTex_Init(glTex, wgl.width, wgl.height)) {
         if (debugLog) { fprintf(debugLog, "[FAIL] GLTex_Init failed!\n"); fclose(debugLog); }
-        WGC_Release(wgc); Win32GL_Shutdown(wgl); return 1;
+        if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
+        else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }
+        Win32GL_Shutdown(wgl); return 1;
     }
     if (debugLog) { fprintf(debugLog, "[OK] GL texture created: ID=%u\n", glTex.tex); fflush(debugLog); }
 
@@ -843,20 +1075,29 @@ int main(int argc, char* argv[]) {
     std::string fragSrc;
     if (vertSrc.empty()) {
         if (debugLog) { fprintf(debugLog, "[FAIL] vert.glsl not found or empty!\n"); fclose(debugLog); }
-        GLTex_Shutdown(glTex); WGC_Release(wgc); Win32GL_Shutdown(wgl); return 1;
+        GLTex_Shutdown(glTex);
+        if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
+        else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }
+        Win32GL_Shutdown(wgl); return 1;
     }
     if (debugLog) { fprintf(debugLog, "[OK] vert.glsl loaded (%zu bytes)\n", vertSrc.size()); fflush(debugLog); }
-    
+
     if (!buildFragmentShader(fragSrc, debugLog)) {
         if (debugLog) { fprintf(debugLog, "[FAIL] buildFragmentShader failed!\n"); fclose(debugLog); }
-        GLTex_Shutdown(glTex); WGC_Release(wgc); Win32GL_Shutdown(wgl); return 1;
+        GLTex_Shutdown(glTex);
+        if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
+        else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }
+        Win32GL_Shutdown(wgl); return 1;
     }
     if (debugLog) { fprintf(debugLog, "[OK] Fragment shader built (%zu bytes)\n", fragSrc.size()); fflush(debugLog); }
-    
+
     GLuint program = createProgram(vertSrc, fragSrc, debugLog);
-    if (!program) { 
+    if (!program) {
         if (debugLog) { fprintf(debugLog, "[CRITICAL] Shader program creation FAILED!\n"); fclose(debugLog); }
-        GLTex_Shutdown(glTex); WGC_Release(wgc); Win32GL_Shutdown(wgl); return 1; 
+        GLTex_Shutdown(glTex);
+        if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
+        else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }
+        Win32GL_Shutdown(wgl); return 1;
     }
     if (debugLog) { fprintf(debugLog, "[OK] Shader program created (ID=%u)\n", program); fflush(debugLog); }
 
@@ -900,13 +1141,19 @@ int main(int argc, char* argv[]) {
     GLint loc_uPE   = gl_GetUniformLocation(program, "uPresetExpo");
     GLint loc_uPSt  = gl_GetUniformLocation(program, "uPresetStar");
     GLint locBorn   = gl_GetUniformLocation(program, "uBornProgress");
+    GLint locFixedSz  = gl_GetUniformLocation(program, "uFixedSize");
+    GLint locFixedLvl = gl_GetUniformLocation(program, "uFixedLevel");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
     GLint locPhase  = gl_GetUniformLocation(program, "uRandPhase");
     GLint locPresetOff = gl_GetUniformLocation(program, "uPresetOffset");
 
     // ---- 随机化初始位置、轨迹和预设 ----
-    srand((unsigned)time(nullptr));
+    // 一屏一黑洞: 子进程用 screenIdx 给种子加偏移，确保各屏黑洞行为独立。
+    // 否则同秒启动的父子进程会拿到相同的 time(nullptr) → 相同的 rand() 序列 →
+    // 相同的 home/phase/presetOff，两个屏的黑洞动作完全同步。
+    unsigned seed = (unsigned)time(nullptr) + (unsigned)(screenIdx + 1) * 2654435761u;
+    srand(seed);
     // 随机出生位置：避免边缘，范围 [0.15, 0.85]
     float randHomeX = 0.15f + 0.70f * (float)rand() / (float)RAND_MAX;
     float randHomeY = 0.15f + 0.70f * (float)rand() / (float)RAND_MAX;
@@ -914,45 +1161,64 @@ int main(int argc, char* argv[]) {
     float randPhase = 6.2831853f * (float)rand() / (float)RAND_MAX;
     // 随机预设偏移：0 ~ 60秒（覆盖多个预设周期）
     float randPresetOff = 60.0f * (float)rand() / (float)RAND_MAX;
-    if (debugLog) { fprintf(debugLog, "[Init] Random spawn: home=(%.2f,%.2f) phase=%.2f presetOff=%.1f\n",
-                            randHomeX, randHomeY, randPhase, randPresetOff); fflush(debugLog); }
+    if (debugLog) { fprintf(debugLog, "[Init] Random spawn: home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
+                            randHomeX, randHomeY, randPhase, randPresetOff, seed, screenIdx); fflush(debugLog); }
 
     gl_UseProgram(0);
 
-    // ---- 预热 WGC 并获取多帧确保稳定 ----
-    if (debugLog) { fprintf(debugLog, "[Init] Warming up WGC capture...\n"); fflush(debugLog); }
+    // ---- 预热捕获并获取多帧确保稳定 ----
+    if (debugLog) { fprintf(debugLog, "[Init] Warming up %s capture...\n", useWGC ? "WGC" : "DXGI"); fflush(debugLog); }
     int stableFrames = 0;
     const int requiredStableFrames = 5;
     int warmupAttempts = 0;
-    const int maxWarmupAttempts = 150;
-    
+    const int maxWarmupAttempts = 300;  // 跨屏要更久
+
     while (stableFrames < requiredStableFrames && warmupAttempts < maxWarmupAttempts) {
-        ID3D11Texture2D* frame = WGC_GetFrame(wgc);
-        if (frame) {
-            D3D11_TEXTURE2D_DESC desc; frame->GetDesc(&desc);
+        bool gotPri = false;
+        ID3D11Texture2D* framePri = useWGC ? WGC_GetFrame(wgcPri) : DXGI_GetFrame(dxgiPri);
+        if (framePri) {
+            gotPri = true;
+            D3D11_TEXTURE2D_DESC desc; framePri->GetDesc(&desc);
             int fw = (int)desc.Width, fh = (int)desc.Height;
-            if (fw == glTex.width && fh == glTex.height) {
-                D3D11_MAPPED_SUBRESOURCE mapped;
-                if (WGC_CopyToStaging(wgc, frame, mapped)) {
-                    GLTex_Upload(glTex, mapped.pData, (int)mapped.RowPitch);
-                    WGC_UnmapStaging(wgc);
-                    stableFrames++;
-                    unsigned char* pData = (unsigned char*)mapped.pData;
-                    int sum = 0;
-                    for (int i = 0; i < 100; i++) sum += pData[i];
-                    if (debugLog) { fprintf(debugLog, "[Warmup] Frame %d/%d (%dx%d) sum=%d\n", stableFrames, requiredStableFrames, fw, fh, sum); fflush(debugLog); }
-                }
+            int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
+            int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
+            D3D11_MAPPED_SUBRESOURCE mapped;
+            if (useWGC ? WGC_CopyToStaging(wgcPri, framePri, mapped) : DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
+                GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                if (useWGC) WGC_UnmapStaging(wgcPri); else DXGI_UnmapStaging(dxgiPri);
+                stableFrames++;
+                unsigned char* pData = (unsigned char*)mapped.pData;
+                int sum = 0;
+                for (int i = 0; i < 100; i++) sum += pData[i];
+                if (debugLog) { fprintf(debugLog, "[Warmup] Frame %d/%d pri(%dx%d) sum=%d\n", stableFrames, requiredStableFrames, fw, fh, sum); fflush(debugLog); }
             }
-            frame->Release();
-        } else {
-            Sleep(16);
+            framePri->Release();
+            if (!useWGC) DXGI_ReleaseFrame(dxgiPri);
         }
+        // 副屏帧（仅跨屏模式）
+        if (crossScreen) {
+            ID3D11Texture2D* frameSec = useWGC ? WGC_GetFrame(wgcSec) : DXGI_GetFrame(dxgiSec);
+            if (frameSec) {
+                D3D11_TEXTURE2D_DESC desc; frameSec->GetDesc(&desc);
+                int fw = (int)desc.Width, fh = (int)desc.Height;
+                int dstX = monSecondary.rc.left - winX;
+                int dstY = monSecondary.rc.top - winY;
+                D3D11_MAPPED_SUBRESOURCE mapped;
+                if (useWGC ? WGC_CopyToStaging(wgcSec, frameSec, mapped) : DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
+                    GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                    if (useWGC) WGC_UnmapStaging(wgcSec); else DXGI_UnmapStaging(dxgiSec);
+                }
+                frameSec->Release();
+                if (!useWGC) DXGI_ReleaseFrame(dxgiSec);
+            }
+        }
+        if (!gotPri) Sleep(16);
         warmupAttempts++;
         Win32GL_PollEvents(wgl);
     }
-    
+
     if (stableFrames >= requiredStableFrames) {
-        if (debugLog) { fprintf(debugLog, "[OK] WGC warmup complete: %d frames\n", stableFrames); fflush(debugLog); }
+        if (debugLog) { fprintf(debugLog, "[OK] %s warmup complete: %d frames\n", useWGC ? "WGC" : "DXGI", stableFrames); fflush(debugLog); }
     } else {
         if (debugLog) { fprintf(debugLog, "[WARN] Only %d frames after %d attempts\n", stableFrames, warmupAttempts); fflush(debugLog); }
     }
@@ -963,18 +1229,8 @@ int main(int argc, char* argv[]) {
     Sleep(50);
     Win32GL_PollEvents(wgl);
 
-    // 先渲染一帧保证窗口有内容
+    // 先渲染一帧保证窗口有内容（用预热阶段已经上传过的纹理，不再重新取帧）
     {
-        ID3D11Texture2D* frame = WGC_GetFrame(wgc);
-        if (frame) {
-            D3D11_TEXTURE2D_DESC desc; frame->GetDesc(&desc);
-            if ((int)desc.Width==glTex.width && (int)desc.Height==glTex.height) {
-                D3D11_MAPPED_SUBRESOURCE mapped;
-                if (WGC_CopyToStaging(wgc, frame, mapped))
-                    { GLTex_Upload(glTex, mapped.pData, (int)mapped.RowPitch); WGC_UnmapStaging(wgc); }
-            }
-            frame->Release();
-        }
         int fbW=wgl.width, fbH=wgl.height;
         glViewport(0,0,fbW,fbH); glClearColor(0,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
         gl_UseProgram(program);
@@ -1004,6 +1260,8 @@ int main(int argc, char* argv[]) {
         for(int i=0;i<cfg.presetCount;i++)buf[i]=cfg.presets[i].speed;gl_Uniform1fv(loc_uPS,cfg.presetCount,buf);
         for(int i=0;i<cfg.presetCount;i++)buf[i]=cfg.presets[i].expo; gl_Uniform1fv(loc_uPE,cfg.presetCount,buf);
         for(int i=0;i<cfg.presetCount;i++)buf[i]=cfg.presets[i].star; gl_Uniform1fv(loc_uPSt,cfg.presetCount,buf); }
+        gl_Uniform1i(locFixedSz, cfg.fixedSize ? 1 : 0);
+        gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, randHomeX);
         gl_Uniform1f(locHomeY, randHomeY);
@@ -1017,7 +1275,7 @@ int main(int argc, char* argv[]) {
     Win32GL_EnableLayered(wgl);
     // 不再隐藏系统光标 — WGC 已通过 IsCursorCaptureEnabled=false 禁用光标捕获，
     // 捕获的纹理不含光标，不会出现双重光标，系统光标始终保持正常可用
-    
+
     if (debugLog) { fprintf(debugLog, "[OK] Ready, entering main loop\n"); fclose(debugLog); debugLog = nullptr; }
 
     // ---- Main loop ----
@@ -1031,15 +1289,22 @@ int main(int argc, char* argv[]) {
     int frames = 0; double lastFps = startTime;
     char title[128];
 
-    if (!useWGC) { ID3D11Texture2D* f = DXGI_GetFrame(dxgi); if (f) f->Release(); }
+    if (!useWGC) {
+        ID3D11Texture2D* f = DXGI_GetFrame(dxgiPri);
+        if (f) { f->Release(); DXGI_ReleaseFrame(dxgiPri); }
+        if (crossScreen) {
+            ID3D11Texture2D* f2 = DXGI_GetFrame(dxgiSec);
+            if (f2) { f2->Release(); DXGI_ReleaseFrame(dxgiSec); }
+        }
+    }
 
     while (true) {
         if (exiting) {
             // 退出渐出：只处理消息，不检查 shouldClose
             Win32GL_DrainMessages(wgl);
         } else {
-            if (!Win32GL_PollEvents(wgl)) { 
-                exiting = true; 
+            if (!Win32GL_PollEvents(wgl)) {
+                exiting = true;
                 exitStart = Win32GL_GetTime();
                 wgl.active = true;  // 恢复active，让退出动画能渲染
             }
@@ -1049,21 +1314,39 @@ int main(int argc, char* argv[]) {
 
         // 退出时跳过捕获，避免卡顿
         if (!exiting) {
-            if (!useWGC) DXGI_ReleaseFrame(dxgi);
-            ID3D11Texture2D* frame = useWGC ? WGC_GetFrame(wgc) : DXGI_GetFrame(dxgi);
-
-            if (frame) {
-                D3D11_TEXTURE2D_DESC desc; frame->GetDesc(&desc);
-                int fw=(int)desc.Width, fh=(int)desc.Height;
-                if (fw!=glTex.width || fh!=glTex.height) GLTex_Resize(glTex, fw, fh);
-                if (fw==glTex.width && fh==glTex.height) {
-                    D3D11_MAPPED_SUBRESOURCE mapped;
-                    if ((useWGC ? WGC_CopyToStaging(wgc,frame,mapped) : DXGI_CopyToStaging(dxgi,frame,mapped))) {
-                        GLTex_Upload(glTex, mapped.pData, (int)mapped.RowPitch);
-                        if (useWGC) WGC_UnmapStaging(wgc); else DXGI_UnmapStaging(dxgi);
-                    }
+            // 主屏帧
+            if (!useWGC) DXGI_ReleaseFrame(dxgiPri);
+            ID3D11Texture2D* framePri = useWGC ? WGC_GetFrame(wgcPri) : DXGI_GetFrame(dxgiPri);
+            if (framePri) {
+                D3D11_TEXTURE2D_DESC desc; framePri->GetDesc(&desc);
+                int fw = (int)desc.Width, fh = (int)desc.Height;
+                int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
+                int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
+                D3D11_MAPPED_SUBRESOURCE mapped;
+                if (useWGC ? WGC_CopyToStaging(wgcPri, framePri, mapped)
+                           : DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
+                    GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                    if (useWGC) WGC_UnmapStaging(wgcPri); else DXGI_UnmapStaging(dxgiPri);
                 }
-                frame->Release();
+                framePri->Release();
+            }
+            // 副屏帧（仅跨屏模式）
+            if (crossScreen) {
+                if (!useWGC) DXGI_ReleaseFrame(dxgiSec);
+                ID3D11Texture2D* frameSec = useWGC ? WGC_GetFrame(wgcSec) : DXGI_GetFrame(dxgiSec);
+                if (frameSec) {
+                    D3D11_TEXTURE2D_DESC desc; frameSec->GetDesc(&desc);
+                    int fw = (int)desc.Width, fh = (int)desc.Height;
+                    int dstX = monSecondary.rc.left - winX;
+                    int dstY = monSecondary.rc.top - winY;
+                    D3D11_MAPPED_SUBRESOURCE mapped;
+                    if (useWGC ? WGC_CopyToStaging(wgcSec, frameSec, mapped)
+                               : DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
+                        GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                        if (useWGC) WGC_UnmapStaging(wgcSec); else DXGI_UnmapStaging(dxgiSec);
+                    }
+                    frameSec->Release();
+                }
             }
         }
 
@@ -1136,6 +1419,8 @@ int main(int argc, char* argv[]) {
             for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].star;
             gl_Uniform1fv(loc_uPSt, cfg.presetCount, buf);
         }
+        gl_Uniform1i(locFixedSz, cfg.fixedSize ? 1 : 0);
+        gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, randHomeX);
         gl_Uniform1f(locHomeY, randHomeY);
@@ -1158,11 +1443,15 @@ int main(int argc, char* argv[]) {
     }
 
     GLTex_Shutdown(glTex);
-    if (useWGC) WGC_Release(wgc); else DXGI_Release(dxgi);
+    if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
+    else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }
     gl_DeleteProgram(program);
     gl_DeleteVertexArrays(1, &vao);
     gl_DeleteBuffers(1, &vbo);
     Win32GL_Shutdown(wgl);
+
+    // 一屏一黑洞: 终止所有子渲染器 (Job Object 也会兜底)
+    KillChildRenderers();
 #else
     {
         Win32Window win;
@@ -1170,7 +1459,7 @@ int main(int argc, char* argv[]) {
         Win32Window_ShowSystemCursor(false);
         int fbW = win.width, fbH = win.height;
         WGCCapture wgc; DXGICapture dxgi; bool useWGC=true;
-        if (!WGC_Init(wgc)) { Win32Window_Shutdown(win); return 1; }
+        if (!WGC_Init(wgc, nullptr)) { Win32Window_Shutdown(win); return 1; }
         D3D11Renderer r;
         if (!r.Init(win.hwnd, fbW, fbH, wgc.d3dDev, wgc.d3dCtx)) { WGC_Release(wgc); Win32Window_Shutdown(win); return 1; }
         double st = Win32Window_GetTime(); int fr=0; double lf=st; char tt[128];

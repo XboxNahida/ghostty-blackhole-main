@@ -1,4 +1,4 @@
-﻿// BlackholePreviewFBO.qml — 真实 Shader 黑洞预览 (QQuickFramebufferObject)
+// BlackholePreviewFBO.qml — 真实 Shader 黑洞预览 (QQuickFramebufferObject)
 // 替代原 Canvas 模拟，支持点击放大
 import QtQuick
 import QtQuick.Controls

@@ -1,4 +1,4 @@
-﻿// systemtray.cpp — 系统托盘实现
+// systemtray.cpp — 系统托盘实现
 #include "systemtray.h"
 #include <QApplication>
 #include <QAction>

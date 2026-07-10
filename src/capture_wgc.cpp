@@ -19,6 +19,11 @@
 #include <windows.graphics.capture.interop.h>
 #include <windows.graphics.directx.direct3d11.h>
 
+// Debug log redirector (set from main.cpp via WGC_SetDebugLog)
+static FILE* g_wgcDebug = nullptr;
+void WGC_SetDebugLog(FILE* f) { g_wgcDebug = f; }
+#define WGC_LOG(args) do { fprintf args; if (g_wgcDebug) fflush(g_wgcDebug); } while(0)
+
 
 // IDirect3DDxgiInterfaceAccess -- not in MinGW WIDL headers.
 // {A9B3D012-3DF2-4EE3-B8D1-8695F457D3C1}
@@ -99,7 +104,51 @@ static HRESULT WGC_WrapD3DDevice(ID3D11Device* d3dDev, IDirect3DDevice** outDev)
 
 // ---- Public API ----
 
-bool WGC_Init(WGCCapture& wgc) {
+// 尝试抑制 WGC 捕获边框（Win11 22H2+ 的 IsBorderRequired API）
+// 返回 true 表示边框已被抑制（系统支持），false 表示不支持（边框会出现）
+// 调用方据此决定是否回退到 DXGI
+static bool WGC_TrySuppressBorder(IGraphicsCaptureSession* sess) {
+    IGraphicsCaptureSession3* sess3 = nullptr;
+    static const GUID IID_IGCS3 = { 0xf2cdd966, 0x22ae, 0x5ea1, {0x95,0x96, 0x3a,0x28,0x93,0x44,0xc3,0xbe}};
+    HRESULT hr3 = sess->QueryInterface(IID_IGCS3, (void**)&sess3);
+    if (FAILED(hr3) || !sess3) {
+        WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr, "[WGC] IGraphicsCaptureSession3 not available (pre-Win11 22H2?), hr=0x%08X (border will show)\n", (unsigned)hr3));
+        return false;
+    }
+    boolean borderOff = false;
+    HRESULT hrBorder = sess3->put_IsBorderRequired(borderOff);
+    sess3->Release();
+    if (SUCCEEDED(hrBorder)) {
+        WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr, "[WGC] IsBorderRequired(false) OK (border suppressed)\n"));
+        return true;
+    }
+    WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr, "[WGC] IsBorderRequired(false) FAILED: 0x%08X (border will show)\n", (unsigned)hrBorder));
+    return false;
+}
+
+// 探测当前系统是否支持 WGC 边框抑制
+// 通过读取注册表 Windows 构建号判断：Win11 22H2+ (build >= 22621) 才支持 IsBorderRequired。
+// 不再创建临时 WGC 会话探测——那会在 Win10/早期 Win11 上闪现黄色边框（StartCapture 即触发）。
+// 返回 true=支持边框抑制（用 WGC）, false=不支持（用 DXGI）
+bool WGC_ProbeBorderSupport() {
+    HKEY hKey = nullptr;
+    char buildStr[64] = {};
+    DWORD size = sizeof(buildStr);
+    LONG result = RegGetValueA(HKEY_LOCAL_MACHINE,
+                               "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+                               "CurrentBuild",
+                               RRF_RT_REG_SZ, nullptr, buildStr, &size);
+    if (result != ERROR_SUCCESS) {
+        WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr, "[WGC-Probe] RegGetValueA failed (err=%ld), assuming not supported\n", result));
+        return false;
+    }
+    int build = atoi(buildStr);
+    bool supported = (build >= 22621);  // Win11 22H2 = 22621
+    WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr, "[WGC-Probe] Windows build=%d, border supported=%d (threshold=22621)\n", build, (int)supported));
+    return supported;
+}
+
+bool WGC_Init(WGCCapture& wgc, HMONITOR hMon) {
     wgc.active = false;
 
     // 1. Create D3D11 device
@@ -135,10 +184,10 @@ bool WGC_Init(WGCCapture& wgc) {
         return false;
     }
 
-    // 4. Create capture item for primary monitor
+    // 4. Create capture item for specified monitor
     IGraphicsCaptureItem* item = nullptr;
     hr = interop->CreateForMonitor(
-        MonitorFromWindow(GetDesktopWindow(), MONITOR_DEFAULTTOPRIMARY),
+        hMon ? hMon : MonitorFromWindow(GetDesktopWindow(), MONITOR_DEFAULTTOPRIMARY),
         __uuidof(IGraphicsCaptureItem),
         (void**)&item);
     interop->Release();
@@ -173,9 +222,9 @@ bool WGC_Init(WGCCapture& wgc) {
 
     // 7. Query monitor size (使用真实分辨率，避免DPI虚拟化)
     SetProcessDPIAware();
-    HMONITOR hMon = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
+    HMONITOR hMonSize = hMon ? hMon : MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
     MONITORINFO mi = { sizeof(mi) };
-    GetMonitorInfoW(hMon, &mi);
+    GetMonitorInfoW(hMonSize, &mi);
     wgc.width  = mi.rcMonitor.right - mi.rcMonitor.left;
     wgc.height = mi.rcMonitor.bottom - mi.rcMonitor.top;
 
@@ -215,22 +264,7 @@ bool WGC_Init(WGCCapture& wgc) {
     }
 
     // 10b. Try to disable capture border (Win11 yellow border)
-    {
-        IGraphicsCaptureSession3* sess3 = nullptr;
-        static const GUID IID_IGCS3 = { 0xf2cdd966, 0x22ae, 0x5ea1, {0x95,0x96, 0x3a,0x28,0x93,0x44,0xc3,0xbe}};
-        HRESULT hr3 = sess->QueryInterface(IID_IGCS3, (void**)&sess3);
-        if (SUCCEEDED(hr3) && sess3) {
-            boolean borderOff = false;
-            HRESULT hrBorder = sess3->put_IsBorderRequired(borderOff);
-            if (SUCCEEDED(hrBorder))
-                fprintf(stderr, "[WGC] IsBorderRequired set to false\n");
-            else
-                fprintf(stderr, "[WGC] IsBorderRequired(false) failed: 0x%08X\n", (unsigned)hrBorder);
-            sess3->Release();
-        } else {
-            fprintf(stderr, "[WGC] IGraphicsCaptureSession3 not available (pre-Win11?)\n");
-        }
-    }
+    WGC_TrySuppressBorder(sess);
 
     // 10c. Disable cursor capture so WGC texture has no cursor (eliminates
     // double-cursor without hiding the system cursor globally)

@@ -1,4 +1,4 @@
-﻿// BlackholeConfig.qml 闁冲厜鍋撻柍鍏夊亾 濮掓稒鍨剁粈濠囨煀瀹ュ洨鏋傚☉鎾愁煼閵嗗妫?(v2: 閻庝絻顫夌敮?C++ BlackHoleCore + 闁活亞鍠庨悿?Shader 濡澘瀚～?
+// BlackholeConfig.qml 闁冲厜鍋撻柍鍏夊亾 濮掓稒鍨剁粈濠囨煀瀹ュ洨鏋傚☉鎾愁煼閵嗗妫?(v2: 閻庝絻顫夌敮?C++ BlackHoleCore + 闁活亞鍠庨悿?Shader 濡澘瀚～?
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -102,7 +102,7 @@ Item {
                 onClicked: {
                     if (bhCore) {
                         if (bhCore.systemActive) bhCore.stopAll()
-                        else bhCore.applyAndStart()
+                        else bhCore.startRenderer()
                     }
                 }
             }
