@@ -420,32 +420,27 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            float continuousSwallow = (uScreenSwallow > 0) ? clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
             "            float swallowPhase = continuousSwallow;\n"
             "            float r = max(length(lensP), 0.0005);\n"
+            "            float theta = atan(lensP.y, lensP.x);\n"
             "            float eventHorizonMask = smoothstep(0.17, 0.045, r) * swallowPhase;\n"
-            "            float accretionScramble = smoothstep(0.72, 0.10, r) * smoothstep(0.030, 0.19, r) * swallowPhase;\n"
+            "            float accretionScramble = smoothstep(0.78, 0.13, r) * smoothstep(0.040, 0.23, r) * swallowPhase;\n"
             "            float recognizableOuterLens = (1.0 - accretionScramble) * (1.0 - eventHorizonMask);\n"
-            "            float fragmentMask = smoothstep(0.025, 0.42, window * shield) * swallowPhase;\n"
-            "            vec2  fragmentSpace = p * mix(24.0, 76.0, clamp(uSwallowStrength, 0.0, 1.0));\n"
-            "            vec2  fragmentCell = floor(fragmentSpace + vec2(19.17, 43.31));\n"
-            "            vec2  fragmentLocal = fract(fragmentSpace) - 0.5;\n"
-            "            float fragmentHash = fract(sin(dot(fragmentCell, vec2(127.1, 311.7))) * 43758.5453);\n"
-            "            float fragmentHash2 = fract(sin(dot(fragmentCell + 17.0, vec2(269.5, 183.3))) * 24634.6345);\n"
+            "            float filamentMask = smoothstep(0.020, 0.46, window * shield) * swallowPhase;\n"
             "            vec2  radialDir = lensP / r;\n"
             "            vec2  tangentDir = vec2(-radialDir.y, radialDir.x);\n"
-            "            float fragmentDelay = mix(0.42, 1.0, smoothstep(fragmentHash * 0.62, 1.0, swallowPhase + accretionScramble));\n"
-            "            float spiralAngle = (2.1 + 4.8 * fragmentHash2) * fragmentDelay * fragmentMask / (0.13 + r);\n"
+            "            float differentialRotation = clamp((0.16 + 0.22 * swallowPhase) / (0.12 + r), 0.0, 2.8);\n"
+            "            float filamentPhase = theta + iTime * differentialRotation - r * (8.0 + 9.0 * swallowPhase);\n"
+            "            float tidalFilament = pow(1.0 - abs(sin(filamentPhase * 13.0 + sin(r * 31.0 - iTime * 0.55) * 0.8)), 8.0);\n"
+            "            tidalFilament = smoothstep(0.18, 0.92, tidalFilament) * accretionScramble;\n"
+            "            float innerLineFlow = smoothstep(0.62, 0.08, r) * smoothstep(0.035, 0.18, r) * swallowPhase;\n"
+            "            float tidalStretch = filamentMask * (0.20 + 1.75 * innerLineFlow + 0.85 * tidalFilament);\n"
+            "            float spiralAngle = differentialRotation * (0.25 + 0.75 * innerLineFlow) + tidalFilament * 0.38;\n"
             "            mat2  spiralRot = mat2(cos(spiralAngle), -sin(spiralAngle), sin(spiralAngle), cos(spiralAngle));\n"
-            "            float tidalStretch = fragmentMask * fragmentDelay * (0.28 + 1.35 / (0.13 + r));\n"
-            "            float shardShape = smoothstep(0.48, 0.18, abs(fragmentLocal.y + (fragmentHash - 0.5) * 0.45)) * smoothstep(0.58, 0.08, abs(fragmentLocal.x));\n"
-            "            float shardGate = step(0.12 + 0.32 * fragmentHash, shardShape + fragmentMask * 0.35 + accretionScramble * 0.45);\n"
-            "            vec2  shardPull = radialDir * fragmentDelay * fragmentMask * (0.22 + 1.05 / (0.21 + r));\n"
-            "            vec2  shardShear = tangentDir * (fragmentHash2 - 0.5) * fragmentMask * fragmentDelay * (0.20 + 0.70 * accretionScramble);\n"
-            "            vec2  cellScramble = (vec2(fragmentHash, fragmentHash2) - 0.5) * accretionScramble * (0.20 + 0.45 / (0.20 + r));\n"
-            "            vec2  stretchedP = lensP + radialDir * dot(fragmentLocal, radialDir) * tidalStretch * 0.024 - tangentDir * dot(fragmentLocal, tangentDir) * tidalStretch * 0.011;\n"
-            "            vec2  swallowP = spiralRot * (stretchedP + shardPull + shardShear + cellScramble);\n"
-            "            vec2  outerP = mix(lensP, swallowP, shardGate * fragmentMask);\n"
-            "            vec2  innerP = mix(swallowP, cellScramble + radialDir * 0.030, eventHorizonMask);\n"
-            "            vec2  finalP = mix(outerP, innerP, accretionScramble + eventHorizonMask);\n"
-            "            vec2  suv = mirrorUV(center + mix(lensP, finalP, 1.0 - recognizableOuterLens * (1.0 - shardGate * fragmentMask)) / vec2(aspect, 1.0));";
+            "            vec2  lineDrag = tangentDir * tidalStretch * (0.085 + 0.24 / (0.28 + r));\n"
+            "            vec2  radialFall = radialDir * filamentMask * (0.10 + 0.70 * innerLineFlow + 0.36 * tidalFilament);\n"
+            "            vec2  lineBlur = tangentDir * sin(filamentPhase * 3.0 + iTime * 0.45) * tidalFilament * 0.045;\n"
+            "            vec2  filamentP = spiralRot * (lensP + lineDrag + lineBlur + radialFall);\n"
+            "            vec2  finalP = mix(lensP, filamentP, clamp(accretionScramble + tidalFilament + eventHorizonMask, 0.0, 1.0));\n"
+            "            vec2  suv = mirrorUV(center + mix(lensP, finalP, 1.0 - recognizableOuterLens) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
 
@@ -459,15 +454,19 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
                 "        vec2 diskP = (uv - center) * vec2(aspect, 1.0);\n"
                 "        float diskR = max(length(diskP), 0.0005);\n"
                 "        float eventHorizonMask = smoothstep(0.18, 0.038, diskR) * swallowPhase;\n"
-                "        float accretionScramble = smoothstep(0.76, 0.11, diskR) * smoothstep(0.032, 0.22, diskR) * swallowPhase;\n"
+                "        float accretionScramble = smoothstep(0.78, 0.13, diskR) * smoothstep(0.040, 0.23, diskR) * swallowPhase;\n"
                 "        float recognizableOuterLens = smoothstep(0.26, 0.82, diskR) * (1.0 - eventHorizonMask);\n"
-                "        vec2 fragmentCell = floor(diskP * mix(30.0, 92.0, clamp(uSwallowStrength, 0.0, 1.0)));\n"
-                "        float fragmentHash = fract(sin(dot(fragmentCell, vec2(91.7, 213.1))) * 15731.743);\n"
-                "        float fragmentMask = smoothstep(0.04, 0.64, window * shield) * swallowPhase;\n"
-                "        float tidalStretch = smoothstep(0.0, 1.0, fragmentMask) * (0.55 + 0.45 * fragmentHash);\n"
-                "        vec3 accretionMatter = vec3(0.020, 0.018, 0.028) + vec3(0.22, 0.17, 0.11) * fragmentHash * accretionScramble;\n"
-                "        col = mix(col, col * mix(0.18, 0.52, fragmentHash) + accretionMatter, accretionScramble * (0.72 + 0.28 * tidalStretch));\n"
-                "        col = mix(col, col * mix(0.72, 1.0, recognizableOuterLens), fragmentMask * (1.0 - accretionScramble) * 0.22);\n"
+                "        float diskTheta = atan(diskP.y, diskP.x);\n"
+                "        float differentialRotation = clamp((0.16 + 0.22 * swallowPhase) / (0.12 + diskR), 0.0, 2.8);\n"
+                "        float filamentPhase = diskTheta + iTime * differentialRotation - diskR * (8.0 + 9.0 * swallowPhase);\n"
+                "        float tidalFilament = pow(1.0 - abs(sin(filamentPhase * 13.0 + sin(diskR * 31.0 - iTime * 0.55) * 0.8)), 8.0);\n"
+                "        tidalFilament = smoothstep(0.18, 0.92, tidalFilament) * accretionScramble;\n"
+                "        float filamentMask = smoothstep(0.04, 0.64, window * shield) * swallowPhase;\n"
+                "        float innerLineFlow = smoothstep(0.62, 0.08, diskR) * smoothstep(0.035, 0.18, diskR) * swallowPhase;\n"
+                "        float tidalStretch = smoothstep(0.0, 1.0, filamentMask) * (0.42 + 1.15 * innerLineFlow + 0.95 * tidalFilament);\n"
+                "        vec3 accretionMatter = vec3(0.018, 0.016, 0.025) + vec3(0.28, 0.20, 0.11) * tidalFilament;\n"
+                "        col = mix(col, col * mix(0.12, 0.46, tidalFilament) + accretionMatter, accretionScramble * (0.66 + 0.34 * tidalStretch));\n"
+                "        col = mix(col, col * mix(0.78, 1.0, recognizableOuterLens), filamentMask * (1.0 - accretionScramble) * 0.18);\n"
                 "        col = mix(col, vec3(0.0), eventHorizonMask);\n"
                 "    }\n"
                 "    fragColor = vec4(col, 1.0);");
@@ -1336,7 +1335,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform4f(locDate,0,0,0,(float)time(nullptr));
         gl_Uniform1f(loc_uHR,cfg.holeRadius); gl_Uniform1f(loc_uDG,cfg.diskGain);
         gl_Uniform1f(loc_uDT,cfg.diskTemp); gl_Uniform1f(loc_uEX,cfg.exposure);
-        gl_Uniform1f(loc_uSP,cfg.spd); gl_Uniform1f(loc_uSG,cfg.starGain);
+        float effectiveShaderSpeed = cfg.screenSwallow ? cfg.spd * 0.30f : cfg.spd;
+        gl_Uniform1f(loc_uSP,effectiveShaderSpeed); gl_Uniform1f(loc_uSG,cfg.starGain);
         gl_Uniform1f(loc_uDI,cfg.diskIncl);
         gl_Uniform1i(loc_uPM,cfg.playMode); gl_Uniform1f(loc_uSlot,cfg.slotSec);
         gl_Uniform1i(loc_uPC,cfg.presetCount);
@@ -1481,9 +1481,11 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
+                    float swallowMotionScale = cfg.screenSwallow ? 0.25f : 1.0f;
                     float gravityStrength = cfg.limitMouseOvershoot
                         ? (0.0000025f + 0.0000065f * (1.0f - inertia))
                         : (0.0000045f + 0.0000105f * (1.0f - inertia));
+                    gravityStrength *= swallowMotionScale;
                     float gravitySoftening = cfg.limitMouseOvershoot
                         ? (0.030f + 0.045f * inertia)
                         : (0.024f + 0.035f * inertia);
@@ -1491,10 +1493,11 @@ int main(int argc, char* argv[]) {
                     float settleSpeed = 0.00022f + 0.00018f * inertia;
                     float gravityDeadZone = settleRadius * 1.85f;
                     float maxGravityAccel = 0.00075f + 0.00055f * (1.0f - inertia);
-                    float maxGravitySpeed = 0.0065f + 0.0035f * (1.0f - inertia);
+                    float maxGravitySpeed = (0.0065f + 0.0035f * (1.0f - inertia)) * (cfg.screenSwallow ? 0.35f : 1.0f);
                     float farReturnStrength = cfg.limitMouseOvershoot
                         ? (0.00055f + 0.00035f * (1.0f - inertia))
                         : (0.00080f + 0.00065f * (1.0f - inertia));
+                    farReturnStrength *= swallowMotionScale;
                     float driftKeep = 0.9960f - 0.0050f * (1.0f - inertia);
                     float maxSeparation = 0.26f + 0.30f * inertia;
                     float worldMargin = 0.04f;
@@ -1574,7 +1577,7 @@ int main(int argc, char* argv[]) {
             frameHomeY = cursorHomeY;
 
             if (inertia > 0.0001f) {
-                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f;
+                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f * (cfg.screenSwallow ? 0.35f : 1.0f);
                 float wanderX = cosf(t * 0.42f + phaseOffset) * wanderRadius;
                 float wanderY = sinf(t * 0.33f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
                 frameHomeX += wanderX;
@@ -1630,7 +1633,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(loc_uDG, cfg.diskGain);
         gl_Uniform1f(loc_uDT, cfg.diskTemp);
         gl_Uniform1f(loc_uEX, cfg.exposure);
-        gl_Uniform1f(loc_uSP, cfg.spd);
+        float effectiveShaderSpeed = cfg.screenSwallow ? cfg.spd * 0.30f : cfg.spd;
+        gl_Uniform1f(loc_uSP, effectiveShaderSpeed);
         gl_Uniform1f(loc_uSG, cfg.starGain);
         gl_Uniform1f(loc_uDI, cfg.diskIncl);
         gl_Uniform1i(loc_uPM, cfg.playMode);
