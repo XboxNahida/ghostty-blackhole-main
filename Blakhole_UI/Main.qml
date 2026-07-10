@@ -320,18 +320,21 @@ ApplicationWindow {
 
             // 高级设置页面
             Pages.AdvancedConfig {
+                bhCore: blackHoleCore
                 anchors.fill: parent
                 visible: root.currentPageIndex === 1
             }
 
             // 定时显示页面
             Pages.ScheduleConfig {
+                bhCore: blackHoleCore
                 anchors.fill: parent
                 visible: root.currentPageIndex === 2
             }
 
             // 空闲检测名单页面
             Pages.IdleListConfig {
+                bhCore: blackHoleCore
                 anchors.fill: parent
                 visible: root.currentPageIndex === 3
             }
