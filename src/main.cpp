@@ -33,6 +33,9 @@
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34  // Windows 11 accent border (not in SDK 8.1)
 #endif
+#ifndef VK_R
+#define VK_R 0x52
+#endif
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -447,13 +450,19 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            vec2  projectedDiskP = vec2(diskFrameP.x, diskFrameP.y / presetDiskAspect);\n"
             "            float projectedDiskRadius = max(length(projectedDiskP), 0.0005);\n"
             "            float diskBandDistance = abs(projectedDiskRadius - diskMid) / max(diskSpan, 0.003);\n"
-            "            float dimensionCollapse = smoothstep(1.20 + boundaryDither, 0.08, diskBandDistance) * smoothstep(diskOuterScreen + diskSpan * 0.85, diskInnerScreen * 0.48, projectedDiskRadius) * swallowPhase;\n"
-            "            float softCollapse = smoothstep(0.08, 0.92, dimensionCollapse);\n"
+            "            float gravityRadius = max(rh * (4.4 + 1.8 * ringBirth), 0.004);\n"
+            "            float gravityWellField = swallowPhase * shield / (1.0 + pow(r / gravityRadius, 2.15));\n"
+            "            float diskDistanceField = 1.0 / (1.0 + diskBandDistance * diskBandDistance * 0.72);\n"
+            "            float diskRadialTail = 1.0 / (1.0 + pow(max(projectedDiskRadius - diskInnerScreen, 0.0) / max(diskSpan * 2.35, 0.004), 2.0));\n"
+            "            float softDiskMatterField = swallowPhase * shield * diskDistanceField * diskRadialTail;\n"
+            "            float dimensionCollapse = softDiskMatterField * (0.58 + 0.22 * ringBirth) + gravityWellField * 0.42;\n"
+            "            float softCollapse = clamp(dimensionCollapse, 0.0, 1.0);\n"
             "            vec3  geodesicDiskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
             "            float geodesicDiskEnergy = max(max(geodesicDiskLight.r, geodesicDiskLight.g), geodesicDiskLight.b);\n"
             "            float geodesicDiskMask = smoothstep(0.018, 0.22, geodesicDiskEnergy) * swallowPhase;\n"
-            "            float projectedCollapse = softCollapse * (0.48 + 0.22 * ringBirth);\n"
-            "            float adaptiveCollapse = clamp(max(projectedCollapse, geodesicDiskMask * (0.72 + 0.18 * ringBirth)), 0.0, 1.0);\n"
+            "            float projectedCollapse = softDiskMatterField * (0.30 + 0.18 * ringBirth);\n"
+            "            float smoothInfallField = clamp(gravityWellField * 0.58 + softDiskMatterField * 0.42 + geodesicDiskMask * 0.22, 0.0, 1.0);\n"
+            "            float adaptiveCollapse = smoothstep(0.02, 0.86, smoothInfallField);\n"
             "            float normalizedDiskDistance = clamp((projectedDiskRadius - diskInnerScreen) / max(diskSpan, 0.003), 0.0, 1.0);\n"
             "            float curvatureFalloff = adaptiveCollapse * (1.0 - smoothstep(0.16, 1.0, normalizedDiskDistance));\n"
             "            float luminosityBoost = 1.0 + adaptiveCollapse * 0.18;\n"
@@ -463,11 +472,11 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            vec2  screenTangentDir = normalize(vec2(screenTangentYUp.x, -screenTangentYUp.y));\n"
             "            float accretionOrbitPhase = iTime * (0.18 + 0.42 * swallowPhase) + projectedDiskRadius * (1.6 + 3.4 * curvatureFalloff) + theta * 0.55;\n"
             "            float infallTangentFlow = curvatureFalloff * (0.16 + 0.58 / (1.0 + r / max(rh, 0.002))) * (0.78 + 0.22 * sin(accretionOrbitPhase));\n"
-            "            float inwardPull = adaptiveCollapse * (0.10 + 0.24 * (1.0 - normalizedDiskDistance));\n"
+            "            float inwardPull = smoothInfallField * (0.08 + 0.22 * (1.0 - normalizedDiskDistance));\n"
             "            vec2  orbitalInfall = screenTangentDir * infallTangentFlow - radialDir * inwardPull;\n"
             "            float tangentialStretch = infallTangentFlow;\n"
             "            float radialCompression = inwardPull;\n"
-            "            vec2  adaptiveDiskP = noShellLensP + lensVector * swallowLensField * (0.35 + 0.90 * adaptiveCollapse) + orbitalInfall;\n"
+            "            vec2  adaptiveDiskP = noShellLensP + lensVector * swallowLensField * (0.22 + 0.62 * smoothInfallField) + orbitalInfall;\n"
             "            float eventHorizonMask = smoothstep(rh * 1.20, rh * 0.52, r) * swallowPhase;\n"
             "            vec2  finalP = mix(noShellLensP, adaptiveDiskP, adaptiveCollapse);\n"
             "            vec2  suv = mirrorUV(center + mix(finalP, radialDir * 0.020, eventHorizonMask) / vec2(aspect, 1.0));";
@@ -486,7 +495,8 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
                 "        float realAccretionMask = smoothstep(0.025, 0.24, diskEnergy) * swallowPhase;\n"
                 "        float screenR = length(p);\n"
                 "        float opacityWake = (1.0 - trans) * swallowPhase;\n"
-                "        float tidalUiErase = clamp(max(realAccretionMask, opacityWake) * (0.72 + 0.22 * swallowPhase), 0.0, 1.0);\n"
+                "        float nearFieldUiCutoff = clamp(max(realAccretionMask, opacityWake) + smoothstep(rh * 3.20, rh * 0.74, screenR) * swallowPhase, 0.0, 1.0);\n"
+                "        float tidalUiErase = clamp(nearFieldUiCutoff * (0.80 + 0.18 * swallowPhase), 0.0, 1.0);\n"
                 "        float photonRingFeather = smoothstep(0.015, 0.18, diskEnergy) * smoothstep(rh * 2.40, rh * 0.82, screenR) * swallowPhase;\n"
                 "        float eventHorizonMask = (captured ? 1.0 : 0.0) * swallowPhase;\n"
                 "        float softShadowMask = clamp(max(eventHorizonMask, smoothstep(rh * 1.35, rh * 0.58, screenR) * swallowPhase * (1.0 - realAccretionMask * 0.35)), 0.0, 1.0);\n"
@@ -495,7 +505,8 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
                 "        vec3 thermalColor = blackbody(max(L.temp, 1500.0));\n"
                 "        vec3 deUiBg = mix(bg, vec3(bgLuma) * 0.12 + thermalColor * bgLuma * 0.08, tidalUiErase);\n"
                 "        vec3 programmaticAccretion = diskLight * (1.0 + 0.85 * swallowPhase) + thermalColor * (realAccretionMask + photonRingFeather * 0.38) * (0.18 + 0.30 * swallowPhase);\n"
-                "        vec3 swallowedColor = deUiBg * trans * (1.0 - tidalUiErase * 0.94) + programmaticAccretion;\n"
+                "        vec3 uiFreeAccretion = programmaticAccretion + thermalColor * nearFieldUiCutoff * (0.035 + 0.060 * swallowPhase);\n"
+                "        vec3 swallowedColor = mix(deUiBg * trans, uiFreeAccretion, nearFieldUiCutoff);\n"
                 "        col = mix(col, swallowedColor, uiSuppression);\n"
                 "        col += thermalColor * photonRingFeather * 0.08;\n"
                 "        col = mix(col, vec3(0.0), softShadowMask);\n"
@@ -719,6 +730,16 @@ static bool isWatchingVideo() {
 static bool isIdle(DWORD ms) {
     LASTINPUTINFO lii = { sizeof(LASTINPUTINFO) };
     return GetLastInputInfo(&lii) && (GetTickCount() - lii.dwTime) >= ms;
+}
+
+static bool ToggleRecordingCaptureHotkeyPressed() {
+    static bool wasDown = false;
+    bool down = ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) &&
+                ((GetAsyncKeyState(VK_MENU) & 0x8000) != 0) &&
+                ((GetAsyncKeyState(VK_R) & 0x8000) != 0);
+    bool pressed = down && !wasDown;
+    wasDown = down;
+    return pressed;
 }
 
 // ---- Renderer process management (monitor mode) ----
@@ -1351,6 +1372,14 @@ int main(int argc, char* argv[]) {
     // ---- 显示窗口（屏幕外初始化已完成，移入并显示） ----
     if (debugLog) { fprintf(debugLog, "[Init] Showing window...\n"); fflush(debugLog); }
     Win32GL_Show(wgl);
+    bool recordingCaptureRuntimeAllowed = cfg.allowRecordingCapture;
+    bool recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
+    Win32GL_SetCaptureExcluded(wgl, !recordingCaptureRuntimeAllowed);
+    if (debugLog) {
+        fprintf(debugLog, "[Init] Recording capture: %s (Ctrl+Alt+R toggles at runtime)\n",
+                recordingCaptureRuntimeAllowed ? "allowed with frozen desktop texture" : "excluded by display affinity");
+        fflush(debugLog);
+    }
     Sleep(50);
     Win32GL_PollEvents(wgl);
 
@@ -1444,8 +1473,19 @@ int main(int argc, char* argv[]) {
         int fbW, fbH; Win32GL_GetFramebufferSize(wgl, &fbW, &fbH);
         glViewport(0, 0, fbW, fbH);
 
-        // 退出时跳过捕获，避免卡顿
-        if (!exiting) {
+        double now = Win32GL_GetTime();
+        if (ToggleRecordingCaptureHotkeyPressed()) {
+            recordingCaptureRuntimeAllowed = !recordingCaptureRuntimeAllowed;
+            recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
+            Win32GL_SetCaptureExcluded(wgl, !recordingCaptureRuntimeAllowed);
+            fprintf(stderr, "[RecordingCapture] %s via Ctrl+Alt+R\n",
+                    recordingCaptureRuntimeAllowed ? "allowed and frozen" : "excluded and live");
+        }
+
+        bool captureUpdateDue = !recordingCaptureFrozen;
+
+        // 退出时跳过捕获，避免卡顿；录屏模式下完全冻结窗口显示前的桌面纹理，避免自捕获递归
+        if (!exiting && captureUpdateDue) {
             // 主屏帧
             if (!useWGC) DXGI_ReleaseFrame(dxgiPri);
             ID3D11Texture2D* framePri = useWGC ? WGC_GetFrame(wgcPri) : DXGI_GetFrame(dxgiPri);
@@ -1482,7 +1522,6 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        double now = Win32GL_GetTime();
         float t = (float)(now - startTime);
         float ep = (float)time(nullptr);
         float frameHomeX = homeX;

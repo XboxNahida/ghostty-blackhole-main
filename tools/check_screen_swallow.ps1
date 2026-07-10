@@ -50,10 +50,15 @@ Require-Pattern "src\main.cpp" "screenTangentDir" "projected disk tangent direct
 Require-Pattern "src\main.cpp" "geodesicDiskEnergy" "geodesic disk energy driven collapse"
 Require-Pattern "src\main.cpp" "geodesicDiskMask" "geodesic disk mask for real accretion shape"
 Require-Pattern "src\main.cpp" "projectedCollapse" "projected fallback collapse field"
+Require-Pattern "src\main.cpp" "gravityWellField" "continuous gravity-well swallow field"
+Require-Pattern "src\main.cpp" "softDiskMatterField" "soft disk matter field without a hard shell"
+Require-Pattern "src\main.cpp" "smoothInfallField" "smooth UI infall field"
 Require-Pattern "src\main.cpp" "colorlessOuterLens" "colorless outer lens field"
 Require-Pattern "src\main.cpp" "realAccretionMask" "preset-derived accretion mask"
 Require-Pattern "src\main.cpp" "programmaticAccretion" "programmatic accretion disk color"
+Require-Pattern "src\main.cpp" "uiFreeAccretion" "UI-free accretion disk color"
 Require-Pattern "src\main.cpp" "uiSuppression" "UI color suppression near accretion disk"
+Require-Pattern "src\main.cpp" "nearFieldUiCutoff" "near-field UI sample cutoff"
 Require-Pattern "src\main.cpp" "tidalUiErase" "tidal UI color erasure near disk"
 Require-Pattern "src\main.cpp" "opacityWake" "disk opacity wake for swallowed UI"
 Require-Pattern "src\main.cpp" "photonRingFeather" "soft photon ring feather"
@@ -104,12 +109,20 @@ if ($mainText -match "adaptiveCollapse\s*=\s*softCollapse\s*\*") {
     throw "Screen swallow still drives adaptiveCollapse only from projected geometry instead of geodesic disk energy"
 }
 
+if ($mainText -match "adaptiveCollapse\s*=\s*clamp\s*\(\s*max\s*\(\s*projectedCollapse") {
+    throw "Screen swallow still hard-switches collapse through projected disk bands"
+}
+
 if ($mainText -match "col\s*=\s*mix\(col,\s*col\s*\*\s*mix") {
     throw "Screen swallow still tints the outer lens like a glass shell"
 }
 
 if ($mainText -match "mix\s*\(\s*mix\s*\(\s*baseLensP\s*,\s*singleLensP\s*,\s*outerLensBlend\s*\)") {
     throw "Screen swallow still blends through baseLensP, which creates a glass-shell sampling boundary"
+}
+
+if ($mainText -match "swallowedColor\s*=\s*deUiBg\s*\*\s*trans") {
+    throw "Screen swallow still lets sampled UI color feed the accretion disk"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
