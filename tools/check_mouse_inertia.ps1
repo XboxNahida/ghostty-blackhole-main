@@ -36,6 +36,9 @@ Require-Pattern 'src\main.cpp' 'wanderRadius' 'mouse wander radius'
 Require-Pattern 'src\main.cpp' 'mouseVelX' 'mouse velocity state'
 Require-Pattern 'src\main.cpp' 'gravityStrength' 'gravity well attraction strength'
 Require-Pattern 'src\main.cpp' 'gravitySoftening' 'gravity well softening distance'
+Require-Pattern 'src\main.cpp' 'settleRadius' 'near-cursor settle radius'
+Require-Pattern 'src\main.cpp' 'settleSpeed' 'near-cursor settle speed'
+Require-Pattern 'src\main.cpp' 'gravityDeadZone' 'near-cursor gravity dead zone'
 Require-Pattern 'src\main.cpp' 'maxGravityAccel' 'gravity acceleration cap'
 Require-Pattern 'src\main.cpp' 'maxGravitySpeed' 'gravity speed cap'
 Require-Pattern 'src\main.cpp' 'farReturnStrength' 'far-distance return force'
@@ -67,6 +70,18 @@ if ($mainText -match 'float\s+maxSpeed\s*=') {
 }
 if ($mainText -match 'frameHomeX\s*<\s*0\.0f') {
     throw 'Unconditional screen-edge render clamp is still present in src\main.cpp'
+}
+if ($mainText -notmatch 'if\s*\(cfg\.limitMouseOvershoot\s*&&\s*gravityAccel\s*>\s*maxGravityAccel\)') {
+    throw 'Gravity acceleration cap must only apply when overshoot limiting is enabled'
+}
+if ($mainText -notmatch 'if\s*\(cfg\.limitMouseOvershoot\s*&&\s*gravitySpeed\s*>\s*maxGravitySpeed') {
+    throw 'Gravity speed cap must only apply when overshoot limiting is enabled'
+}
+if ($mainText -notmatch 'if\s*\(cfg\.limitMouseOvershoot\)\s*\{[\s\S]*worldMargin') {
+    throw 'Physics world boundary must only apply when overshoot limiting is enabled'
+}
+if ($mainText -notmatch 'if\s*\(cfg\.limitMouseOvershoot\)\s*\{[\s\S]*renderMargin') {
+    throw 'Render boundary must only apply when overshoot limiting is enabled'
 }
 
 'MOUSE_INERTIA_LINK_OK'

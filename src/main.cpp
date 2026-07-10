@@ -1436,25 +1436,40 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float gravityStrength = 0.0000025f + 0.0000065f * (1.0f - inertia);
-                    float gravitySoftening = 0.030f + 0.045f * inertia;
+                    float gravityStrength = cfg.limitMouseOvershoot
+                        ? (0.0000025f + 0.0000065f * (1.0f - inertia))
+                        : (0.0000045f + 0.0000105f * (1.0f - inertia));
+                    float gravitySoftening = cfg.limitMouseOvershoot
+                        ? (0.030f + 0.045f * inertia)
+                        : (0.024f + 0.035f * inertia);
+                    float settleRadius = 0.0045f + 0.0065f * inertia;
+                    float settleSpeed = 0.00022f + 0.00018f * inertia;
+                    float gravityDeadZone = settleRadius * 1.85f;
                     float maxGravityAccel = 0.00075f + 0.00055f * (1.0f - inertia);
                     float maxGravitySpeed = 0.0065f + 0.0035f * (1.0f - inertia);
-                    float farReturnStrength = 0.00055f + 0.00035f * (1.0f - inertia);
+                    float farReturnStrength = cfg.limitMouseOvershoot
+                        ? (0.00055f + 0.00035f * (1.0f - inertia))
+                        : (0.00080f + 0.00065f * (1.0f - inertia));
                     float driftKeep = 0.9960f - 0.0050f * (1.0f - inertia);
                     float maxSeparation = 0.26f + 0.30f * inertia;
-                    float worldMargin = cfg.limitMouseOvershoot ? 0.04f : 0.85f;
+                    float worldMargin = 0.04f;
 
                     float toMouseX = targetX - cursorHomeX;
                     float toMouseY = targetY - cursorHomeY;
                     float mouseDist = sqrtf(toMouseX * toMouseX + toMouseY * toMouseY);
+                    float currentSpeed = sqrtf(mouseVelX * mouseVelX + mouseVelY * mouseVelY);
 
-                    if (mouseDist > 0.000001f) {
+                    if (mouseDist < settleRadius && currentSpeed < settleSpeed) {
+                        cursorHomeX = targetX;
+                        cursorHomeY = targetY;
+                        mouseVelX = 0.0f;
+                        mouseVelY = 0.0f;
+                    } else if (mouseDist > gravityDeadZone) {
                         float dirX = toMouseX / mouseDist;
                         float dirY = toMouseY / mouseDist;
                         float softenedDist = sqrtf(mouseDist * mouseDist + gravitySoftening * gravitySoftening);
                         float gravityAccel = gravityStrength / (softenedDist * softenedDist);
-                        if (gravityAccel > maxGravityAccel) gravityAccel = maxGravityAccel;
+                        if (cfg.limitMouseOvershoot && gravityAccel > maxGravityAccel) gravityAccel = maxGravityAccel;
                         if (mouseDist > maxSeparation) {
                             gravityAccel += (mouseDist - maxSeparation) * farReturnStrength;
                         }
@@ -1466,7 +1481,7 @@ int main(int argc, char* argv[]) {
                     mouseVelY *= driftKeep;
 
                     float gravitySpeed = sqrtf(mouseVelX * mouseVelX + mouseVelY * mouseVelY);
-                    if (gravitySpeed > maxGravitySpeed && gravitySpeed > 0.000001f) {
+                    if (cfg.limitMouseOvershoot && gravitySpeed > maxGravitySpeed && gravitySpeed > 0.000001f) {
                         float speedScale = maxGravitySpeed / gravitySpeed;
                         mouseVelX *= speedScale;
                         mouseVelY *= speedScale;
@@ -1492,19 +1507,21 @@ int main(int argc, char* argv[]) {
                         }
                     }
 
-                    if (cursorHomeX < -worldMargin) {
-                        cursorHomeX = -worldMargin;
-                        if (mouseVelX < 0.0f) mouseVelX *= -0.25f;
-                    } else if (cursorHomeX > 1.0f + worldMargin) {
-                        cursorHomeX = 1.0f + worldMargin;
-                        if (mouseVelX > 0.0f) mouseVelX *= -0.25f;
-                    }
-                    if (cursorHomeY < -worldMargin) {
-                        cursorHomeY = -worldMargin;
-                        if (mouseVelY < 0.0f) mouseVelY *= -0.25f;
-                    } else if (cursorHomeY > 1.0f + worldMargin) {
-                        cursorHomeY = 1.0f + worldMargin;
-                        if (mouseVelY > 0.0f) mouseVelY *= -0.25f;
+                    if (cfg.limitMouseOvershoot) {
+                        if (cursorHomeX < -worldMargin) {
+                            cursorHomeX = -worldMargin;
+                            if (mouseVelX < 0.0f) mouseVelX *= -0.25f;
+                        } else if (cursorHomeX > 1.0f + worldMargin) {
+                            cursorHomeX = 1.0f + worldMargin;
+                            if (mouseVelX > 0.0f) mouseVelX *= -0.25f;
+                        }
+                        if (cursorHomeY < -worldMargin) {
+                            cursorHomeY = -worldMargin;
+                            if (mouseVelY < 0.0f) mouseVelY *= -0.25f;
+                        } else if (cursorHomeY > 1.0f + worldMargin) {
+                            cursorHomeY = 1.0f + worldMargin;
+                            if (mouseVelY > 0.0f) mouseVelY *= -0.25f;
+                        }
                     }
                 }
             }
@@ -1531,11 +1548,13 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            float renderMargin = cfg.limitMouseOvershoot ? 0.0f : 0.85f;
-            if (frameHomeX < -renderMargin) frameHomeX = -renderMargin;
-            if (frameHomeX > 1.0f + renderMargin) frameHomeX = 1.0f + renderMargin;
-            if (frameHomeY < -renderMargin) frameHomeY = -renderMargin;
-            if (frameHomeY > 1.0f + renderMargin) frameHomeY = 1.0f + renderMargin;
+            if (cfg.limitMouseOvershoot) {
+                float renderMargin = 0.0f;
+                if (frameHomeX < -renderMargin) frameHomeX = -renderMargin;
+                if (frameHomeX > 1.0f + renderMargin) frameHomeX = 1.0f + renderMargin;
+                if (frameHomeY < -renderMargin) frameHomeY = -renderMargin;
+                if (frameHomeY > 1.0f + renderMargin) frameHomeY = 1.0f + renderMargin;
+            }
         }
 
         // 黑洞生长/湮灭进度
