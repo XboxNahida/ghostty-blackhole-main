@@ -36,6 +36,11 @@ Require-Pattern 'src\main.cpp' 'wanderRadius' 'mouse wander radius'
 Require-Pattern 'src\main.cpp' 'mouseVelX' 'mouse velocity state'
 Require-Pattern 'src\main.cpp' 'gravityStrength' 'gravity well attraction strength'
 Require-Pattern 'src\main.cpp' 'gravitySoftening' 'gravity well softening distance'
+Require-Pattern 'src\main.cpp' 'maxGravityAccel' 'gravity acceleration cap'
+Require-Pattern 'src\main.cpp' 'maxGravitySpeed' 'gravity speed cap'
+Require-Pattern 'src\main.cpp' 'farReturnStrength' 'far-distance return force'
+Require-Pattern 'src\main.cpp' 'worldMargin' 'physics boundary margin'
+Require-Pattern 'src\main.cpp' 'renderMargin' 'off-screen render margin'
 Require-Pattern 'src\main.cpp' 'maxSeparation' 'large-distance safety boundary'
 Require-Pattern 'src\main.cpp' 'allowedRadius' 'bounded overshoot radius'
 Require-Pattern 'src\main.cpp' 'outwardVel' 'outward velocity boundary damping'
@@ -58,7 +63,10 @@ if ($mainText -match 'nearBrakeRadius') {
     throw 'Near-cursor braking model is still present in src\main.cpp'
 }
 if ($mainText -match 'float\s+maxSpeed\s*=') {
-    throw 'Hard velocity clamp is still present in src\main.cpp'
+    throw 'Legacy hard velocity clamp is still present in src\main.cpp'
+}
+if ($mainText -match 'frameHomeX\s*<\s*0\.0f') {
+    throw 'Unconditional screen-edge render clamp is still present in src\main.cpp'
 }
 
 'MOUSE_INERTIA_LINK_OK'
