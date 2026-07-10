@@ -429,6 +429,7 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            vec2  baseLensP = p + (sp - p) * originalWindow * baseDistortion;\n"
             "            vec2  lensVector = (sp - p) * baseDistortion;\n"
             "            vec2  singleLensP = p + lensVector * mix(originalWindow, swallowLensField * lensAmplification, swallowPhase);\n"
+            "            vec2  noShellLensP = mix(baseLensP, singleLensP, swallowPhase);\n"
             "            float r = max(length(p), 0.0005);\n"
             "            float theta = atan(p.y, p.x);\n"
             "            vec2  radialDir = p / r;\n"
@@ -460,11 +461,15 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            vec2  diskTangentFrame = normalize(vec2(diskTangentFlat.x, diskTangentFlat.y * presetDiskAspect));\n"
             "            vec2  screenTangentYUp = rot(diskTangentFrame, -L.roll);\n"
             "            vec2  screenTangentDir = normalize(vec2(screenTangentYUp.x, -screenTangentYUp.y));\n"
-            "            float tangentialStretch = curvatureFalloff * (0.08 + 0.34 / (1.0 + r / max(rh, 0.002)));\n"
-            "            float radialCompression = adaptiveCollapse * (0.05 + 0.10 * (1.0 - normalizedDiskDistance));\n"
-            "            vec2  adaptiveDiskP = p + lensVector * swallowLensField * (1.0 + 1.35 * adaptiveCollapse) + screenTangentDir * tangentialStretch + radialDir * radialCompression;\n"
+            "            float accretionOrbitPhase = iTime * (0.18 + 0.42 * swallowPhase) + projectedDiskRadius * (1.6 + 3.4 * curvatureFalloff) + theta * 0.55;\n"
+            "            float infallTangentFlow = curvatureFalloff * (0.16 + 0.58 / (1.0 + r / max(rh, 0.002))) * (0.78 + 0.22 * sin(accretionOrbitPhase));\n"
+            "            float inwardPull = adaptiveCollapse * (0.10 + 0.24 * (1.0 - normalizedDiskDistance));\n"
+            "            vec2  orbitalInfall = screenTangentDir * infallTangentFlow - radialDir * inwardPull;\n"
+            "            float tangentialStretch = infallTangentFlow;\n"
+            "            float radialCompression = inwardPull;\n"
+            "            vec2  adaptiveDiskP = noShellLensP + lensVector * swallowLensField * (0.35 + 0.90 * adaptiveCollapse) + orbitalInfall;\n"
             "            float eventHorizonMask = smoothstep(rh * 1.20, rh * 0.52, r) * swallowPhase;\n"
-            "            vec2  finalP = mix(mix(baseLensP, singleLensP, outerLensBlend), adaptiveDiskP, adaptiveCollapse);\n"
+            "            vec2  finalP = mix(noShellLensP, adaptiveDiskP, adaptiveCollapse);\n"
             "            vec2  suv = mirrorUV(center + mix(finalP, radialDir * 0.020, eventHorizonMask) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);

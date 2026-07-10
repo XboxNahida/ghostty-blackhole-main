@@ -37,8 +37,12 @@ Require-Pattern "src\main.cpp" "swallowLensField" "edge-free swallow lens field"
 Require-Pattern "src\main.cpp" "screenWideLensBlend" "screen-wide lens blend without a hard shell"
 Require-Pattern "src\main.cpp" "edgeFreeWarp" "edge-free warp displacement"
 Require-Pattern "src\main.cpp" "singleLensP" "single-pass swallow lens sample"
+Require-Pattern "src\main.cpp" "noShellLensP" "shell-free lens sample"
 Require-Pattern "src\main.cpp" "adaptiveCollapse" "distance-adaptive disk collapse"
 Require-Pattern "src\main.cpp" "curvatureFalloff" "distance-dependent line curvature"
+Require-Pattern "src\main.cpp" "accretionOrbitPhase" "time-varying accretion orbit phase"
+Require-Pattern "src\main.cpp" "orbitalInfall" "orbital infall sample field"
+Require-Pattern "src\main.cpp" "infallTangentFlow" "visible tangent flow into disk"
 Require-Pattern "src\main.cpp" "projectedDiskP" "preset-projected accretion disk field"
 Require-Pattern "src\main.cpp" "presetDiskAspect" "preset inclination disk aspect"
 Require-Pattern "src\main.cpp" "projectedDiskRadius" "projected disk radius for collapse mask"
@@ -102,6 +106,10 @@ if ($mainText -match "adaptiveCollapse\s*=\s*softCollapse\s*\*") {
 
 if ($mainText -match "col\s*=\s*mix\(col,\s*col\s*\*\s*mix") {
     throw "Screen swallow still tints the outer lens like a glass shell"
+}
+
+if ($mainText -match "mix\s*\(\s*mix\s*\(\s*baseLensP\s*,\s*singleLensP\s*,\s*outerLensBlend\s*\)") {
+    throw "Screen swallow still blends through baseLensP, which creates a glass-shell sampling boundary"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
