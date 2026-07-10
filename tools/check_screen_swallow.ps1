@@ -35,6 +35,10 @@ Require-Pattern "src\main.cpp" "ringBirth" "accretion ring birth phase"
 Require-Pattern "src\main.cpp" "ringGlow" "accretion ring glow"
 Require-Pattern "src\main.cpp" "ringWidth" "accretion ring width"
 Require-Pattern "src\main.cpp" "outerLensBlend" "smooth outer lens blend"
+Require-Pattern "src\main.cpp" "longTailLens" "screen-wide long-tail lens field"
+Require-Pattern "src\main.cpp" "swallowLensField" "edge-free swallow lens field"
+Require-Pattern "src\main.cpp" "screenWideLensBlend" "screen-wide lens blend without a hard shell"
+Require-Pattern "src\main.cpp" "edgeFreeWarp" "edge-free warp displacement"
 Require-Pattern "src\main.cpp" "softCollapse" "softened collapse boundary"
 Require-Pattern "src\main.cpp" "boundaryDither" "non-circular collapse boundary dither"
 Require-Pattern "src\main.cpp" "luminosityBoost" "swallow brightness compensation"
@@ -59,6 +63,10 @@ if ($mainText -match "fragmentCell|fragmentHash|shardGate|cellScramble|tidalFila
 
 if ($mainText -match "col\s*=\s*mix\([^;]+collapseToDisk\);") {
     throw "Screen swallow still darkens the whole collapse disk with a hard radial weight"
+}
+
+if ($mainText -match "smoothstep\(0\.03,\s*0\.72,\s*originalWindow\)") {
+    throw "Screen swallow still uses originalWindow as a visible lens boundary"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
