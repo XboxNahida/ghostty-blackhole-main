@@ -26,8 +26,17 @@ Require-Pattern 'src\gui_config.cpp' 'mouseInertia=' 'renderer config save/read 
 Require-Pattern 'src\main.cpp' 'cfg\.mouseInertia' 'renderer mouse inertia logic'
 Require-Pattern 'src\main.cpp' 'wanderRadius' 'mouse wander radius'
 Require-Pattern 'src\main.cpp' 'mouseVelX' 'mouse velocity state'
-Require-Pattern 'src\main.cpp' 'spring' 'spring follow model'
-Require-Pattern 'src\main.cpp' 'damping' 'velocity damping'
 Require-Pattern 'src\main.cpp' 'maxSpeed' 'velocity clamp'
+Require-Pattern 'src\main.cpp' 'allowedRadius' 'bounded overshoot radius'
+Require-Pattern 'src\main.cpp' 'pullStrength' 'mass-like attraction strength'
+Require-Pattern 'src\main.cpp' 'mouseDist' 'distance-to-cursor boundary check'
+
+$mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'src\main.cpp')
+if ($mainText -match 'float\s+spring\s*=') {
+    throw 'Spring model is still present in src\main.cpp'
+}
+if ($mainText -match 'float\s+damping\s*=') {
+    throw 'Elastic damping model is still present in src\main.cpp'
+}
 
 'MOUSE_INERTIA_LINK_OK'

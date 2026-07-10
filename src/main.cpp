@@ -1415,6 +1415,9 @@ int main(int argc, char* argv[]) {
             float inertia = cfg.mouseInertia;
             if (inertia < 0.0f) inertia = 0.0f;
             if (inertia > 1.0f) inertia = 1.0f;
+            float mouseTargetX = cursorHomeX;
+            float mouseTargetY = cursorHomeY;
+            float allowedRadius = 0.018f + 0.057f * inertia;
 
             POINT cursorPos;
             if (GetCursorPos(&cursorPos)) {
@@ -1424,6 +1427,8 @@ int main(int argc, char* argv[]) {
                 if (targetX > 1.0f) targetX = 1.0f;
                 if (targetY < 0.0f) targetY = 0.0f;
                 if (targetY > 1.0f) targetY = 1.0f;
+                mouseTargetX = targetX;
+                mouseTargetY = targetY;
 
                 if (inertia <= 0.0001f) {
                     cursorHomeX = targetX;
@@ -1431,12 +1436,34 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float spring = 0.10f - 0.06f * inertia;
-                    float damping = 0.55f + 0.38f * inertia;
-                    float maxSpeed = 0.020f + 0.055f * inertia;
+                    float maxSpeed = 0.0045f + 0.0045f * (1.0f - inertia);
+                    float pullStrength = 0.010f + 0.018f * (1.0f - inertia);
+                    float driftKeep = 0.965f - 0.085f * (1.0f - inertia);
 
-                    mouseVelX = (mouseVelX + (targetX - cursorHomeX) * spring) * damping;
-                    mouseVelY = (mouseVelY + (targetY - cursorHomeY) * spring) * damping;
+                    float toMouseX = targetX - cursorHomeX;
+                    float toMouseY = targetY - cursorHomeY;
+                    float mouseDist = sqrtf(toMouseX * toMouseX + toMouseY * toMouseY);
+
+                    if (mouseDist > allowedRadius) {
+                        float excess = mouseDist - allowedRadius;
+                        mouseVelX += (toMouseX / mouseDist) * excess * pullStrength;
+                        mouseVelY += (toMouseY / mouseDist) * excess * pullStrength;
+                    } else {
+                        float orbit = (allowedRadius > 0.000001f) ? (mouseDist / allowedRadius) : 0.0f;
+                        float tangentX = -toMouseY;
+                        float tangentY = toMouseX;
+                        float tangentLen = sqrtf(tangentX * tangentX + tangentY * tangentY);
+                        if (tangentLen > 0.000001f) {
+                            tangentX /= tangentLen;
+                            tangentY /= tangentLen;
+                            float orbitForce = (0.00010f + 0.00028f * inertia) * (1.0f - orbit * 0.35f);
+                            mouseVelX += tangentX * orbitForce;
+                            mouseVelY += tangentY * orbitForce;
+                        }
+                    }
+
+                    mouseVelX *= driftKeep;
+                    mouseVelY *= driftKeep;
 
                     float speed = sqrtf(mouseVelX * mouseVelX + mouseVelY * mouseVelY);
                     if (speed > maxSpeed && speed > 0.000001f) {
@@ -1447,17 +1474,37 @@ int main(int argc, char* argv[]) {
 
                     cursorHomeX += mouseVelX;
                     cursorHomeY += mouseVelY;
+
+                    float afterX = cursorHomeX - targetX;
+                    float afterY = cursorHomeY - targetY;
+                    float afterDist = sqrtf(afterX * afterX + afterY * afterY);
+                    if (afterDist > allowedRadius && afterDist > 0.000001f) {
+                        float limitScale = allowedRadius / afterDist;
+                        cursorHomeX = targetX + afterX * limitScale;
+                        cursorHomeY = targetY + afterY * limitScale;
+                    }
                 }
             }
             frameHomeX = cursorHomeX;
             frameHomeY = cursorHomeY;
 
             if (inertia > 0.0001f) {
-                float wanderRadius = 0.020f + 0.055f * inertia;
-                float wanderX = cosf(t * 1.7f + phaseOffset) * wanderRadius;
-                float wanderY = sinf(t * 1.3f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
+                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f;
+                float wanderX = cosf(t * 0.42f + phaseOffset) * wanderRadius;
+                float wanderY = sinf(t * 0.33f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
                 frameHomeX += wanderX;
                 frameHomeY += wanderY;
+            }
+
+            if (inertia > 0.0001f) {
+                float frameDx = frameHomeX - mouseTargetX;
+                float frameDy = frameHomeY - mouseTargetY;
+                float frameDist = sqrtf(frameDx * frameDx + frameDy * frameDy);
+                if (frameDist > allowedRadius && frameDist > 0.000001f) {
+                    float frameScale = allowedRadius / frameDist;
+                    frameHomeX = mouseTargetX + frameDx * frameScale;
+                    frameHomeY = mouseTargetY + frameDy * frameScale;
+                }
             }
 
             if (frameHomeX < 0.0f) frameHomeX = 0.0f;
