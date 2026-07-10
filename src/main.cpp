@@ -302,12 +302,12 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     if (pos != std::string::npos)
         body.replace(pos, 29, "#define SIZE_MODE MODE_DEMO");
 
-    // Remove time wrapping from hole size: grow to full and stay there
-    // uFixedSize=1 → use uFixedLevel directly; uFixedSize=0 → time-based growth
+    // Remove time wrapping from hole size: grow to full and stay there.
+    // Priority: fixed size > optional gradual growth > full size.
     {
         size_t lp = body.find("mod(iTime, DEMO_SEC) / DEMO_GROW_SEC");
         if (lp != std::string::npos)
-            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : min(iTime / DEMO_GROW_SEC, 1.0))");
+            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : 1.0))");
     }
 
     // Apply uBornProgress to sz for smooth hole birth/die
@@ -391,6 +391,30 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             body.replace(p, 12, "cos((t + uRandPhase) * 0.8)");
         while ((p = body.find("sin(t * 1.0)")) != std::string::npos)
             body.replace(p, 12, "sin((t + uRandPhase) * 1.0)");
+    }
+
+    // ---- Runtime visual controls ----
+    {
+        const std::string oldDefl = "* window * shield;";
+        const std::string newDefl = "* window * shield * max(uDistortion, 0.0);";
+        size_t p = body.find(oldDefl);
+        if (p != std::string::npos) body.replace(p, oldDefl.length(), newDefl);
+
+        const std::string oldNear = "(p + (sp - p) * window * shield) / vec2(aspect, 1.0)";
+        const std::string newNear = "(p + (sp - p) * window * shield * max(uDistortion, 0.0)) / vec2(aspect, 1.0)";
+        p = body.find(oldNear);
+        if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
+
+        const std::string finalColor = "    fragColor = vec4(col, 1.0);";
+        p = body.find(finalColor);
+        if (p != std::string::npos) {
+            body.replace(p, finalColor.length(),
+                "    if (uScreenSwallow > 0) {\n"
+                "        float swallow = (1.0 - uBornProgress) * smoothstep(1.15, 0.0, length((uv - center) * vec2(aspect, 1.0)));\n"
+                "        col *= mix(1.0, 0.45, swallow);\n"
+                "    }\n"
+                "    fragColor = vec4(col, 1.0);");
+        }
     }
 
     // ---- Preset crossfade: 0.65 = 65% of slot for slow, cinematic transitions ----
@@ -1143,6 +1167,10 @@ int main(int argc, char* argv[]) {
     GLint locBorn   = gl_GetUniformLocation(program, "uBornProgress");
     GLint locFixedSz  = gl_GetUniformLocation(program, "uFixedSize");
     GLint locFixedLvl = gl_GetUniformLocation(program, "uFixedLevel");
+    GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
+    GLint locInitialSize = gl_GetUniformLocation(program, "uInitialSize");
+    GLint locScreenSwallow = gl_GetUniformLocation(program, "uScreenSwallow");
+    GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
     GLint locPhase  = gl_GetUniformLocation(program, "uRandPhase");
@@ -1161,8 +1189,14 @@ int main(int argc, char* argv[]) {
     float randPhase = 6.2831853f * (float)rand() / (float)RAND_MAX;
     // 随机预设偏移：0 ~ 60秒（覆盖多个预设周期）
     float randPresetOff = 60.0f * (float)rand() / (float)RAND_MAX;
-    if (debugLog) { fprintf(debugLog, "[Init] Random spawn: home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
-                            randHomeX, randHomeY, randPhase, randPresetOff, seed, screenIdx); fflush(debugLog); }
+    float homeX = cfg.randomPath ? randHomeX : 0.96f;
+    float homeY = cfg.randomPath ? randHomeY : 0.04f;
+    float cursorHomeX = homeX;
+    float cursorHomeY = homeY;
+    float phaseOffset = cfg.randomPath ? randPhase : 0.0f;
+    float presetOffset = cfg.randomPath ? randPresetOff : 0.0f;
+    if (debugLog) { fprintf(debugLog, "[Init] Spawn: randomPath=%d home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
+                            cfg.randomPath ? 1 : 0, homeX, homeY, phaseOffset, presetOffset, seed, screenIdx); fflush(debugLog); }
 
     gl_UseProgram(0);
 
@@ -1262,11 +1296,15 @@ int main(int argc, char* argv[]) {
         for(int i=0;i<cfg.presetCount;i++)buf[i]=cfg.presets[i].star; gl_Uniform1fv(loc_uPSt,cfg.presetCount,buf); }
         gl_Uniform1i(locFixedSz, cfg.fixedSize ? 1 : 0);
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
+        gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
+        gl_Uniform1f(locInitialSize, cfg.initialSize);
+        gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
+        gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, 0.01f);
-        gl_Uniform1f(locHomeX, randHomeX);
-        gl_Uniform1f(locHomeY, randHomeY);
-        gl_Uniform1f(locPhase, randPhase);
-        gl_Uniform1f(locPresetOff, randPresetOff);
+        gl_Uniform1f(locHomeX, homeX);
+        gl_Uniform1f(locHomeY, homeY);
+        gl_Uniform1f(locPhase, phaseOffset);
+        gl_Uniform1f(locPresetOff, presetOffset);
         gl_BindVertexArray(vao); gl_DrawArrays(GL_TRIANGLE_STRIP,0,4); gl_BindVertexArray(0);
         gl_UseProgram(0); Win32GL_SwapBuffers(wgl);
     }
@@ -1353,6 +1391,23 @@ int main(int argc, char* argv[]) {
         double now = Win32GL_GetTime();
         float t = (float)(now - startTime);
         float ep = (float)time(nullptr);
+        float frameHomeX = homeX;
+        float frameHomeY = homeY;
+        if (cfg.followMouse) {
+            POINT cursorPos;
+            if (GetCursorPos(&cursorPos)) {
+                float targetX = ((float)cursorPos.x - (float)wgl.targetX) / (float)((wgl.width > 0) ? wgl.width : 1);
+                float targetY = ((float)cursorPos.y - (float)wgl.targetY) / (float)((wgl.height > 0) ? wgl.height : 1);
+                if (targetX < 0.0f) targetX = 0.0f;
+                if (targetX > 1.0f) targetX = 1.0f;
+                if (targetY < 0.0f) targetY = 0.0f;
+                if (targetY > 1.0f) targetY = 1.0f;
+                cursorHomeX += (targetX - cursorHomeX) * 0.25f;
+                cursorHomeY += (targetY - cursorHomeY) * 0.25f;
+            }
+            frameHomeX = cursorHomeX;
+            frameHomeY = cursorHomeY;
+        }
 
         // 黑洞生长/湮灭进度
         if (!exiting) {
@@ -1421,11 +1476,15 @@ int main(int argc, char* argv[]) {
         }
         gl_Uniform1i(locFixedSz, cfg.fixedSize ? 1 : 0);
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
+        gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
+        gl_Uniform1f(locInitialSize, cfg.initialSize);
+        gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
+        gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, bornProgress);
-        gl_Uniform1f(locHomeX, randHomeX);
-        gl_Uniform1f(locHomeY, randHomeY);
-        gl_Uniform1f(locPhase, randPhase);
-        gl_Uniform1f(locPresetOff, randPresetOff);
+        gl_Uniform1f(locHomeX, frameHomeX);
+        gl_Uniform1f(locHomeY, frameHomeY);
+        gl_Uniform1f(locPhase, phaseOffset);
+        gl_Uniform1f(locPresetOff, presetOffset);
 
         gl_BindVertexArray(vao);
         gl_DrawArrays(GL_TRIANGLE_STRIP, 0, 4);

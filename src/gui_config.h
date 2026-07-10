@@ -39,6 +39,12 @@ struct BlackholeConfig {
     float fixedLevel      = 1.0f; // 固定大小级别（0.01~1.0 = 1%~100%）
     int   captureMode     = -1;   // -1=自动检测, 0=WGC, 1=DXGI
     int   displayMode     = 0;    // 0=主屏, 1=副屏, 2=主+副穿梭
+    bool  followMouse     = false; // 是否让黑洞中心跟随鼠标
+    bool  randomPath      = true;  // 是否随机出生位置/轨迹/预设偏移
+    bool  screenSwallow   = false; // 出生/退出时的屏幕吞噬效果
+    float distortion      = 1.0f;  // 引力透镜扭曲强度
+    bool  growEnabled     = false; // 是否从 initialSize 逐渐增长
+    float initialSize     = 0.3f;  // 逐渐增长的初始大小（0.01~1.0）
     bool  confirmed  = false;
 };
 

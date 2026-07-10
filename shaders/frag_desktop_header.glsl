@@ -24,6 +24,10 @@ uniform float uBornProgress = 1.0;
 
 uniform int   uFixedSize   = 0;     // 0=正常生长, 1=固定大小
 uniform float uFixedLevel   = 1.0;   // 固定大小值 (0.1~1.0)
+uniform int   uGrowEnabled = 0;      // 0=完整大小, 1=从 uInitialSize 增长
+uniform float uInitialSize = 0.3;    // 逐渐增长的初始大小
+uniform int   uScreenSwallow = 0;    // 0=关闭, 1=出生/退出时压暗全屏
+uniform float uDistortion = 1.0;     // 引力透镜扭曲强度
 
 // Demo preset overrides (negative = use hardcoded default)
 #define MAX_PRESETS 64

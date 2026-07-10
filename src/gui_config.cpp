@@ -400,6 +400,12 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "spd=%.3f\n",        cfg.spd);
     fprintf(f, "starGain=%.3f\n",   cfg.starGain);
     fprintf(f, "diskIncl=%.3f\n",   cfg.diskIncl);
+    fprintf(f, "followMouse=%d\n",  cfg.followMouse ? 1 : 0);
+    fprintf(f, "randomPath=%d\n",   cfg.randomPath ? 1 : 0);
+    fprintf(f, "screenSwallow=%d\n", cfg.screenSwallow ? 1 : 0);
+    fprintf(f, "distortion=%.3f\n", cfg.distortion);
+    fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
+    fprintf(f, "initialSize=%.3f\n", cfg.initialSize);
     fclose(f);
 }
 
@@ -414,12 +420,27 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
         float val = -1.0f;
         if (sscanf(line, "%63[^=]=%f", key, &val) == 2) {
             if (strcmp(key, "holeRadius") == 0) cfg.holeRadius = val;
+            else if (strcmp(key, "holeSize") == 0) cfg.holeRadius = (val <= 0.0f || val == 1.0f) ? -1.0f : val;
             else if (strcmp(key, "diskGain") == 0)   cfg.diskGain   = val;
             else if (strcmp(key, "diskTemp") == 0)   cfg.diskTemp   = val;
             else if (strcmp(key, "exposure") == 0)   cfg.exposure   = val;
             else if (strcmp(key, "spd") == 0)        cfg.spd        = val;
+            else if (strcmp(key, "animationSpeed") == 0) cfg.spd    = (val <= 0.0f || val == 1.0f) ? -1.0f : val;
             else if (strcmp(key, "starGain") == 0)   cfg.starGain   = val;
             else if (strcmp(key, "diskIncl") == 0)   cfg.diskIncl   = val;
+            else if (strcmp(key, "followMouse") == 0) cfg.followMouse = (val != 0.0f);
+            else if (strcmp(key, "randomPath") == 0) cfg.randomPath = (val != 0.0f);
+            else if (strcmp(key, "screenSwallow") == 0) cfg.screenSwallow = (val != 0.0f);
+            else if (strcmp(key, "distortion") == 0) {
+                if (val < 0.0f) val = 0.0f;
+                cfg.distortion = val;
+            }
+            else if (strcmp(key, "growEnabled") == 0) cfg.growEnabled = (val != 0.0f);
+            else if (strcmp(key, "initialSize") == 0) {
+                if (val < 0.01f) val = 0.01f;
+                if (val > 1.0f) val = 1.0f;
+                cfg.initialSize = val;
+            }
         }
     }
     fclose(f);
