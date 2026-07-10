@@ -8,9 +8,17 @@
 
 ---
 
-# 目前新功能还在开发中，新UI已完成， 旧UI仍可使用。
+# 目前新功能还在开发中，新 UI 已完成，旧 UI 仍可使用。
 # 发布版本见右侧Release里。
 # 作者最近比较忙，更新会比较慢。
+
+## 当前状态
+
+- 新版 Qt UI 可用，旧版 ImGui UI 仍保留。
+- 捕获方式支持自动 / WGC / DXGI。自动模式会在 Win11 22H2+ 优先使用可抑制黄边框的 WGC，在旧系统回退 DXGI。
+- 多显示器支持主屏、副屏、跨屏和一屏一黑洞。
+- 固定大小、16 预设、多预设列表持久化已端到端接入。
+- D3D11 渲染器仍作为实验路径保留，默认渲染路径仍是 OpenGL。
 
 ## 运行要求
 
@@ -25,7 +33,7 @@
 
 ### 显卡兼容性
 
-当前渲染路径：**WGC 桌面捕获 → CPU 回读 → OpenGL 3.3 渲染**。WGC 内部依赖 D3D11，但程序本身不做 D3D11 渲染。
+当前默认渲染路径：**WGC/DXGI 桌面捕获 → CPU 回读 → OpenGL 3.3 渲染**。WGC/DXGI 内部依赖 D3D11，但默认路径不做 D3D11 渲染。
 
 #### 桌面独显
 
@@ -74,7 +82,7 @@
 ---
 ## 快速开始
 
-1. 双击 `Blakhole_UI\release\appBlakholeUI.exe`(`release\blackhole.exe`为旧版UI)
+1. 双击 `release\appBlakholeUI.exe`（`release\blackhole.exe` 为旧版 UI / 渲染器入口）
 2. 配置参数 → 点击 **"启动"**
 3. 黑洞在**空闲时自动显示**，动鼠标/键盘即消失
 4. 右下角托盘图标 → 右键可退出
@@ -97,6 +105,9 @@
 - **14 个可调参数**：色温、倾角、旋转、半径、不透明度、多普勒、光束指数、亮度增益、条纹对比度、缠绕紧度、旋转速度、曝光度、星空亮度
 - **16 个预设**，支持复制/粘贴、上移/下移排序
 - **三种播放模式**：顺序 / 循环 / 随机
+- **捕获方式**：自动 / WGC / DXGI
+- **显示器模式**：主屏 / 副屏 / 跨屏 / 一屏一黑洞
+- **固定大小**：可让黑洞保持固定比例，不再随时间增长
 
 ---
 
@@ -117,7 +128,9 @@
 |------|------|
 | `src/main.cpp` | 主入口，双进程架构、shader 编译、uniform 注入、空闲检测 |
 | `src/win32_gl.cpp/h` | Win32+WGL 原生窗口（替代 GLFW） |
-| `src/capture_wgc.cpp/h` | WGC 桌面捕获（**默认捕获方案**） |
+| `src/capture_wgc.cpp/h` | WGC 桌面捕获，支持黄边框抑制和禁用光标捕获 |
+| `src/capture_dxgi.cpp/h` | DXGI Duplication 备用/兼容捕获路径 |
+| `src/monitors.cpp/h` | 显示器枚举与主屏/副屏选择 |
 | `src/gl_texture.cpp/h` | D3D11→OpenGL 纹理上传 |
 | `src/gui_config.cpp/h` | ImGui 配置面板（旧版 UI） |
 | `src/imgui/` | Dear ImGui 库 |
@@ -131,7 +144,6 @@
 
 | 文件 | 说明 |
 |------|------|
-| `src/capture_dxgi.cpp/h` | DXGI Duplication 备用捕获。存在 `INVALID_CALL` 问题，保留供未来修复 |
 | `src/d3d11_renderer.cpp/h` | D3D11 渲染器。因 WGC 纹理池化+GPU 异步导致画面冻结，已回退 |
 | `src/win32_window.cpp/h` | 纯 Win32 窗口（配合 D3D11 路径） |
 | `src/renderer_interface.h` | `IRenderer` 抽象接口（OpenGL/D3D11 双路径预留） |
@@ -175,7 +187,7 @@ target_compile_definitions(blackhole PRIVATE BLACKHOLE_USE_D3D11)
 
 | 组件 | 技术 | 说明 |
 |------|------|------|
-| **桌面捕获** | Windows Graphics Capture (WGC) | 通过 D3D11 设备捕获 DWM 合成快照 |
+| **桌面捕获** | WGC / DXGI Desktop Duplication | 自动选择或手动指定捕获方式 |
 | **纹理传输** | CPU 回读 (`Staging → Map → glTexSubImage2D`) | 跨厂商兼容，隔离 GPU 差异 |
 | **渲染** | OpenGL 3.3 + WGL | 原生 Win32 窗口，全屏顶层覆盖 |
 | **配置面板（旧）** | ImGui | blackhole.exe 内置 |

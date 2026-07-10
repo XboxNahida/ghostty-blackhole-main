@@ -56,6 +56,14 @@ cmake --build build/Desktop_Qt_6_11_1_MinGW_64_bit-Release --config Release
 
 ## 二、打包到 release 目录
 
+当前仓库的 `release/` 被 `.gitignore` 忽略，适合作为本地发布目录或手动上传 Release 资产，不会随普通 `git push` 上传到仓库源码历史。
+
+Qt UI 的 `CMakeLists.txt` 已在 post-build 阶段执行两件事：
+- 复制存在的 MinGW/MSYS2 运行时 DLL。
+- 自动查找当前 Qt 安装里的 `windeployqt6.exe` 并部署 Qt/QML 依赖。
+
+因此本机打包时可以直接从两个构建输出目录同步到 `release/`。
+
 ### 2.1 一键打包脚本
 
 在项目根目录创建 `package_release.ps1`:
@@ -65,43 +73,37 @@ $ErrorActionPreference = "Stop"
 
 # 路径配置
 $ProjectRoot = $PSScriptRoot
-$QtDir      = "C:\Qt\6.11.1\mingw_64"
-$QtBin      = "$QtDir\bin"
-$BuildDir   = "$ProjectRoot\Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release"
+$UiBuildDir = "$ProjectRoot\Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release"
+$CoreBuildDir = "$ProjectRoot\build"
 $ReleaseDir = "$ProjectRoot\release"
 
-# 1. 清理旧 release
-Write-Host "[1/5] 清理 release 目录..."
-if (Test-Path $ReleaseDir) {
-    Remove-Item "$ReleaseDir\*" -Recurse -Force -ErrorAction SilentlyContinue
-} else {
-    New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
+# 1. 创建 release 目录。默认不清空,避免误删手工放入的发布说明/压缩包。
+Write-Host "[1/4] 准备 release 目录..."
+New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
+
+# 2. 复制主渲染器及运行时
+Write-Host "[2/4] 复制 blackhole.exe 和基础运行时..."
+Copy-Item "$CoreBuildDir\blackhole.exe" $ReleaseDir -Force
+Copy-Item "$CoreBuildDir\*.dll" $ReleaseDir -Force -ErrorAction SilentlyContinue
+
+# 3. 复制 Qt UI 构建输出。该目录已由 CMake post-build 调用 windeployqt6 部署 Qt/QML 依赖。
+Write-Host "[3/4] 复制 appBlakholeUI.exe 和 Qt 运行时..."
+Copy-Item "$UiBuildDir\appBlakholeUI.exe" $ReleaseDir -Force
+Copy-Item "$UiBuildDir\*.dll" $ReleaseDir -Force -ErrorAction SilentlyContinue
+foreach ($dir in @("generic","iconengines","imageformats","networkinformation","platforms","qml","qmltooling","styles","tls","translations","shaders","BlakholeUI")) {
+    $src = Join-Path $UiBuildDir $dir
+    if (Test-Path $src) {
+        robocopy $src (Join-Path $ReleaseDir $dir) /E | Out-Null
+    }
 }
 
-# 2. 复制 appBlakholeUI.exe
-Write-Host "[2/5] 复制 appBlakholeUI.exe..."
-Copy-Item "$BuildDir\appBlakholeUI.exe" $ReleaseDir -Force
-
-# 3. 复制 blackhole.exe (从 build 目录)
-Write-Host "[3/5] 复制 blackhole.exe..."
-Copy-Item "$ProjectRoot\build\blackhole.exe" $ReleaseDir -Force
-Copy-Item "$ProjectRoot\build\libwinpthread-1.dll" $ReleaseDir -Force -ErrorAction SilentlyContinue
-
-# 4. windeployqt — 自动收集 Qt DLL/插件/QML
-Write-Host "[4/5] 运行 windeployqt..."
-& "$QtBin\windeployqt.exe" "$ReleaseDir\appBlakholeUI.exe" `
-    --qmldir "$ProjectRoot\Blakhole_UI" `
-    --no-compiler-runtime `
-    --no-translations
-
-# 5. 复制 shader 和配置文件
-Write-Host "[5/5] 复制 shader 和配置..."
-Copy-Item "$ProjectRoot\release\shaders\*" "$ReleaseDir\shaders\" -Force -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\release\blackhole.glsl"    $ReleaseDir -Force -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\release\blackhole_preview.glsl" $ReleaseDir -Force -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\release\blackhole.ico"     $ReleaseDir -Force -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\release\blackhole_ui.ico"  $ReleaseDir -Force -ErrorAction SilentlyContinue
-Copy-Item "$ProjectRoot\release\icon.ico"          $ReleaseDir -Force -ErrorAction SilentlyContinue
+# 4. 复制源码侧 shader、图标和默认配置，确保运行时读取的是最新文本资源。
+Write-Host "[4/4] 复制 shader、图标和配置..."
+robocopy "$ProjectRoot\shaders" "$ReleaseDir\shaders" /E | Out-Null
+Copy-Item "$ProjectRoot\blackhole.glsl" $ReleaseDir -Force
+Copy-Item "$ProjectRoot\blackhole.ico" $ReleaseDir -Force
+Copy-Item "$ProjectRoot\blackhole_presets.txt" $ReleaseDir -Force
+Copy-Item "$ProjectRoot\blackhole_advanced.txt" $ReleaseDir -Force -ErrorAction SilentlyContinue
 
 Write-Host "打包完成: $ReleaseDir"
 Get-ChildItem $ReleaseDir -Filter "*.exe" | Select-Object Name, @{N="MB";E={[math]::Round($_.Length/1MB,1)}}
@@ -115,14 +117,13 @@ Get-ChildItem $ReleaseDir -Filter "*.exe" | Select-Object Name, @{N="MB";E={[mat
 1. 清理 release\
 2. 复制 Blakhole_UI\build\...\Release\appBlakholeUI.exe → release\
 3. 复制 build\blackhole.exe → release\
-4. 运行: windeployqt release\appBlakholeUI.exe --qmldir Blakhole_UI
-5. 复制以下文件到 release\:
-   ├── release\shaders\*       (如果被 windeployqt 覆盖, 从源码重新复制)
-   ├── release\blackhole.glsl
-   ├── release\blackhole_preview.glsl
-   ├── release\blackhole.ico
-   ├── release\blackhole_ui.ico
-   └── release\icon.ico
+4. 从 Blakhole_UI\build\...\Release\ 复制 Qt6*.dll、platforms/、qml/ 等运行时目录
+5. 从源码目录复制以下文件到 release\:
+   ├── shaders\*
+   ├── blackhole.glsl
+   ├── blackhole.ico
+   ├── blackhole_presets.txt
+   └── blackhole_advanced.txt
 ```
 
 ### 2.3 windeployqt 说明
@@ -149,7 +150,9 @@ release/
 │
 ├── blackhole.glsl            # 桌面版 shader
 ├── blackhole_preview.glsl    # 预览版 shader
-├── blackhole_presets.txt     # 预设配置 (运行时生成)
+├── blackhole_presets.txt     # 预设配置
+├── blackhole_advanced.txt    # 高级配置
+├── blackhole_lists.txt       # 多预设列表 (运行时生成)
 ├── blackhole_debug.txt       # 调试日志 (运行时生成)
 │
 ├── shaders/                  # Shader 头文件 (运行时加载)
