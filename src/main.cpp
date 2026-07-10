@@ -1208,6 +1208,8 @@ int main(int argc, char* argv[]) {
     float homeY = cfg.randomPath ? randHomeY : 0.04f;
     float cursorHomeX = homeX;
     float cursorHomeY = homeY;
+    float mouseVelX = 0.0f;
+    float mouseVelY = 0.0f;
     float phaseOffset = cfg.randomPath ? randPhase : 0.0f;
     float presetOffset = cfg.randomPath ? randPresetOff : 0.0f;
     if (debugLog) { fprintf(debugLog, "[Init] Spawn: randomPath=%d home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
@@ -1426,19 +1428,32 @@ int main(int argc, char* argv[]) {
                 if (inertia <= 0.0001f) {
                     cursorHomeX = targetX;
                     cursorHomeY = targetY;
+                    mouseVelX = 0.0f;
+                    mouseVelY = 0.0f;
                 } else {
-                    float followAlpha = 0.42f - 0.36f * inertia;
-                    if (followAlpha < 0.06f) followAlpha = 0.06f;
-                    if (followAlpha > 0.42f) followAlpha = 0.42f;
-                    cursorHomeX += (targetX - cursorHomeX) * followAlpha;
-                    cursorHomeY += (targetY - cursorHomeY) * followAlpha;
+                    float spring = 0.10f - 0.06f * inertia;
+                    float damping = 0.55f + 0.38f * inertia;
+                    float maxSpeed = 0.020f + 0.055f * inertia;
+
+                    mouseVelX = (mouseVelX + (targetX - cursorHomeX) * spring) * damping;
+                    mouseVelY = (mouseVelY + (targetY - cursorHomeY) * spring) * damping;
+
+                    float speed = sqrtf(mouseVelX * mouseVelX + mouseVelY * mouseVelY);
+                    if (speed > maxSpeed && speed > 0.000001f) {
+                        float scale = maxSpeed / speed;
+                        mouseVelX *= scale;
+                        mouseVelY *= scale;
+                    }
+
+                    cursorHomeX += mouseVelX;
+                    cursorHomeY += mouseVelY;
                 }
             }
             frameHomeX = cursorHomeX;
             frameHomeY = cursorHomeY;
 
             if (inertia > 0.0001f) {
-                float wanderRadius = 0.035f * inertia;
+                float wanderRadius = 0.020f + 0.055f * inertia;
                 float wanderX = cosf(t * 1.7f + phaseOffset) * wanderRadius;
                 float wanderY = sinf(t * 1.3f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
                 frameHomeX += wanderX;
