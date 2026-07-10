@@ -53,6 +53,7 @@ uniform float uSlotSec = 5.25;   // 每个预设播放秒数
 // Random spawn parameters (set once per session)
 uniform float uHomeX = 0.96;       // initial hole home X (0=left, 1=right)
 uniform float uHomeY = 0.04;       // initial hole home Y (0=top, 1=bottom)
+uniform int uFollowMouse = 0;      // 1=lock hole center to uHomeX/uHomeY
 uniform float uRandPhase = 0.0;    // random phase offset for trajectory
 uniform float uPresetOffset = 0.0; // random time offset for preset cycling (seconds)
 

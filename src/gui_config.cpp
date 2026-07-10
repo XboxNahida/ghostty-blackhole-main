@@ -420,7 +420,7 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
         float val = -1.0f;
         if (sscanf(line, "%63[^=]=%f", key, &val) == 2) {
             if (strcmp(key, "holeRadius") == 0) cfg.holeRadius = val;
-            else if (strcmp(key, "holeSize") == 0) cfg.holeRadius = (val <= 0.0f || val == 1.0f) ? -1.0f : val;
+            else if (strcmp(key, "holeSize") == 0) cfg.holeRadius = (val <= 0.0f || val == 1.0f) ? -1.0f : (0.08f * val);
             else if (strcmp(key, "diskGain") == 0)   cfg.diskGain   = val;
             else if (strcmp(key, "diskTemp") == 0)   cfg.diskTemp   = val;
             else if (strcmp(key, "exposure") == 0)   cfg.exposure   = val;

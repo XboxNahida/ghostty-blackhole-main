@@ -1349,7 +1349,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
     out << "growEnabled="   << (m_growEnabled ? 1 : 0) << "\n";
     out << "initialSize="   << QString::number(m_initialSize, 'f', 2) << "\n";
-    out << "holeRadius="  << (qFuzzyCompare(m_holeSize, 1.0f) ? QString("-1.0") : QString::number(m_holeSize, 'f', 3)) << "\n";
+    out << "holeRadius="  << (qFuzzyCompare(m_holeSize, 1.0f) ? QString("-1.0") : QString::number(0.08f * m_holeSize, 'f', 3)) << "\n";
     out << "diskGain="    << QString::number(m_overrideDiskGain, 'f', 3) << "\n";
     out << "diskTemp="    << QString::number(m_overrideDiskTemp, 'f', 1) << "\n";
     out << "exposure="    << QString::number(m_overrideExposure, 'f', 3) << "\n";
@@ -1385,7 +1385,7 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "holeSize")       m_holeSize       = val.toFloat();
         else if (key == "growEnabled")    m_growEnabled    = (val.toInt() != 0);
         else if (key == "initialSize")    m_initialSize    = val.toFloat();
-        else if (key == "holeRadius") { float hv = val.toFloat(); m_holeSize = (hv <= 0.0f) ? 1.0f : hv; }
+        else if (key == "holeRadius") { float hv = val.toFloat(); m_holeSize = (hv <= 0.0f) ? 1.0f : (hv / 0.08f); }
         else if (key == "diskGain")   m_overrideDiskGain   = val.toFloat();
         else if (key == "diskTemp")   m_overrideDiskTemp   = val.toFloat();
         else if (key == "exposure")   m_overrideExposure   = val.toFloat();

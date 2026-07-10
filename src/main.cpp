@@ -307,7 +307,7 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     {
         size_t lp = body.find("mod(iTime, DEMO_SEC) / DEMO_GROW_SEC");
         if (lp != std::string::npos)
-            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : 1.0))");
+            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : min(iTime / DEMO_GROW_SEC, 1.0)))");
     }
 
     // Apply uBornProgress to sz for smooth hole birth/die
@@ -378,6 +378,20 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             if (ve != std::string::npos)
                 body.replace(p, ve - p + 1, "float TOKEN_HOME_Y = uHomeY;");
         }
+    }
+
+    // ---- Mouse-follow mode: lock center to runtime home coordinates ----
+    {
+        const std::string oldCenter =
+            "center = (lo + hi) * 0.5 + wander * ampEff\n"
+            "               + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));";
+        const std::string newCenter =
+            "center = (uFollowMouse > 0)\n"
+            "               ? clamp(vec2(TOKEN_HOME_X, TOKEN_HOME_Y), fullLo, fullHi)\n"
+            "               : ((lo + hi) * 0.5 + wander * ampEff\n"
+            "                  + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0)));";
+        size_t p = body.find(oldCenter);
+        if (p != std::string::npos) body.replace(p, oldCenter.length(), newCenter);
     }
 
     // ---- Randomize trajectory: add uRandPhase to lissa calls ----
@@ -1173,6 +1187,7 @@ int main(int argc, char* argv[]) {
     GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
+    GLint locFollowMouse = gl_GetUniformLocation(program, "uFollowMouse");
     GLint locPhase  = gl_GetUniformLocation(program, "uRandPhase");
     GLint locPresetOff = gl_GetUniformLocation(program, "uPresetOffset");
 
@@ -1303,6 +1318,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
         gl_Uniform1f(locHomeY, homeY);
+        gl_Uniform1i(locFollowMouse, cfg.followMouse ? 1 : 0);
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
         gl_BindVertexArray(vao); gl_DrawArrays(GL_TRIANGLE_STRIP,0,4); gl_BindVertexArray(0);
@@ -1483,6 +1499,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);
         gl_Uniform1f(locHomeY, frameHomeY);
+        gl_Uniform1i(locFollowMouse, cfg.followMouse ? 1 : 0);
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
 
