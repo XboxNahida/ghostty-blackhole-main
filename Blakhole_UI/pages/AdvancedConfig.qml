@@ -237,7 +237,10 @@ Item {
                     label: "扭曲程度"
                     from: 0; to: 1; stepSize: 0.01; decimals: 2
                     value: advPage.distortion
-                    onValueChanged: advPage.distortion = value
+                    onValueChanged: {
+                        advPage.distortion = value
+                        if (bhCore) bhCore.distortion = value
+                    }
                 }
 
                 // 黑洞大小 + 逐渐增长
@@ -249,7 +252,10 @@ Item {
                         label: "黑洞大小"
                         from: 0.2; to: 3.0; stepSize: 0.1; decimals: 1
                         value: advPage.holeSize
-                        onValueChanged: advPage.holeSize = value
+                        onValueChanged: {
+                            advPage.holeSize = value
+                            if (bhCore) bhCore.holeSize = value
+                        }
                         Layout.fillWidth: true
                     }
 
@@ -268,6 +274,7 @@ Item {
                             checked: advPage.growEnabled
                             onToggled: {
                                 advPage.growEnabled = checked
+                                if (bhCore) bhCore.growEnabled = checked
                                 // 互斥: 启用逐渐增长时关闭固定大小
                                 if (checked && advPage.fixedSize) {
                                     advPage.fixedSize = false
