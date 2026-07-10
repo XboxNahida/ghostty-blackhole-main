@@ -290,6 +290,34 @@ QString BlackHoleCore::configPath(const QString &fileName) const
     return QDir(configDir()).absoluteFilePath(fileName);
 }
 
+QString BlackHoleCore::legacyConfigPath(const QString &fileName) const
+{
+    return QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(fileName);
+}
+
+bool BlackHoleCore::openConfigForRead(QFile &file, const QString &fileName) const
+{
+    const QString primaryPath = configPath(fileName);
+    file.setFileName(primaryPath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return true;
+    }
+
+    const QString legacyPath = legacyConfigPath(fileName);
+    if (QDir::cleanPath(legacyPath) == QDir::cleanPath(primaryPath)) {
+        return false;
+    }
+
+    file.setFileName(legacyPath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "BlackHoleCore: loaded legacy config path:" << legacyPath;
+        return true;
+    }
+
+    file.setFileName(primaryPath);
+    return false;
+}
+
 
 // ====== blackhole.exe 查找 (与 main.cpp --render 子进程对应) ======
 
@@ -1364,9 +1392,8 @@ void BlackHoleCore::saveAdvancedConfig()
 }
 void BlackHoleCore::loadAdvancedConfig()
 {
-    QString path = configPath("blackhole_advanced.txt");
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QFile file;
+    if (!openConfigForRead(file, "blackhole_advanced.txt")) {
         qDebug() << "BlackHoleCore: advanced config not found, using defaults";
         return;
     }
@@ -1421,9 +1448,8 @@ void BlackHoleCore::saveIdleListConfig()
 
 void BlackHoleCore::loadIdleListConfig()
 {
-    QString path = configPath("blackhole_idlelist.txt");
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QFile file;
+    if (!openConfigForRead(file, "blackhole_idlelist.txt")) {
         qDebug() << "BlackHoleCore: idle list config not found, using defaults";
         return;
     }
@@ -1467,9 +1493,8 @@ void BlackHoleCore::saveScheduleConfig()
 
 void BlackHoleCore::loadScheduleConfig()
 {
-    QString path = configPath("blackhole_schedule.txt");
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QFile file;
+    if (!openConfigForRead(file, "blackhole_schedule.txt")) {
         qDebug() << "BlackHoleCore: schedule config not found, using defaults";
         return;
     }
@@ -1518,9 +1543,8 @@ void BlackHoleCore::saveSystemConfig()
 
 void BlackHoleCore::loadSystemConfig()
 {
-    QString path = configPath("blackhole_system.txt");
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QFile file;
+    if (!openConfigForRead(file, "blackhole_system.txt")) {
         qDebug() << "BlackHoleCore: system config not found, using defaults";
         return;
     }
@@ -1596,9 +1620,8 @@ void BlackHoleCore::saveAllLists()
 
 void BlackHoleCore::loadAllLists()
 {
-    QString path = configPath("blackhole_lists.txt");
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QFile file;
+    if (!openConfigForRead(file, "blackhole_lists.txt")) {
         // 文件不存在 (首次运行或旧版本): 用当前模型数据创建默认列表
         if (m_allLists.isEmpty()) {
             QVector<PresetData> current = m_presetModel->presets();

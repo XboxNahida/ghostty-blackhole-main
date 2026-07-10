@@ -9,6 +9,8 @@
 #include <QString>
 #include <QColor>
 
+class QFile;
+
 // 单个预设数据
 struct PresetData {
     QString name;
@@ -374,6 +376,8 @@ private:
     QString configFilePath() const;
     QString configDir() const;
     QString configPath(const QString &fileName) const;
+    QString legacyConfigPath(const QString &fileName) const;
+    bool openConfigForRead(QFile &file, const QString &fileName) const;
     // 查找 blackhole.exe (与 main.cpp --render 子进程对应). 若 projectRootOut 非空, 输出
     // 该 exe 的"项目根目录" (exe 在 <root>/build/ 下时取其父目录, 否则取 exe 同级目录).
     // Qt UI 与 blackhole.exe --render 必须读写同一份 blackhole_presets.txt + shaders/, 这要求

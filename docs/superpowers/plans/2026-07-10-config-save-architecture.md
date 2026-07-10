@@ -148,9 +148,46 @@ if (-not ($hasHelper -and $advancedUsesHelper -and $idleUsesHelper -and $schedul
 Write-Host 'CONFIG_PATH_HELPER_OK'
 ```
 
+## 任务 5：旧侧车配置兼容读取
+
+修改文件：
+- `Blakhole_UI/core/blackholecore.h`
+- `Blakhole_UI/core/blackholecore.cpp`
+- `debug_state.md`
+
+实现内容：
+- 新增 `legacyConfigPath(const QString &fileName) const`，指向旧版 UI exe 同级目录。
+- 新增 `openConfigForRead(QFile &file, const QString &fileName) const`：
+  - 优先打开 `configPath(fileName)`。
+  - 如果统一目录不存在，再尝试旧版 UI exe 同级路径。
+  - 如果读取到旧路径，后续保存仍写入统一目录，实现温和迁移。
+- 将以下读取函数统一改为 `openConfigForRead(...)`：
+  - `loadAdvancedConfig()`
+  - `loadIdleListConfig()`
+  - `loadScheduleConfig()`
+  - `loadSystemConfig()`
+  - `loadAllLists()`
+- 不改主配置 `blackhole_presets.txt` 的读取逻辑，不改任何配置文件格式。
+
+验证命令：
+
+```powershell
+$core = Get-Content -Raw -Encoding UTF8 Blakhole_UI/core/blackholecore.cpp
+$header = Get-Content -Raw -Encoding UTF8 Blakhole_UI/core/blackholecore.h
+$hasLegacyPath = $header -match 'legacyConfigPath\(const QString\s*&\s*fileName\)\s+const'
+$hasOpenHelper = $header -match 'openConfigForRead\(QFile\s*&\s*file,\s*const QString\s*&\s*fileName\)\s+const'
+$loadsUseHelper = @('blackhole_advanced.txt','blackhole_idlelist.txt','blackhole_schedule.txt','blackhole_system.txt','blackhole_lists.txt') | ForEach-Object { $core -match ('openConfigForRead\(file,\s*"' + [regex]::Escape($_) + '"\)') }
+if (-not ($hasLegacyPath -and $hasOpenHelper -and ($loadsUseHelper -notcontains $false))) {
+  Write-Host 'RED: legacy config fallback is missing'
+  exit 1
+}
+Write-Host 'LEGACY_CONFIG_FALLBACK_OK'
+```
+
 ## 风险分析
 
 - 这次只统一路径和 UI 语义，不重写配置格式，迁移风险低。
 - 鼠标跟随、高级效果和固定大小仍然需要重启渲染器后读取新配置；仅重启 UI 不会让正在运行的渲染器热更新。
 - `growEnabled=false` 保留为默认出生动画，不直接变成满级固定大小，避免破坏之前修复过的逐渐变大逻辑。
 - 路径 helper 会让更多 UI 侧车配置跟随渲染器工作目录；如果用户旧配置散落在 UI exe 同级目录，可能需要手动迁移一次旧文件。
+- 旧路径兼容读取只影响 UI 侧车配置；读取到旧文件后不会立即写回，下一次正常保存才会落到统一配置目录。
