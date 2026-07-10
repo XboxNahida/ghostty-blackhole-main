@@ -34,10 +34,18 @@ Require-Pattern "src\main.cpp" "tidalStretch" "shader injection tidal stretch"
 Require-Pattern "src\main.cpp" "spiralAngle" "shader injection spiral infall"
 Require-Pattern "src\main.cpp" "fragmentMask" "shader injection fragmented sampling mask"
 Require-Pattern "src\main.cpp" "swallowPhase" "shader injection swallow phase"
+Require-Pattern "src\main.cpp" "continuousSwallow" "continuous runtime swallow phase"
+Require-Pattern "src\main.cpp" "eventHorizonMask" "event horizon blackening"
+Require-Pattern "src\main.cpp" "accretionScramble" "unrecognizable accretion disk zone"
+Require-Pattern "src\main.cpp" "recognizableOuterLens" "recognizable outer lens zone"
 
 $mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $PSScriptRoot "..\src\main.cpp")
 if ($mainText -match "vec2\s+suckedP\s*=\s*lensP\s*\*\s*\(1\.0\s*\+\s*2\.8\s*\*\s*swallowWarp\)") {
     throw "Screen swallow still uses continuous radial warp instead of fragmented tidal infall"
+}
+
+if ($mainText -match "swallowPhase\s*=\s*[^;]*1\.0\s*-\s*uBornProgress") {
+    throw "Screen swallow still depends on birth/die progress instead of running continuously"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
