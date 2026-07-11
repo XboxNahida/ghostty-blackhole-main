@@ -43,6 +43,7 @@ Require-Pattern "src\main.cpp" "curvatureFalloff" "distance-dependent line curva
 Require-Pattern "src\main.cpp" "accretionOrbitPhase" "time-varying accretion orbit phase"
 Require-Pattern "src\main.cpp" "orbitalInfall" "orbital infall sample field"
 Require-Pattern "src\main.cpp" "infallTangentFlow" "visible tangent flow into disk"
+Require-Pattern "src\main.cpp" "infallDisplacementScale" "black-hole-radius-scaled infall displacement"
 Require-Pattern "src\main.cpp" "projectedDiskP" "preset-projected accretion disk field"
 Require-Pattern "src\main.cpp" "presetDiskAspect" "preset inclination disk aspect"
 Require-Pattern "src\main.cpp" "projectedDiskRadius" "projected disk radius for collapse mask"
@@ -129,6 +130,22 @@ if ($mainText -match "swallowedColor\s*=\s*deUiBg\s*\*\s*trans") {
 
 if ($mainText -match "uiSuppression\s*=\s*clamp\s*\(\s*max\s*\(\s*tidalUiErase\s*,\s*photonRingFeather") {
     throw "Screen swallow still suppresses only the near disk and leaves warped UI debris visible"
+}
+
+if ($mainText -match "orbitalInfall\s*=\s*screenTangentDir\s*\*\s*infallTangentFlow\s*-\s*radialDir\s*\*\s*inwardPull") {
+    throw "Screen swallow orbital infall is still measured in full-screen coordinates"
+}
+
+if ($mainText -match "smoothstep\(rh \* 3\.20, rh \* 0\.74, screenR\)") {
+    throw "Screen swallow still uses undefined reversed smoothstep edges"
+}
+
+if ($mainText -match "smoothstep\(rh \* (1\.20, rh \* 0\.52|2\.40, rh \* 0\.82|1\.35, rh \* 0\.58)") {
+    throw "Screen swallow still contains reversed radial smoothstep edges"
+}
+
+if ($mainText -match "uiDebrisSuppression\s*=.*wideTidalErase") {
+    throw "Screen swallow still replaces UI colors across the wide radial field"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"
