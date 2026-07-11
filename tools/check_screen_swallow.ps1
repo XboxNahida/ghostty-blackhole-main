@@ -28,16 +28,16 @@ Require-Pattern "src\gui_config.cpp" "swallowStrength=" "renderer config save/re
 Require-Pattern "src\main.cpp" "uSwallowStrength" "renderer swallow strength uniform"
 Require-Pattern "src\main.cpp" "cfg\.swallowStrength" "renderer swallow strength upload"
 Require-Pattern "shaders\frag_desktop_header.glsl" "uSwallowStrength" "desktop shader swallow strength uniform"
-Require-Pattern "src\main.cpp" "lensAmplification" "original lens amplification"
 Require-Pattern "src\main.cpp" "dimensionCollapse" "near-field dimension collapse"
 Require-Pattern "src\main.cpp" "ringBirth" "accretion ring birth phase"
 Require-Pattern "src\main.cpp" "outerLensBlend" "smooth outer lens blend"
-Require-Pattern "src\main.cpp" "longTailLens" "screen-wide long-tail lens field"
 Require-Pattern "src\main.cpp" "swallowLensField" "edge-free swallow lens field"
 Require-Pattern "src\main.cpp" "screenWideLensBlend" "screen-wide lens blend without a hard shell"
-Require-Pattern "src\main.cpp" "edgeFreeWarp" "edge-free warp displacement"
 Require-Pattern "src\main.cpp" "singleLensP" "single-pass swallow lens sample"
 Require-Pattern "src\main.cpp" "noShellLensP" "shell-free lens sample"
+Require-Pattern "src\main.cpp" "sharedLensBoost" "shared far/near lens amplification"
+Require-Pattern "src\main.cpp" "handoffFade" "near-field displacement fade at bmax"
+Require-Pattern "src\main.cpp" "colorHandoffFade" "near-field color fade at bmax"
 Require-Pattern "src\main.cpp" "adaptiveCollapse" "distance-adaptive disk collapse"
 Require-Pattern "src\main.cpp" "curvatureFalloff" "distance-dependent line curvature"
 Require-Pattern "src\main.cpp" "accretionOrbitPhase" "time-varying accretion orbit phase"
@@ -146,6 +146,24 @@ if ($mainText -match "smoothstep\(rh \* (1\.20, rh \* 0\.52|2\.40, rh \* 0\.82|1
 
 if ($mainText -match "uiDebrisSuppression\s*=.*wideTidalErase") {
     throw "Screen swallow still replaces UI colors across the wide radial field"
+}
+
+if ($mainText -match "longTailLens|edgeFreeWarp") {
+    throw "Screen swallow still amplifies only the near-field branch"
+}
+
+$sharedLensBoostCount = ([regex]::Matches($mainText, "sharedLensBoost")).Count
+if ($sharedLensBoostCount -lt 4) {
+    throw "Screen swallow does not apply the shared lens boost in both far and near fields"
+}
+
+$handoffFadeCount = ([regex]::Matches($mainText, "handoffFade")).Count
+if ($handoffFadeCount -lt 3) {
+    throw "Screen swallow near-field additions do not converge at bmax"
+}
+
+if ($mainText -notmatch "uiSuppression\s*=.*colorHandoffFade") {
+    throw "Screen swallow near-field color does not converge at bmax"
 }
 
 Write-Output "SCREEN_SWALLOW_OK"

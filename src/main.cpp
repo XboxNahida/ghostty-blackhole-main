@@ -413,7 +413,11 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     // ---- Runtime visual controls ----
     {
         const std::string oldDefl = "* window * shield;";
-        const std::string newDefl = "* window * shield * max(uDistortion, 0.0);";
+        const std::string newDefl =
+            "* window * shield * max(uDistortion, 0.0);\n"
+            "        float farSwallowPhase = (uScreenSwallow > 0) ? clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
+            "        float sharedLensBoost = 1.0 + farSwallowPhase * (0.65 + 1.35 * window);\n"
+            "        defl *= sharedLensBoost;";
         size_t p = body.find(oldDefl);
         if (p != std::string::npos) body.replace(p, oldDefl.length(), newDefl);
 
@@ -424,23 +428,21 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            float ringBirth = smoothstep(0.02, 0.92, max(uBornProgress, swallowPhase));\n"
             "            float originalWindow = window * shield;\n"
             "            float screenRadius = length(p);\n"
-            "            float longTailLens = shield * (0.20 / (0.20 + screenRadius * screenRadius * 1.55));\n"
-            "            float edgeFreeWarp = clamp(max(originalWindow, longTailLens * 0.78), 0.0, 1.0);\n"
-            "            float swallowLensField = mix(originalWindow, edgeFreeWarp, swallowPhase);\n"
+            "            float swallowLensField = originalWindow;\n"
             "            float baseDistortion = max(uDistortion, 0.0);\n"
-            "            float lensAmplification = 1.0 + swallowPhase * (1.15 + 3.85 * smoothstep(0.05, 0.86, swallowLensField));\n"
-            "            vec2  baseLensP = p + (sp - p) * originalWindow * baseDistortion;\n"
+            "            float sharedLensBoost = 1.0 + swallowPhase * (0.65 + 1.35 * window);\n"
             "            vec2  lensVector = (sp - p) * baseDistortion;\n"
-            "            vec2  singleLensP = p + lensVector * mix(originalWindow, swallowLensField * lensAmplification, swallowPhase);\n"
-            "            vec2  noShellLensP = mix(baseLensP, singleLensP, swallowPhase);\n"
+            "            vec2  singleLensP = p + lensVector * originalWindow * sharedLensBoost;\n"
+            "            vec2  noShellLensP = singleLensP;\n"
             "            float r = max(length(p), 0.0005);\n"
             "            float theta = atan(p.y, p.x);\n"
             "            vec2  radialDir = p / r;\n"
             "            vec2  tangentDir = vec2(-radialDir.y, radialDir.x);\n"
-            "            float screenWideLensBlend = smoothstep(0.010, 0.42, edgeFreeWarp) * swallowPhase;\n"
+            "            float screenWideLensBlend = smoothstep(0.010, 0.42, swallowLensField) * swallowPhase;\n"
             "            float colorlessOuterLens = screenWideLensBlend;\n"
             "            float outerLensBlend = colorlessOuterLens;\n"
             "            float boundaryDither = 0.018 * sin(theta * 5.0 + iTime * 0.36) + 0.010 * sin(theta * 11.0 - iTime * 0.21);\n"
+            "            float handoffFade = 1.0 - smoothstep(bmax * 0.72, bmax, b);\n"
             "            float diskInnerScreen = rin * rh / B_CRIT;\n"
             "            float diskOuterScreen = rout * rh / B_CRIT;\n"
             "            float diskSpan = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
@@ -451,10 +453,10 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            float projectedDiskRadius = max(length(projectedDiskP), 0.0005);\n"
             "            float diskBandDistance = abs(projectedDiskRadius - diskMid) / max(diskSpan, 0.003);\n"
             "            float gravityRadius = max(rh * (4.4 + 1.8 * ringBirth), 0.004);\n"
-            "            float gravityWellField = swallowPhase * shield / (1.0 + pow(r / gravityRadius, 2.15));\n"
+            "            float gravityWellField = swallowPhase * shield * handoffFade / (1.0 + pow(r / gravityRadius, 2.15));\n"
             "            float diskDistanceField = 1.0 / (1.0 + diskBandDistance * diskBandDistance * 0.72);\n"
             "            float diskRadialTail = 1.0 / (1.0 + pow(max(projectedDiskRadius - diskInnerScreen, 0.0) / max(diskSpan * 2.35, 0.004), 2.0));\n"
-            "            float softDiskMatterField = swallowPhase * shield * diskDistanceField * diskRadialTail;\n"
+            "            float softDiskMatterField = swallowPhase * shield * handoffFade * diskDistanceField * diskRadialTail;\n"
             "            float dimensionCollapse = softDiskMatterField * (0.58 + 0.22 * ringBirth) + gravityWellField * 0.42;\n"
             "            float softCollapse = clamp(dimensionCollapse, 0.0, 1.0);\n"
             "            vec3  geodesicDiskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
@@ -479,7 +481,7 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "            vec2  orbitalInfall = screenTangentDir * tangentialStretch - radialDir * radialCompression;\n"
             "            vec2  adaptiveDiskP = noShellLensP + lensVector * swallowLensField * (0.22 + 0.62 * smoothInfallField) + orbitalInfall;\n"
             "            float eventHorizonMask = (1.0 - smoothstep(rh * 0.52, rh * 1.20, r)) * swallowPhase;\n"
-            "            vec2  finalP = mix(noShellLensP, adaptiveDiskP, adaptiveCollapse);\n"
+            "            vec2  finalP = mix(noShellLensP, adaptiveDiskP, adaptiveCollapse * handoffFade);\n"
             "            vec2  suv = mirrorUV(center + mix(finalP, radialDir * 0.020, eventHorizonMask) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
@@ -495,6 +497,7 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
                 "        float diskEnergy = max(max(diskLight.r, diskLight.g), diskLight.b);\n"
                 "        float realAccretionMask = smoothstep(0.025, 0.24, diskEnergy) * swallowPhase;\n"
                 "        float screenR = length(p);\n"
+                "        float colorHandoffFade = 1.0 - smoothstep(bmax * 0.72, bmax, b);\n"
                 "        float opacityWake = (1.0 - trans) * swallowPhase;\n"
                 "        float wideTidalErase = swallowPhase * shield / (1.0 + pow(screenR / max(rh * 6.8, 0.006), 2.35));\n"
                 "        float nearFieldRange = 1.0 - smoothstep(rh * 0.74, rh * 3.20, screenR);\n"
@@ -504,7 +507,7 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
                 "        float eventHorizonMask = (captured ? 1.0 : 0.0) * swallowPhase;\n"
                 "        float softShadowMask = clamp(max(eventHorizonMask, (1.0 - smoothstep(rh * 0.58, rh * 1.35, screenR)) * swallowPhase * (1.0 - realAccretionMask * 0.35)), 0.0, 1.0);\n"
                 "        float uiDebrisSuppression = clamp(max(nearFieldUiCutoff, realAccretionMask * 0.86), 0.0, 1.0);\n"
-                "        float uiSuppression = clamp(max(uiDebrisSuppression, photonRingFeather * 0.55) + softShadowMask, 0.0, 1.0);\n"
+                "        float uiSuppression = clamp(max(uiDebrisSuppression, photonRingFeather * 0.55) + softShadowMask, 0.0, 1.0) * colorHandoffFade;\n"
                 "        float bgLuma = dot(bg, vec3(0.2126, 0.7152, 0.0722));\n"
                 "        vec3 thermalColor = blackbody(max(L.temp, 1500.0));\n"
                 "        vec3 deUiBg = mix(bg, vec3(bgLuma) * 0.12 + thermalColor * bgLuma * 0.08, tidalUiErase);\n"
