@@ -137,6 +137,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool screenSwallow READ screenSwallow WRITE setScreenSwallow NOTIFY screenSwallowChanged)
     Q_PROPERTY(float swallowStrength READ swallowStrength WRITE setSwallowStrength NOTIFY swallowStrengthChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
+    Q_PROPERTY(bool allowRecordingCapture READ allowRecordingCapture WRITE setAllowRecordingCapture NOTIFY allowRecordingCaptureChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
     Q_PROPERTY(bool growEnabled READ growEnabled WRITE setGrowEnabled NOTIFY growEnabledChanged)
     Q_PROPERTY(float initialSize READ initialSize WRITE setInitialSize NOTIFY initialSizeChanged)
@@ -249,6 +250,8 @@ public:
     void setSwallowStrength(float v);
     float distortion() const;
     void setDistortion(float v);
+    bool allowRecordingCapture() const;
+    void setAllowRecordingCapture(bool v);
     float holeSize() const;
     void setHoleSize(float v);
     bool growEnabled() const;
@@ -363,6 +366,7 @@ signals:
     void screenSwallowChanged();
     void swallowStrengthChanged();
     void distortionChanged();
+    void allowRecordingCaptureChanged();
     void holeSizeChanged();
     void growEnabledChanged();
     void initialSizeChanged();
@@ -468,6 +472,7 @@ private:
     bool    m_screenSwallow  = false;
     float   m_swallowStrength = 0.65f;
     float   m_distortion     = 1.0f;
+    bool    m_allowRecordingCapture = false;
     float   m_holeSize       = 1.0f;
     bool    m_growEnabled    = false;
     float   m_initialSize    = 0.3f;

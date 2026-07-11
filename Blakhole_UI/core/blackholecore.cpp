@@ -1361,6 +1361,14 @@ void BlackHoleCore::setSwallowStrength(float v)
 float BlackHoleCore::distortion() const { return m_distortion; }
 void BlackHoleCore::setDistortion(float v) { if (qFuzzyCompare(m_distortion, v)) return; m_distortion = v; emit distortionChanged(); }
 
+bool BlackHoleCore::allowRecordingCapture() const { return m_allowRecordingCapture; }
+void BlackHoleCore::setAllowRecordingCapture(bool v)
+{
+    if (m_allowRecordingCapture == v) return;
+    m_allowRecordingCapture = v;
+    emit allowRecordingCaptureChanged();
+}
+
 float BlackHoleCore::holeSize() const { return m_holeSize; }
 void BlackHoleCore::setHoleSize(float v) { if (qFuzzyCompare(m_holeSize, v)) return; m_holeSize = v; emit holeSizeChanged(); }
 
@@ -1420,6 +1428,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "screenSwallow=" << (m_screenSwallow ? 1 : 0) << "\n";
     out << "swallowStrength=" << QString::number(m_swallowStrength, 'f', 2) << "\n";
     out << "distortion="    << QString::number(m_distortion, 'f', 2) << "\n";
+    out << "allowRecordingCapture=" << (m_allowRecordingCapture ? 1 : 0) << "\n";
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
     out << "growEnabled="   << (m_growEnabled ? 1 : 0) << "\n";
     out << "initialSize="   << QString::number(m_initialSize, 'f', 2) << "\n";
@@ -1457,6 +1466,7 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "screenSwallow")  m_screenSwallow  = (val.toInt() != 0);
         else if (key == "swallowStrength") setSwallowStrength(val.toFloat());
         else if (key == "distortion")     m_distortion     = val.toFloat();
+        else if (key == "allowRecordingCapture") m_allowRecordingCapture = (val.toInt() != 0);
         else if (key == "holeSize")       m_holeSize       = val.toFloat();
         else if (key == "growEnabled")    m_growEnabled    = (val.toInt() != 0);
         else if (key == "initialSize")    m_initialSize    = val.toFloat();
@@ -1472,6 +1482,7 @@ void BlackHoleCore::loadAdvancedConfig()
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
     emit swallowStrengthChanged();
+    emit allowRecordingCaptureChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }
 

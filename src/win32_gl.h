@@ -56,6 +56,9 @@ void Win32GL_Show(Win32GL& wgl);
 // 启用分层模式（在首次渲染完成后调用）
 void Win32GL_EnableLayered(Win32GL& wgl);
 
+// 控制黑洞窗口是否从系统截图/录屏捕获中排除
+void Win32GL_SetCaptureExcluded(Win32GL& wgl, bool excluded);
+
 // 立即隐藏窗口（用于退出动画结束时）
 void Win32GL_Hide(Win32GL& wgl);
 

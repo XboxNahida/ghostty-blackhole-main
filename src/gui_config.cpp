@@ -407,6 +407,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "screenSwallow=%d\n", cfg.screenSwallow ? 1 : 0);
     fprintf(f, "swallowStrength=%.3f\n", cfg.swallowStrength);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
+    fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
     fprintf(f, "initialSize=%.3f\n", cfg.initialSize);
     fclose(f);
@@ -449,6 +450,7 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
                 if (val < 0.0f) val = 0.0f;
                 cfg.distortion = val;
             }
+            else if (strcmp(key, "allowRecordingCapture") == 0) cfg.allowRecordingCapture = (val != 0.0f);
             else if (strcmp(key, "growEnabled") == 0) cfg.growEnabled = (val != 0.0f);
             else if (strcmp(key, "initialSize") == 0) {
                 if (val < 0.01f) val = 0.01f;

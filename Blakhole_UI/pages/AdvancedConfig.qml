@@ -22,6 +22,7 @@ Item {
     property bool screenSwallow: bhCore ? bhCore.screenSwallow : false
     property real swallowStrength: bhCore ? bhCore.swallowStrength : 0.65
     property real distortion: bhCore ? bhCore.distortion : 1.0
+    property bool allowRecordingCapture: bhCore ? bhCore.allowRecordingCapture : false
     property real holeSize: bhCore ? bhCore.holeSize : 1.0
     property bool growEnabled: bhCore ? bhCore.growEnabled : false
     property real initialSize: bhCore ? bhCore.initialSize : 0.3
@@ -211,6 +212,46 @@ Item {
                                 anchors.centerIn: parent; text: "\uf00c"
                                 font.family: iconFont.name; font.pixelSize: 12
                                 color: "#ffffff"; visible: overshootCheck.checked
+                            }
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Text {
+                        text: "允许截屏/录屏捕获黑洞"
+                        font.pixelSize: 14
+                        color: theme.textColor
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: "开启后冻结桌面纹理以避免递归残影"
+                        font.pixelSize: 11
+                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                    }
+                    CheckBox {
+                        id: recordingCaptureCheck
+                        checked: advPage.allowRecordingCapture
+                        onToggled: {
+                            advPage.allowRecordingCapture = checked
+                            if (bhCore) bhCore.allowRecordingCapture = checked
+                        }
+                        indicator: Rectangle {
+                            implicitWidth: 20; implicitHeight: 20
+                            x: recordingCaptureCheck.leftPadding
+                            y: parent.height / 2 - height / 2
+                            radius: 4
+                            color: recordingCaptureCheck.checked ? theme.focusColor : "transparent"
+                            border.color: recordingCaptureCheck.checked ? theme.focusColor : theme.borderColor
+                            border.width: 2
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Text {
+                                anchors.centerIn: parent; text: "\uf00c"
+                                font.family: iconFont.name; font.pixelSize: 12
+                                color: "#ffffff"; visible: recordingCaptureCheck.checked
                             }
                         }
                     }

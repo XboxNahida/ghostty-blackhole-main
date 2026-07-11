@@ -15,6 +15,9 @@
 #ifndef WDA_EXCLUDEFROMCAPTURE
 #define WDA_EXCLUDEFROMCAPTURE 0x00000011
 #endif
+#ifndef WDA_NONE
+#define WDA_NONE 0x00000000
+#endif
 
 // ---- WGL 扩展常量 ----
 #ifndef WGL_CONTEXT_MAJOR_VERSION_ARB
@@ -211,8 +214,7 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int 
     DWMNCRENDERINGPOLICY ncrp = (DWMNCRENDERINGPOLICY)DWMNCRP_DISABLED;
     DwmSetWindowAttribute(wgl.hwnd, DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
 
-    if (!SetWindowDisplayAffinity(wgl.hwnd, WDA_EXCLUDEFROMCAPTURE))
-        fprintf(stderr, "[Win32GL] WDA_EXCLUDEFROMCAPTURE failed: %lu\n", GetLastError());
+    Win32GL_SetCaptureExcluded(wgl, true);
 
     // 10. 窗口置顶但不显示（等待所有初始化完成后再显示）
     SetWindowPos(wgl.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
@@ -364,6 +366,15 @@ void Win32GL_EnableLayered(Win32GL& wgl) {
     fprintf(stderr, "[Win32GL] Layered mode enabled\n");
 }
 
+void Win32GL_SetCaptureExcluded(Win32GL& wgl, bool excluded) {
+    if (!wgl.hwnd) return;
+    DWORD affinity = excluded ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE;
+    if (!SetWindowDisplayAffinity(wgl.hwnd, affinity)) {
+        fprintf(stderr, "[Win32GL] SetWindowDisplayAffinity(%s) failed: %lu\n",
+                excluded ? "exclude" : "none", GetLastError());
+    }
+}
+
 void Win32GL_Hide(Win32GL& wgl) {
     if (!wgl.hwnd) return;
     // 立即移出屏幕并隐藏，让用户感知瞬间结束
@@ -446,4 +457,3 @@ void Win32GL_Shutdown(Win32GL& wgl) {
     wgl.active = false;
     fprintf(stderr, "[Win32GL] Shutdown complete\n");
 }
-

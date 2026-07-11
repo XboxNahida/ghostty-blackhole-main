@@ -46,6 +46,7 @@ struct BlackholeConfig {
     bool  screenSwallow   = false; // 出生/退出时的屏幕吞噬效果
     float swallowStrength = 0.65f; // shader 层吞噬强度
     float distortion      = 1.0f;  // 引力透镜扭曲强度
+    bool  allowRecordingCapture = false; // 允许截图/录屏捕获黑洞窗口
     bool  growEnabled     = false; // 是否从 initialSize 逐渐增长
     float initialSize     = 0.3f;  // 逐渐增长的初始大小（0.01~1.0）
     bool  confirmed  = false;
