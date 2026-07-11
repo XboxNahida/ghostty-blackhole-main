@@ -404,8 +404,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "mouseInertia=%.3f\n", cfg.mouseInertia);
     fprintf(f, "limitMouseOvershoot=%d\n", cfg.limitMouseOvershoot ? 1 : 0);
     fprintf(f, "randomPath=%d\n",   cfg.randomPath ? 1 : 0);
-    fprintf(f, "screenSwallow=%d\n", cfg.screenSwallow ? 1 : 0);
-    fprintf(f, "swallowStrength=%.3f\n", cfg.swallowStrength);
+    fprintf(f, "lightingEffect=%d\n", cfg.lightingEffect ? 1 : 0);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
     fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
@@ -417,6 +416,7 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
     FILE* f = fopen("blackhole_advanced.txt", "r");
     if (!f) return;  // file not found, keep defaults (-1.0)
     char line[256];
+    bool hasLightingEffect = false;
     while (fgets(line, sizeof(line), f)) {
         // skip comments and empty lines
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
@@ -440,12 +440,9 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
             }
             else if (strcmp(key, "limitMouseOvershoot") == 0) cfg.limitMouseOvershoot = (val != 0.0f);
             else if (strcmp(key, "randomPath") == 0) cfg.randomPath = (val != 0.0f);
-            else if (strcmp(key, "screenSwallow") == 0) cfg.screenSwallow = (val != 0.0f);
-            else if (strcmp(key, "swallowStrength") == 0) {
-                if (val < 0.0f) val = 0.0f;
-                if (val > 1.0f) val = 1.0f;
-                cfg.swallowStrength = val;
-            }
+            else if (strcmp(key, "lightingEffect") == 0) { cfg.lightingEffect = (val != 0.0f); hasLightingEffect = true; }
+            else if (strcmp(key, "screenSwallow") == 0 && !hasLightingEffect) cfg.lightingEffect = (val != 0.0f);
+            else if (strcmp(key, "swallowStrength") == 0) { /* 旧配置兼容：强度参数已废弃。 */ }
             else if (strcmp(key, "distortion") == 0) {
                 if (val < 0.0f) val = 0.0f;
                 cfg.distortion = val;

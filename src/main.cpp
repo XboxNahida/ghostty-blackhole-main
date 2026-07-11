@@ -1402,7 +1402,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform4f(locDate,0,0,0,(float)time(nullptr));
         gl_Uniform1f(loc_uHR,cfg.holeRadius); gl_Uniform1f(loc_uDG,cfg.diskGain);
         gl_Uniform1f(loc_uDT,cfg.diskTemp); gl_Uniform1f(loc_uEX,cfg.exposure);
-        float effectiveShaderSpeed = cfg.screenSwallow ? cfg.spd * 0.30f : cfg.spd;
+        float effectiveShaderSpeed = cfg.lightingEffect ? cfg.spd * 0.30f : cfg.spd;
         gl_Uniform1f(loc_uSP,effectiveShaderSpeed); gl_Uniform1f(loc_uSG,cfg.starGain);
         gl_Uniform1f(loc_uDI,cfg.diskIncl);
         gl_Uniform1i(loc_uPM,cfg.playMode); gl_Uniform1f(loc_uSlot,cfg.slotSec);
@@ -1426,8 +1426,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
-        gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
-        gl_Uniform1f(locSwallowStrength, cfg.swallowStrength);
+        gl_Uniform1i(locScreenSwallow, cfg.lightingEffect ? 1 : 0);
+        gl_Uniform1f(locSwallowStrength, 0.65f);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
@@ -1558,7 +1558,7 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float swallowMotionScale = cfg.screenSwallow ? 0.25f : 1.0f;
+                    float swallowMotionScale = cfg.lightingEffect ? 0.25f : 1.0f;
                     float gravityStrength = cfg.limitMouseOvershoot
                         ? (0.0000025f + 0.0000065f * (1.0f - inertia))
                         : (0.0000045f + 0.0000105f * (1.0f - inertia));
@@ -1570,7 +1570,7 @@ int main(int argc, char* argv[]) {
                     float settleSpeed = 0.00022f + 0.00018f * inertia;
                     float gravityDeadZone = settleRadius * 1.85f;
                     float maxGravityAccel = 0.00075f + 0.00055f * (1.0f - inertia);
-                    float maxGravitySpeed = (0.0065f + 0.0035f * (1.0f - inertia)) * (cfg.screenSwallow ? 0.35f : 1.0f);
+                    float maxGravitySpeed = (0.0065f + 0.0035f * (1.0f - inertia)) * (cfg.lightingEffect ? 0.35f : 1.0f);
                     float farReturnStrength = cfg.limitMouseOvershoot
                         ? (0.00055f + 0.00035f * (1.0f - inertia))
                         : (0.00080f + 0.00065f * (1.0f - inertia));
@@ -1654,7 +1654,7 @@ int main(int argc, char* argv[]) {
             frameHomeY = cursorHomeY;
 
             if (inertia > 0.0001f) {
-                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f * (cfg.screenSwallow ? 0.35f : 1.0f);
+                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f * (cfg.lightingEffect ? 0.35f : 1.0f);
                 float wanderX = cosf(t * 0.42f + phaseOffset) * wanderRadius;
                 float wanderY = sinf(t * 0.33f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
                 frameHomeX += wanderX;
@@ -1710,7 +1710,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(loc_uDG, cfg.diskGain);
         gl_Uniform1f(loc_uDT, cfg.diskTemp);
         gl_Uniform1f(loc_uEX, cfg.exposure);
-        float effectiveShaderSpeed = cfg.screenSwallow ? cfg.spd * 0.30f : cfg.spd;
+        float effectiveShaderSpeed = cfg.lightingEffect ? cfg.spd * 0.30f : cfg.spd;
         gl_Uniform1f(loc_uSP, effectiveShaderSpeed);
         gl_Uniform1f(loc_uSG, cfg.starGain);
         gl_Uniform1f(loc_uDI, cfg.diskIncl);
@@ -1752,8 +1752,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
-        gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
-        gl_Uniform1f(locSwallowStrength, cfg.swallowStrength);
+        gl_Uniform1i(locScreenSwallow, cfg.lightingEffect ? 1 : 0);
+        gl_Uniform1f(locSwallowStrength, 0.65f);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);

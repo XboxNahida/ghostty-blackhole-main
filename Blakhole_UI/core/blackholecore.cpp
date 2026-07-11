@@ -631,7 +631,7 @@ void BlackHoleCore::resetDefaults()
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
     m_limitMouseOvershoot = true;
-    m_swallowStrength = 0.65f;
+    m_lightingEffect = false;
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -650,8 +650,7 @@ void BlackHoleCore::resetDefaults()
     emit limitMouseOvershootChanged();
     emit randomPathChanged();
     emit animationSpeedChanged();
-    emit screenSwallowChanged();
-    emit swallowStrengthChanged();
+    emit lightingEffectChanged();
     emit distortionChanged();
     emit holeSizeChanged();
     emit growEnabledChanged();
@@ -1345,18 +1344,8 @@ void BlackHoleCore::setRandomPath(bool v) { if (m_randomPath == v) return; m_ran
 int BlackHoleCore::animationSpeed() const { return m_animationSpeed; }
 void BlackHoleCore::setAnimationSpeed(int v) { if (m_animationSpeed == v) return; m_animationSpeed = v; emit animationSpeedChanged(); }
 
-bool BlackHoleCore::screenSwallow() const { return m_screenSwallow; }
-void BlackHoleCore::setScreenSwallow(bool v) { if (m_screenSwallow == v) return; m_screenSwallow = v; emit screenSwallowChanged(); }
-
-float BlackHoleCore::swallowStrength() const { return m_swallowStrength; }
-void BlackHoleCore::setSwallowStrength(float v)
-{
-    if (v < 0.0f) v = 0.0f;
-    if (v > 1.0f) v = 1.0f;
-    if (qFuzzyCompare(m_swallowStrength, v)) return;
-    m_swallowStrength = v;
-    emit swallowStrengthChanged();
-}
+bool BlackHoleCore::lightingEffect() const { return m_lightingEffect; }
+void BlackHoleCore::setLightingEffect(bool v) { if (m_lightingEffect == v) return; m_lightingEffect = v; emit lightingEffectChanged(); }
 
 float BlackHoleCore::distortion() const { return m_distortion; }
 void BlackHoleCore::setDistortion(float v) { if (qFuzzyCompare(m_distortion, v)) return; m_distortion = v; emit distortionChanged(); }
@@ -1425,8 +1414,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "videoAsIdle="   << (m_videoAsIdle ? 1 : 0) << "\n";
     out << "randomPath="    << (m_randomPath ? 1 : 0) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
-    out << "screenSwallow=" << (m_screenSwallow ? 1 : 0) << "\n";
-    out << "swallowStrength=" << QString::number(m_swallowStrength, 'f', 2) << "\n";
+    out << "lightingEffect=" << (m_lightingEffect ? 1 : 0) << "\n";
     out << "distortion="    << QString::number(m_distortion, 'f', 2) << "\n";
     out << "allowRecordingCapture=" << (m_allowRecordingCapture ? 1 : 0) << "\n";
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
@@ -1450,6 +1438,7 @@ void BlackHoleCore::loadAdvancedConfig()
     }
 
     QTextStream in(&file);
+    bool hasLightingEffect = false;
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
@@ -1463,8 +1452,9 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "videoAsIdle")   m_videoAsIdle    = (val.toInt() != 0);
         else if (key == "randomPath")     m_randomPath     = (val.toInt() != 0);
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
-        else if (key == "screenSwallow")  m_screenSwallow  = (val.toInt() != 0);
-        else if (key == "swallowStrength") setSwallowStrength(val.toFloat());
+        else if (key == "lightingEffect") { m_lightingEffect = (val.toInt() != 0); hasLightingEffect = true; }
+        else if (key == "screenSwallow" && !hasLightingEffect) m_lightingEffect = (val.toInt() != 0);
+        else if (key == "swallowStrength") { /* 旧配置兼容：强度参数已废弃。 */ }
         else if (key == "distortion")     m_distortion     = val.toFloat();
         else if (key == "allowRecordingCapture") m_allowRecordingCapture = (val.toInt() != 0);
         else if (key == "holeSize")       m_holeSize       = val.toFloat();
@@ -1481,7 +1471,7 @@ void BlackHoleCore::loadAdvancedConfig()
     file.close();
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
-    emit swallowStrengthChanged();
+    emit lightingEffectChanged();
     emit allowRecordingCaptureChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }

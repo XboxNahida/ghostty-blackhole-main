@@ -134,8 +134,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool limitMouseOvershoot READ limitMouseOvershoot WRITE setLimitMouseOvershoot NOTIFY limitMouseOvershootChanged)
     Q_PROPERTY(bool randomPath READ randomPath WRITE setRandomPath NOTIFY randomPathChanged)
     Q_PROPERTY(int animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
-    Q_PROPERTY(bool screenSwallow READ screenSwallow WRITE setScreenSwallow NOTIFY screenSwallowChanged)
-    Q_PROPERTY(float swallowStrength READ swallowStrength WRITE setSwallowStrength NOTIFY swallowStrengthChanged)
+    Q_PROPERTY(bool lightingEffect READ lightingEffect WRITE setLightingEffect NOTIFY lightingEffectChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
     Q_PROPERTY(bool allowRecordingCapture READ allowRecordingCapture WRITE setAllowRecordingCapture NOTIFY allowRecordingCaptureChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
@@ -244,10 +243,8 @@ public:
     void setRandomPath(bool v);
     int animationSpeed() const;
     void setAnimationSpeed(int v);
-    bool screenSwallow() const;
-    void setScreenSwallow(bool v);
-    float swallowStrength() const;
-    void setSwallowStrength(float v);
+    bool lightingEffect() const;
+    void setLightingEffect(bool v);
     float distortion() const;
     void setDistortion(float v);
     bool allowRecordingCapture() const;
@@ -363,8 +360,7 @@ signals:
     void limitMouseOvershootChanged();
     void randomPathChanged();
     void animationSpeedChanged();
-    void screenSwallowChanged();
-    void swallowStrengthChanged();
+    void lightingEffectChanged();
     void distortionChanged();
     void allowRecordingCaptureChanged();
     void holeSizeChanged();
@@ -469,8 +465,7 @@ private:
     bool    m_limitMouseOvershoot = true;
     bool    m_randomPath     = true;
     int     m_animationSpeed = 1;
-    bool    m_screenSwallow  = false;
-    float   m_swallowStrength = 0.65f;
+    bool    m_lightingEffect = false;
     float   m_distortion     = 1.0f;
     bool    m_allowRecordingCapture = false;
     float   m_holeSize       = 1.0f;
