@@ -45,6 +45,7 @@ _work.txt
 # IDE
 .vscode/
 .idea/
+.worktrees/
 
 # OS
 Thumbs.db
