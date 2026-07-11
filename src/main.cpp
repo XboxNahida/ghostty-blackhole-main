@@ -413,76 +413,12 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     // ---- Runtime visual controls ----
     {
         const std::string oldDefl = "* window * shield;";
-        const std::string newDefl =
-            "* window * shield * max(uDistortion, 0.0);\n"
-            "        float farSwallowPhase = (uScreenSwallow > 0) ? clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
-            "        float sharedLensBoost = 1.0 + farSwallowPhase * (0.65 + 1.35 * window);\n"
-            "        defl *= sharedLensBoost;";
+        const std::string newDefl = "* window * shield * max(uDistortion, 0.0);";
         size_t p = body.find(oldDefl);
         if (p != std::string::npos) body.replace(p, oldDefl.length(), newDefl);
 
         const std::string oldNear = "vec2  suv = mirrorUV(center + (p + (sp - p) * window * shield) / vec2(aspect, 1.0));";
-        const std::string newNear =
-            "            float continuousSwallow = (uScreenSwallow > 0) ? clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
-            "            float swallowPhase = continuousSwallow;\n"
-            "            float ringBirth = smoothstep(0.02, 0.92, max(uBornProgress, swallowPhase));\n"
-            "            float originalWindow = window * shield;\n"
-            "            float screenRadius = length(p);\n"
-            "            float swallowLensField = originalWindow;\n"
-            "            float baseDistortion = max(uDistortion, 0.0);\n"
-            "            float sharedLensBoost = 1.0 + swallowPhase * (0.65 + 1.35 * window);\n"
-            "            vec2  lensVector = (sp - p) * baseDistortion;\n"
-            "            vec2  singleLensP = p + lensVector * originalWindow * sharedLensBoost;\n"
-            "            vec2  noShellLensP = singleLensP;\n"
-            "            float r = max(length(p), 0.0005);\n"
-            "            float theta = atan(p.y, p.x);\n"
-            "            vec2  radialDir = p / r;\n"
-            "            vec2  tangentDir = vec2(-radialDir.y, radialDir.x);\n"
-            "            float screenWideLensBlend = smoothstep(0.010, 0.42, swallowLensField) * swallowPhase;\n"
-            "            float colorlessOuterLens = screenWideLensBlend;\n"
-            "            float outerLensBlend = colorlessOuterLens;\n"
-            "            float boundaryDither = 0.018 * sin(theta * 5.0 + iTime * 0.36) + 0.010 * sin(theta * 11.0 - iTime * 0.21);\n"
-            "            float handoffFade = 1.0 - smoothstep(bmax * 0.72, bmax, b);\n"
-            "            float diskInnerScreen = rin * rh / B_CRIT;\n"
-            "            float diskOuterScreen = rout * rh / B_CRIT;\n"
-            "            float diskSpan = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
-            "            float diskMid = 0.5 * (diskInnerScreen + diskOuterScreen);\n"
-            "            vec2  diskFrameP = rot(vec2(p.x, -p.y), L.roll);\n"
-            "            float presetDiskAspect = max(abs(cos(L.incl)), 0.16);\n"
-            "            vec2  projectedDiskP = vec2(diskFrameP.x, diskFrameP.y / presetDiskAspect);\n"
-            "            float projectedDiskRadius = max(length(projectedDiskP), 0.0005);\n"
-            "            float diskBandDistance = abs(projectedDiskRadius - diskMid) / max(diskSpan, 0.003);\n"
-            "            float gravityRadius = max(rh * (4.4 + 1.8 * ringBirth), 0.004);\n"
-            "            float gravityWellField = swallowPhase * shield * handoffFade / (1.0 + pow(r / gravityRadius, 2.15));\n"
-            "            float diskDistanceField = 1.0 / (1.0 + diskBandDistance * diskBandDistance * 0.72);\n"
-            "            float diskRadialTail = 1.0 / (1.0 + pow(max(projectedDiskRadius - diskInnerScreen, 0.0) / max(diskSpan * 2.35, 0.004), 2.0));\n"
-            "            float softDiskMatterField = swallowPhase * shield * handoffFade * diskDistanceField * diskRadialTail;\n"
-            "            float dimensionCollapse = softDiskMatterField * (0.58 + 0.22 * ringBirth) + gravityWellField * 0.42;\n"
-            "            float softCollapse = clamp(dimensionCollapse, 0.0, 1.0);\n"
-            "            vec3  geodesicDiskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
-            "            float geodesicDiskEnergy = max(max(geodesicDiskLight.r, geodesicDiskLight.g), geodesicDiskLight.b);\n"
-            "            float geodesicDiskMask = smoothstep(0.018, 0.22, geodesicDiskEnergy) * swallowPhase;\n"
-            "            float projectedCollapse = softDiskMatterField * (0.30 + 0.18 * ringBirth);\n"
-            "            float smoothInfallField = clamp(gravityWellField * 0.58 + softDiskMatterField * 0.42 + geodesicDiskMask * 0.22, 0.0, 1.0);\n"
-            "            float adaptiveCollapse = smoothstep(0.02, 0.86, smoothInfallField);\n"
-            "            float normalizedDiskDistance = clamp((projectedDiskRadius - diskInnerScreen) / max(diskSpan, 0.003), 0.0, 1.0);\n"
-            "            float curvatureFalloff = adaptiveCollapse * (1.0 - smoothstep(0.16, 1.0, normalizedDiskDistance));\n"
-            "            float luminosityBoost = 1.0 + adaptiveCollapse * 0.18;\n"
-            "            vec2  diskTangentFlat = normalize(vec2(-projectedDiskP.y, projectedDiskP.x));\n"
-            "            vec2  diskTangentFrame = normalize(vec2(diskTangentFlat.x, diskTangentFlat.y * presetDiskAspect));\n"
-            "            vec2  screenTangentYUp = rot(diskTangentFrame, -L.roll);\n"
-            "            vec2  screenTangentDir = normalize(vec2(screenTangentYUp.x, -screenTangentYUp.y));\n"
-            "            float accretionOrbitPhase = iTime * (0.18 + 0.42 * swallowPhase) + projectedDiskRadius * (1.6 + 3.4 * curvatureFalloff) + theta * 0.55;\n"
-            "            float infallTangentFlow = curvatureFalloff * (0.16 + 0.58 / (1.0 + r / max(rh, 0.002))) * (0.78 + 0.22 * sin(accretionOrbitPhase));\n"
-            "            float inwardPull = smoothInfallField * (0.08 + 0.22 * (1.0 - normalizedDiskDistance));\n"
-            "            float infallDisplacementScale = rh * (0.42 + 0.28 * ringBirth);\n"
-            "            float tangentialStretch = infallTangentFlow * infallDisplacementScale;\n"
-            "            float radialCompression = inwardPull * infallDisplacementScale;\n"
-            "            vec2  orbitalInfall = screenTangentDir * tangentialStretch - radialDir * radialCompression;\n"
-            "            vec2  adaptiveDiskP = noShellLensP + lensVector * swallowLensField * (0.22 + 0.62 * smoothInfallField) + orbitalInfall;\n"
-            "            float eventHorizonMask = (1.0 - smoothstep(rh * 0.52, rh * 1.20, r)) * swallowPhase;\n"
-            "            vec2  finalP = mix(noShellLensP, adaptiveDiskP, adaptiveCollapse * handoffFade);\n"
-            "            vec2  suv = mirrorUV(center + mix(finalP, radialDir * 0.020, eventHorizonMask) / vec2(aspect, 1.0));";
+        const std::string newNear = "vec2  suv = mirrorUV(center + (p + (sp - p) * window * shield * max(uDistortion, 0.0)) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
 
@@ -490,33 +426,40 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         p = body.find(finalColor);
         if (p != std::string::npos) {
             body.replace(p, finalColor.length(),
-                "    if (uScreenSwallow > 0) {\n"
-                "        float continuousSwallow = clamp(uSwallowStrength, 0.0, 1.0);\n"
-                "        float swallowPhase = continuousSwallow;\n"
+                "    if (uLightingEffect > 0) {\n"
                 "        vec3 diskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
                 "        float diskEnergy = max(max(diskLight.r, diskLight.g), diskLight.b);\n"
-                "        float realAccretionMask = smoothstep(0.025, 0.24, diskEnergy) * swallowPhase;\n"
+                "        float realDiskMask = smoothstep(0.012, 0.20, diskEnergy);\n"
+                "        vec2 diskLocalP = rot(vec2(p.x, -p.y), L.roll);\n"
+                "        float diskInclScale = max(abs(cos(L.incl)), 0.16);\n"
+                "        vec2 projectedLightP = vec2(diskLocalP.x, diskLocalP.y / diskInclScale);\n"
+                "        float projectedLightRadius = max(length(projectedLightP), 0.0005);\n"
+                "        float diskInnerScreen = rin * rh / B_CRIT;\n"
+                "        float diskOuterScreen = rout * rh / B_CRIT;\n"
+                "        float diskWidth = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
+                "        float diskUnit = clamp((projectedLightRadius - diskInnerScreen) / diskWidth, 0.0, 1.0);\n"
+                "        float diskBandDistance = max(diskInnerScreen - projectedLightRadius, max(projectedLightRadius - diskOuterScreen, 0.0));\n"
+                "        float analyticDiskBand = exp(-pow(diskBandDistance / max(diskWidth * 0.72, 0.003), 2.0));\n"
+                "        float outerLightMist = analyticDiskBand * (0.30 + 0.70 * (1.0 - realDiskMask));\n"
+                "        float diskAngle = atan(projectedLightP.y, projectedLightP.x);\n"
+                "        float bandPhase = diskUnit * 42.0 + diskAngle * 2.3 - iTime * 0.55;\n"
+                "        float darkFlowBands = smoothstep(0.54, 0.86, 0.5 + 0.5 * sin(bandPhase + 0.35 * sin(bandPhase * 0.37)));\n"
+                "        float bandTransmission = 1.0 - darkFlowBands * realDiskMask * 0.68;\n"
+                "        float diskSide = smoothstep(-0.30, 0.30, projectedLightP.x / projectedLightRadius);\n"
+                "        vec3 warmGoldLight = vec3(1.00, 0.40, 0.08) * (1.0 - diskSide);\n"
+                "        vec3 coldBlueLight = vec3(0.10, 0.54, 1.00) * diskSide;\n"
+                "        vec3 dualToneLight = warmGoldLight + coldBlueLight;\n"
+                "        float middleBrightLayer = realDiskMask * (0.82 + 0.55 * (1.0 - diskUnit));\n"
                 "        float screenR = length(p);\n"
-                "        float colorHandoffFade = 1.0 - smoothstep(bmax * 0.72, bmax, b);\n"
-                "        float opacityWake = (1.0 - trans) * swallowPhase;\n"
-                "        float wideTidalErase = swallowPhase * shield / (1.0 + pow(screenR / max(rh * 6.8, 0.006), 2.35));\n"
-                "        float nearFieldRange = 1.0 - smoothstep(rh * 0.74, rh * 3.20, screenR);\n"
-                "        float nearFieldUiCutoff = clamp(max(realAccretionMask, opacityWake) + nearFieldRange * swallowPhase, 0.0, 1.0);\n"
-                "        float tidalUiErase = clamp(max(nearFieldUiCutoff * (0.80 + 0.18 * swallowPhase), wideTidalErase * realAccretionMask * 0.35), 0.0, 1.0);\n"
-                "        float photonRingFeather = smoothstep(0.015, 0.18, diskEnergy) * (1.0 - smoothstep(rh * 0.82, rh * 2.40, screenR)) * swallowPhase;\n"
-                "        float eventHorizonMask = (captured ? 1.0 : 0.0) * swallowPhase;\n"
-                "        float softShadowMask = clamp(max(eventHorizonMask, (1.0 - smoothstep(rh * 0.58, rh * 1.35, screenR)) * swallowPhase * (1.0 - realAccretionMask * 0.35)), 0.0, 1.0);\n"
-                "        float uiDebrisSuppression = clamp(max(nearFieldUiCutoff, realAccretionMask * 0.86), 0.0, 1.0);\n"
-                "        float uiSuppression = clamp(max(uiDebrisSuppression, photonRingFeather * 0.55) + softShadowMask, 0.0, 1.0) * colorHandoffFade;\n"
-                "        float bgLuma = dot(bg, vec3(0.2126, 0.7152, 0.0722));\n"
-                "        vec3 thermalColor = blackbody(max(L.temp, 1500.0));\n"
-                "        vec3 deUiBg = mix(bg, vec3(bgLuma) * 0.12 + thermalColor * bgLuma * 0.08, tidalUiErase);\n"
-                "        vec3 programmaticAccretion = diskLight * (1.0 + 0.85 * swallowPhase) + thermalColor * (realAccretionMask + photonRingFeather * 0.38) * (0.18 + 0.30 * swallowPhase);\n"
-                "        vec3 uiFreeAccretion = programmaticAccretion + thermalColor * nearFieldUiCutoff * (0.035 + 0.060 * swallowPhase);\n"
-                "        vec3 swallowedColor = mix(deUiBg * trans, uiFreeAccretion, nearFieldUiCutoff);\n"
-                "        col = mix(col, swallowedColor, uiSuppression);\n"
-                "        col += thermalColor * photonRingFeather * 0.08;\n"
-                "        col = mix(col, vec3(0.0), softShadowMask);\n"
+                "        float ringWidth = max(rh * 0.10, 0.0004);\n"
+                "        float lightingPhotonRing = exp(-pow((screenR - rh * 1.10) / ringWidth, 2.0)) * (captured ? 0.0 : 1.0);\n"
+                "        float eventHorizonMask = captured ? 1.0 : 0.0;\n"
+                "        col *= 1.0 - darkFlowBands * realDiskMask * 0.44;\n"
+                "        col += diskLight * middleBrightLayer * bandTransmission * 1.30;\n"
+                "        col += dualToneLight * middleBrightLayer * bandTransmission * 1.45;\n"
+                "        col += dualToneLight * outerLightMist * shield * (1.0 - eventHorizonMask) * 0.20;\n"
+                "        col += vec3(1.00, 0.86, 0.66) * lightingPhotonRing * 1.10;\n"
+                "        col = mix(col, vec3(0.0), eventHorizonMask);\n"
                 "    }\n"
                 "    fragColor = vec4(col, 1.0);");
         }
@@ -1284,8 +1227,7 @@ int main(int argc, char* argv[]) {
     GLint locFixedLvl = gl_GetUniformLocation(program, "uFixedLevel");
     GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
     GLint locInitialSize = gl_GetUniformLocation(program, "uInitialSize");
-    GLint locScreenSwallow = gl_GetUniformLocation(program, "uScreenSwallow");
-    GLint locSwallowStrength = gl_GetUniformLocation(program, "uSwallowStrength");
+    GLint locLightingEffect = gl_GetUniformLocation(program, "uLightingEffect");
     GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
@@ -1402,8 +1344,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform4f(locDate,0,0,0,(float)time(nullptr));
         gl_Uniform1f(loc_uHR,cfg.holeRadius); gl_Uniform1f(loc_uDG,cfg.diskGain);
         gl_Uniform1f(loc_uDT,cfg.diskTemp); gl_Uniform1f(loc_uEX,cfg.exposure);
-        float effectiveShaderSpeed = cfg.lightingEffect ? cfg.spd * 0.30f : cfg.spd;
-        gl_Uniform1f(loc_uSP,effectiveShaderSpeed); gl_Uniform1f(loc_uSG,cfg.starGain);
+        gl_Uniform1f(loc_uSP,cfg.spd); gl_Uniform1f(loc_uSG,cfg.starGain);
         gl_Uniform1f(loc_uDI,cfg.diskIncl);
         gl_Uniform1i(loc_uPM,cfg.playMode); gl_Uniform1f(loc_uSlot,cfg.slotSec);
         gl_Uniform1i(loc_uPC,cfg.presetCount);
@@ -1426,8 +1367,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
-        gl_Uniform1i(locScreenSwallow, cfg.lightingEffect ? 1 : 0);
-        gl_Uniform1f(locSwallowStrength, 0.65f);
+        gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
@@ -1558,11 +1498,9 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float swallowMotionScale = cfg.lightingEffect ? 0.25f : 1.0f;
                     float gravityStrength = cfg.limitMouseOvershoot
                         ? (0.0000025f + 0.0000065f * (1.0f - inertia))
                         : (0.0000045f + 0.0000105f * (1.0f - inertia));
-                    gravityStrength *= swallowMotionScale;
                     float gravitySoftening = cfg.limitMouseOvershoot
                         ? (0.030f + 0.045f * inertia)
                         : (0.024f + 0.035f * inertia);
@@ -1570,11 +1508,10 @@ int main(int argc, char* argv[]) {
                     float settleSpeed = 0.00022f + 0.00018f * inertia;
                     float gravityDeadZone = settleRadius * 1.85f;
                     float maxGravityAccel = 0.00075f + 0.00055f * (1.0f - inertia);
-                    float maxGravitySpeed = (0.0065f + 0.0035f * (1.0f - inertia)) * (cfg.lightingEffect ? 0.35f : 1.0f);
+                    float maxGravitySpeed = 0.0065f + 0.0035f * (1.0f - inertia);
                     float farReturnStrength = cfg.limitMouseOvershoot
                         ? (0.00055f + 0.00035f * (1.0f - inertia))
                         : (0.00080f + 0.00065f * (1.0f - inertia));
-                    farReturnStrength *= swallowMotionScale;
                     float driftKeep = 0.9960f - 0.0050f * (1.0f - inertia);
                     float maxSeparation = 0.26f + 0.30f * inertia;
                     float worldMargin = 0.04f;
@@ -1654,7 +1591,7 @@ int main(int argc, char* argv[]) {
             frameHomeY = cursorHomeY;
 
             if (inertia > 0.0001f) {
-                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f * (cfg.lightingEffect ? 0.35f : 1.0f);
+                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f;
                 float wanderX = cosf(t * 0.42f + phaseOffset) * wanderRadius;
                 float wanderY = sinf(t * 0.33f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
                 frameHomeX += wanderX;
@@ -1710,8 +1647,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(loc_uDG, cfg.diskGain);
         gl_Uniform1f(loc_uDT, cfg.diskTemp);
         gl_Uniform1f(loc_uEX, cfg.exposure);
-        float effectiveShaderSpeed = cfg.lightingEffect ? cfg.spd * 0.30f : cfg.spd;
-        gl_Uniform1f(loc_uSP, effectiveShaderSpeed);
+        gl_Uniform1f(loc_uSP, cfg.spd);
         gl_Uniform1f(loc_uSG, cfg.starGain);
         gl_Uniform1f(loc_uDI, cfg.diskIncl);
         gl_Uniform1i(loc_uPM, cfg.playMode);
@@ -1752,8 +1688,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
-        gl_Uniform1i(locScreenSwallow, cfg.lightingEffect ? 1 : 0);
-        gl_Uniform1f(locSwallowStrength, 0.65f);
+        gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);

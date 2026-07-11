@@ -54,4 +54,19 @@ if ($qtConfig -match 'out\s*<<\s*"(?:screenSwallow|swallowStrength)=') {
     throw "Qt UI still saves legacy swallow keys"
 }
 
+Require-Pattern "shaders\frag_desktop_header.glsl" "uniform\s+int\s+uLightingEffect" "lighting uniform"
+Require-Pattern "src\main.cpp" "diskLocalP" "preset-local disk coordinates"
+Require-Pattern "src\main.cpp" "outerLightMist" "outer light mist"
+Require-Pattern "src\main.cpp" "darkFlowBands" "moving dark bands"
+Require-Pattern "src\main.cpp" "warmGoldLight" "gold lighting"
+Require-Pattern "src\main.cpp" "coldBlueLight" "blue lighting"
+Require-Pattern "src\main.cpp" "lightingPhotonRing" "photon ring lighting"
+
+$mainText = Get-ProjectText "src\main.cpp"
+$desktopHeader = Get-ProjectText "shaders\frag_desktop_header.glsl"
+$legacyShaderPattern = 'uScreenSwallow|uSwallowStrength|continuousSwallow|gravityWellField|uiDebrisSuppression|effectiveShaderSpeed|swallowMotionScale'
+if ($mainText -match $legacyShaderPattern -or $desktopHeader -match $legacyShaderPattern) {
+    throw "Renderer still contains legacy swallow shader or motion logic"
+}
+
 "LIGHTING_EFFECT_OK"
