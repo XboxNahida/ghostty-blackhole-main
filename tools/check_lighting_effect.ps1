@@ -58,9 +58,17 @@ Require-Pattern "shaders\frag_desktop_header.glsl" "uniform\s+int\s+uLightingEff
 Require-Pattern "src\main.cpp" "diskLocalP" "preset-local disk coordinates"
 Require-Pattern "src\main.cpp" "outerLightMist" "outer light mist"
 Require-Pattern "src\main.cpp" "darkFlowBands" "moving dark bands"
+Require-Pattern "src\main.cpp" "nativeGapEntry" "native disk-gap entry"
+Require-Pattern "src\main.cpp" "nativeGapExit" "native disk-gap exit"
+Require-Pattern "src\main.cpp" "outerDiskFade" "outer-to-inner disk gradient"
 Require-Pattern "src\main.cpp" "warmGoldLight" "gold lighting"
 Require-Pattern "src\main.cpp" "coldBlueLight" "blue lighting"
 Require-Pattern "src\main.cpp" "lightingPhotonRing" "photon ring lighting"
+Require-Pattern "src\main.cpp" 'lightingLensScale\s*=\s*cfg\.lightingEffect\s*\?\s*0\.42f' "lighting lens suppression"
+Require-Pattern "src\main.cpp" "subtleDiskLighting" "subtle disk lighting"
+Require-Pattern "src\main.cpp" "clampedBaseScene" "isolated lighting HDR source"
+Require-Pattern "src\main.cpp" 'nativeGapEntry\s*=\s*smoothstep\(0\.036,\s*0\.042' "hairline native gap entry"
+Require-Pattern "src\main.cpp" 'nativeGapExit\s*=\s*1\.0\s*-\s*smoothstep\(0\.046,\s*0\.052' "hairline native gap exit"
 
 $mainText = Get-ProjectText "src\main.cpp"
 $desktopHeader = Get-ProjectText "shaders\frag_desktop_header.glsl"
@@ -68,15 +76,21 @@ $legacyShaderPattern = 'uScreenSwallow|uSwallowStrength|continuousSwallow|gravit
 if ($mainText -match $legacyShaderPattern -or $desktopHeader -match $legacyShaderPattern) {
     throw "Renderer still contains legacy swallow shader or motion logic"
 }
+if ($mainText -match 'outerLightMist\s*=\s*analyticDiskBand' -or $mainText -match 'sin\(bandPhase') {
+    throw "Lighting still uses an analytic glass shell or synthetic circular dark bands"
+}
 
 Require-Pattern "src\bloom_renderer.h" "struct\s+BloomRenderer" "Bloom state"
 Require-Pattern "src\bloom_renderer.h" "Bloom_BeginScene" "Bloom begin interface"
 Require-Pattern "src\bloom_renderer.h" "Bloom_EndScene" "Bloom composite interface"
 Require-Pattern "src\bloom_renderer.cpp" "GL_RGBA16F" "HDR scene texture"
+Require-Pattern "src\bloom_renderer.cpp" 'uv\s*=\s*p\s*\*\s*0\.5' "normalized fullscreen texture coordinates"
 Require-Pattern "src\bloom_renderer.cpp" "blurDirection" "separable Gaussian blur"
 Require-Pattern "src\bloom_renderer.cpp" "bloomTexture" "Bloom composite sampler"
-Require-Pattern "src\bloom_renderer.cpp" 'source\s*-\s*vec3\(1\.05\)' "HDR-only Bloom threshold"
+Require-Pattern "src\bloom_renderer.cpp" 'source\s*-\s*vec3\(1\.02\)' "isolated HDR Bloom threshold"
 Require-Pattern "src\bloom_renderer.cpp" "preservedScene" "scene-preserving Bloom composite"
+Require-Pattern "src\bloom_renderer.cpp" "kBlurPasses\s*=\s*3" "controlled Bloom radius"
+Require-Pattern "src\bloom_renderer.cpp" 'bloom\s*\*\s*0\.38' "controlled Bloom intensity"
 Require-Pattern "src\main.cpp" "Bloom_BeginScene" "main loop Bloom begin"
 Require-Pattern "src\main.cpp" "Bloom_EndScene" "main loop Bloom end"
 

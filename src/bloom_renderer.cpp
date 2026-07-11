@@ -82,7 +82,7 @@ const char* kFullscreenVertex = R"GLSL(#version 330 core
 out vec2 uv;
 void main() {
     vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
-    uv = p;
+    uv = p * 0.5;
     gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
 }
 )GLSL";
@@ -97,7 +97,7 @@ uniform int extractBright;
 void main() {
     float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
     vec3 source = texture(sceneTexture, uv).rgb;
-    if (extractBright > 0) source = max(source - vec3(1.05), vec3(0.0));
+    if (extractBright > 0) source = max(source - vec3(1.02), vec3(0.0));
     vec2 texel = 1.0 / vec2(textureSize(sceneTexture, 0));
     vec3 result = source * weight[0];
     for (int i = 1; i < 5; ++i) {
@@ -119,7 +119,7 @@ void main() {
     vec3 scene = texture(sceneTexture, uv).rgb;
     vec3 bloom = texture(bloomTexture, uv).rgb;
     vec3 preservedScene = clamp(scene, vec3(0.0), vec3(1.0));
-    vec3 hdrGlow = max(scene - vec3(1.0), vec3(0.0)) + bloom * 1.35;
+    vec3 hdrGlow = max(scene - vec3(1.0), vec3(0.0)) + bloom * 0.38;
     vec3 glowResponse = vec3(1.0) - exp(-hdrGlow * 1.05);
     vec3 mapped = preservedScene + (vec3(1.0) - preservedScene) * glowResponse;
     fragColor = vec4(mapped, 1.0);
@@ -321,7 +321,7 @@ void Bloom_EndScene(BloomRenderer* bloom, int width, int height, bool enabled) {
     bloom->gl.UseProgram(bloom->blurProgram);
     bloom->gl.Uniform1i(bloom->blurSceneLoc, 0);
 
-    constexpr int kBlurPasses = 10;
+    constexpr int kBlurPasses = 3;
     for (int pass = 0; pass < kBlurPasses; ++pass) {
         const int target = pass & 1;
         const GLuint source = (pass == 0) ? bloom->sceneTexture : bloom->pingTexture[1 - target];

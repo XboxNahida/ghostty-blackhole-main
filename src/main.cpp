@@ -439,27 +439,28 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
                 "        float diskOuterScreen = rout * rh / B_CRIT;\n"
                 "        float diskWidth = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
                 "        float diskUnit = clamp((projectedLightRadius - diskInnerScreen) / diskWidth, 0.0, 1.0);\n"
-                "        float diskBandDistance = max(diskInnerScreen - projectedLightRadius, max(projectedLightRadius - diskOuterScreen, 0.0));\n"
-                "        float analyticDiskBand = exp(-pow(diskBandDistance / max(diskWidth * 0.72, 0.003), 2.0));\n"
-                "        float outerLightMist = analyticDiskBand * (0.30 + 0.70 * (1.0 - realDiskMask));\n"
-                "        float diskAngle = atan(projectedLightP.y, projectedLightP.x);\n"
-                "        float bandPhase = diskUnit * 42.0 + diskAngle * 2.3 - iTime * 0.55;\n"
-                "        float darkFlowBands = smoothstep(0.54, 0.86, 0.5 + 0.5 * sin(bandPhase + 0.35 * sin(bandPhase * 0.37)));\n"
-                "        float bandTransmission = 1.0 - darkFlowBands * realDiskMask * 0.68;\n"
+                "        float outerLightMist = smoothstep(0.006, 0.028, diskEnergy) * (1.0 - smoothstep(0.10, 0.24, diskEnergy));\n"
+                "        float nativeGapEntry = smoothstep(0.036, 0.042, diskEnergy);\n"
+                "        float nativeGapExit = 1.0 - smoothstep(0.046, 0.052, diskEnergy);\n"
+                "        float darkFlowBands = nativeGapEntry * nativeGapExit;\n"
+                "        float bandTransmission = 1.0 - darkFlowBands * 0.88;\n"
                 "        float diskSide = smoothstep(-0.30, 0.30, projectedLightP.x / projectedLightRadius);\n"
                 "        vec3 warmGoldLight = vec3(1.00, 0.40, 0.08) * (1.0 - diskSide);\n"
                 "        vec3 coldBlueLight = vec3(0.10, 0.54, 1.00) * diskSide;\n"
                 "        vec3 dualToneLight = warmGoldLight + coldBlueLight;\n"
-                "        float middleBrightLayer = realDiskMask * (0.82 + 0.55 * (1.0 - diskUnit));\n"
+                "        float outerDiskFade = smoothstep(0.15, 1.0, diskUnit);\n"
+                "        float nativeDiskDetail = smoothstep(0.018, 0.32, diskEnergy);\n"
+                "        float middleBrightLayer = realDiskMask * nativeDiskDetail * (0.32 + 0.82 * (1.0 - outerDiskFade));\n"
                 "        float screenR = length(p);\n"
                 "        float ringWidth = max(rh * 0.10, 0.0004);\n"
                 "        float lightingPhotonRing = exp(-pow((screenR - rh * 1.10) / ringWidth, 2.0)) * (captured ? 0.0 : 1.0);\n"
                 "        float eventHorizonMask = captured ? 1.0 : 0.0;\n"
-                "        col *= 1.0 - darkFlowBands * realDiskMask * 0.44;\n"
-                "        col += diskLight * middleBrightLayer * bandTransmission * 1.30;\n"
-                "        col += dualToneLight * middleBrightLayer * bandTransmission * 1.45;\n"
-                "        col += dualToneLight * outerLightMist * shield * (1.0 - eventHorizonMask) * 0.20;\n"
-                "        col += vec3(1.00, 0.86, 0.66) * lightingPhotonRing * 1.10;\n"
+                "        float subtleDiskLighting = middleBrightLayer * bandTransmission;\n"
+                "        vec3 clampedBaseScene = clamp(col * (1.0 - darkFlowBands * 0.32), vec3(0.0), vec3(1.0));\n"
+                "        vec3 lightingHdr = dualToneLight * subtleDiskLighting * 0.18;\n"
+                "        lightingHdr += dualToneLight * outerLightMist * shield * (1.0 - eventHorizonMask) * 0.035;\n"
+                "        lightingHdr += vec3(1.00, 0.86, 0.66) * lightingPhotonRing * 0.12;\n"
+                "        col = clampedBaseScene + lightingHdr;\n"
                 "        col = mix(col, vec3(0.0), eventHorizonMask);\n"
                 "    }\n"
                 "    fragColor = vec4(col, 1.0);");
@@ -1371,7 +1372,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
         gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
-        gl_Uniform1f(locDistortion, cfg.distortion);
+        float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
+        gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
         gl_Uniform1f(locHomeY, homeY);
@@ -1694,7 +1696,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
         gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
-        gl_Uniform1f(locDistortion, cfg.distortion);
+        float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
+        gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);
         gl_Uniform1f(locHomeY, frameHomeY);
