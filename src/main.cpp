@@ -22,6 +22,7 @@
 #include "capture_wgc.h"
 #include "capture_dxgi.h"
 #include "gl_texture.h"
+#include "bloom_renderer.h"
 #include "gui_config.h"
 #include "win32_gl.h"
 #include "monitors.h"
@@ -1194,6 +1195,8 @@ int main(int argc, char* argv[]) {
     gl_EnableVertexAttribArray(0);
     gl_BindVertexArray(0);
 
+    BloomRenderer* bloom = Bloom_Create(wgl.width, wgl.height, debugLog);
+
     GLint locRes   = gl_GetUniformLocation(program, "iResolution");
     GLint locTime  = gl_GetUniformLocation(program, "iTime");
     GLint locDate  = gl_GetUniformLocation(program, "iDate");
@@ -1335,7 +1338,7 @@ int main(int argc, char* argv[]) {
     // 先渲染一帧保证窗口有内容（用预热阶段已经上传过的纹理，不再重新取帧）
     {
         int fbW=wgl.width, fbH=wgl.height;
-        glViewport(0,0,fbW,fbH); glClearColor(0,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
+        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
         gl_UseProgram(program);
         gl_ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, GLTex_GetTexture(glTex));
         gl_Uniform1i(locCh0,0);
@@ -1376,7 +1379,9 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
         gl_BindVertexArray(vao); gl_DrawArrays(GL_TRIANGLE_STRIP,0,4); gl_BindVertexArray(0);
-        gl_UseProgram(0); Win32GL_SwapBuffers(wgl);
+        gl_UseProgram(0);
+        Bloom_EndScene(bloom, fbW, fbH, bloomActive);
+        Win32GL_SwapBuffers(wgl);
     }
 
     // 启用分层模式（鼠标穿透）
@@ -1633,7 +1638,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        glClearColor(0,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
+        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
         gl_UseProgram(program);
 
         gl_ActiveTexture(GL_TEXTURE0);
@@ -1702,6 +1707,8 @@ int main(int argc, char* argv[]) {
         gl_BindVertexArray(0);
         gl_UseProgram(0);
 
+        Bloom_EndScene(bloom, fbW, fbH, bloomActive);
+
         Win32GL_SwapBuffers(wgl);
 
         frames++;
@@ -1712,6 +1719,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    Bloom_Destroy(bloom);
     GLTex_Shutdown(glTex);
     if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
     else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }

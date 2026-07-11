@@ -69,4 +69,15 @@ if ($mainText -match $legacyShaderPattern -or $desktopHeader -match $legacyShade
     throw "Renderer still contains legacy swallow shader or motion logic"
 }
 
+Require-Pattern "src\bloom_renderer.h" "struct\s+BloomRenderer" "Bloom state"
+Require-Pattern "src\bloom_renderer.h" "Bloom_BeginScene" "Bloom begin interface"
+Require-Pattern "src\bloom_renderer.h" "Bloom_EndScene" "Bloom composite interface"
+Require-Pattern "src\bloom_renderer.cpp" "GL_RGBA16F" "HDR scene texture"
+Require-Pattern "src\bloom_renderer.cpp" "blurDirection" "separable Gaussian blur"
+Require-Pattern "src\bloom_renderer.cpp" "bloomTexture" "Bloom composite sampler"
+Require-Pattern "src\bloom_renderer.cpp" 'source\s*-\s*vec3\(1\.05\)' "HDR-only Bloom threshold"
+Require-Pattern "src\bloom_renderer.cpp" "preservedScene" "scene-preserving Bloom composite"
+Require-Pattern "src\main.cpp" "Bloom_BeginScene" "main loop Bloom begin"
+Require-Pattern "src\main.cpp" "Bloom_EndScene" "main loop Bloom end"
+
 "LIGHTING_EFFECT_OK"

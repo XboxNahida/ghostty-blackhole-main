@@ -24,6 +24,7 @@ add_executable(blackhole
     src/imgui/imgui_impl_glfw.cpp
     src/imgui/imgui_impl_opengl3.cpp
     src/gl_texture.cpp
+    src/bloom_renderer.cpp
     src/win32_gl.cpp
     src/monitors.cpp
     src/win32_window.cpp
