@@ -1,5 +1,6 @@
 // blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
+#include "autostart_registry.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -7,7 +8,6 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QStandardPaths>
-#include <QSettings>
 #include <QDebug>
 
 #ifdef Q_OS_WIN
@@ -451,6 +451,10 @@ void BlackHoleCore::loadConfig()
 
     setCurrentPresetIndex(0);
     refreshCurrentPresetProps();
+#ifdef Q_OS_WIN
+    std::wstring registeredCommand;
+    m_autoStart = AutoStart_Query(registeredCommand);
+#endif
     emit displayModeChanged();
     emit idleSecondsChanged();
     emit playModeChanged();
@@ -519,18 +523,16 @@ void BlackHoleCore::saveConfig()
 
     file.close();
 
-    // 开机自启 (Windows 注册表)
-    if (m_autoStart) {
-        QSettings reg("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                      QSettings::NativeFormat);
-        QString appPath = QCoreApplication::applicationFilePath();
-        appPath.replace('/', '\\');
-        reg.setValue("BlakholeUI", appPath);
-    } else {
-        QSettings reg("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                      QSettings::NativeFormat);
-        reg.remove("BlakholeUI");
+    // 开机自启与配置文件使用同一状态；写入后由共享模块回读验证。
+#ifdef Q_OS_WIN
+    const AutoStartResult autoStartResult = AutoStart_Set(
+        m_autoStart,
+        QDir::toNativeSeparators(QCoreApplication::applicationFilePath()).toStdWString());
+    if (!autoStartResult.success) {
+        m_autoStartStatus = tr("开机自启动更新失败，错误码 %1").arg(autoStartResult.errorCode);
+        emit autoStartStatusChanged();
     }
+#endif
 
     // also save all other configs
     saveAdvancedConfig();
@@ -802,7 +804,25 @@ bool BlackHoleCore::videoAsIdle() const       { return m_videoAsIdle; }
 void BlackHoleCore::setVideoAsIdle(bool v)    { if (m_videoAsIdle != v) { m_videoAsIdle = v; emit videoAsIdleChanged(); } }
 
 bool BlackHoleCore::autoStart() const         { return m_autoStart; }
-void BlackHoleCore::setAutoStart(bool v)      { if (m_autoStart != v) { m_autoStart = v; emit autoStartChanged(); } }
+void BlackHoleCore::setAutoStart(bool v)
+{
+    if (m_autoStart == v) return;
+#ifdef Q_OS_WIN
+    const AutoStartResult result = AutoStart_Set(
+        v, QDir::toNativeSeparators(QCoreApplication::applicationFilePath()).toStdWString());
+    if (!result.success) {
+        m_autoStartStatus = tr("开机自启动更新失败，错误码 %1").arg(result.errorCode);
+        emit autoStartStatusChanged();
+        emit autoStartChanged();
+        return;
+    }
+#endif
+    m_autoStart = v;
+    m_autoStartStatus = v ? tr("开机自启动已开启") : tr("开机自启动已关闭");
+    emit autoStartChanged();
+    emit autoStartStatusChanged();
+}
+QString BlackHoleCore::autoStartStatus() const { return m_autoStartStatus; }
 
 bool BlackHoleCore::launchMinimized() const          { return m_launchMinimized; }
 void BlackHoleCore::setLaunchMinimized(bool v)     { if (m_launchMinimized == v) return; m_launchMinimized = v; emit launchMinimizedChanged(); }

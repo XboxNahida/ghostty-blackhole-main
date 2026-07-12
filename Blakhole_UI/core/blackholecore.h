@@ -89,6 +89,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(float slotSeconds READ slotSeconds WRITE setSlotSeconds NOTIFY slotSecondsChanged)
     Q_PROPERTY(bool videoAsIdle READ videoAsIdle WRITE setVideoAsIdle NOTIFY videoAsIdleChanged)
     Q_PROPERTY(bool autoStart READ autoStart WRITE setAutoStart NOTIFY autoStartChanged)
+    Q_PROPERTY(QString autoStartStatus READ autoStartStatus NOTIFY autoStartStatusChanged)
     Q_PROPERTY(bool launchMinimized READ launchMinimized WRITE setLaunchMinimized NOTIFY launchMinimizedChanged)
     // 多显示器
     Q_PROPERTY(int screenTarget READ screenTarget WRITE setScreenTarget NOTIFY screenTargetChanged)
@@ -192,6 +193,7 @@ public:
     void setVideoAsIdle(bool v);
     bool autoStart() const;
     void setAutoStart(bool v);
+    QString autoStartStatus() const;
     bool launchMinimized() const;
     void setLaunchMinimized(bool v);
     int screenTarget() const;
@@ -337,6 +339,7 @@ signals:
     void slotSecondsChanged();
     void videoAsIdleChanged();
     void autoStartChanged();
+    void autoStartStatusChanged();
     void launchMinimizedChanged();
 
     void screenTargetChanged();
@@ -434,6 +437,7 @@ private:
     float   m_slotSeconds  = 5.25f;
     bool    m_videoAsIdle  = false;
     bool    m_autoStart    = false;
+    QString m_autoStartStatus;
     bool    m_launchMinimized  = false;
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞

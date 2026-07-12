@@ -13,6 +13,7 @@ set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
 
 qt_add_executable(appBlakholeUI
     main.cpp
+    ../src/autostart_registry.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h
@@ -21,6 +22,8 @@ qt_add_executable(appBlakholeUI
     core/blackholepreviewfbo.cpp
     app.rc
 )
+
+target_include_directories(appBlakholeUI PRIVATE ../src)
 
 file(GLOB QML_COMPONENTS CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "components/*.qml")
 file(GLOB QML_PAGES CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "pages/*.qml")

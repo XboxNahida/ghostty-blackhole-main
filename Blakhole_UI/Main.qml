@@ -522,7 +522,7 @@ ApplicationWindow {
 
                 Rectangle {
                     width: parent.width
-                    height: 50
+                    height: 68
                     radius: 12
                     color: theme.secondaryColor
 
@@ -538,17 +538,29 @@ ApplicationWindow {
                             color: theme.textColor
                         }
 
-                        Text {
-                            text: "\u5f00\u673a\u81ea\u52a8\u542f\u52a8"
-                            font.pixelSize: 15
-                            color: theme.textColor
+                        ColumnLayout {
                             Layout.fillWidth: true
+
+                            Text {
+                                text: "\u5f00\u673a\u81ea\u52a8\u542f\u52a8"
+                                font.pixelSize: 15
+                                color: theme.textColor
+                            }
+
+                            Text {
+                                text: blackHoleCore ? blackHoleCore.autoStartStatus : ""
+                                visible: text.length > 0
+                                font.pixelSize: 11
+                                color: text.indexOf("\u5931\u8d25") >= 0
+                                       ? "#ff6b6b"
+                                       : Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                            }
                         }
 
                         CheckBox {
                             id: autoStartCheck
                             checked: root.autoStart
-                            onToggled: { root.autoStart = checked; if (blackHoleCore) blackHoleCore.autoStart = checked }
+                            onToggled: { if (blackHoleCore) blackHoleCore.autoStart = checked }
 
                             indicator: Rectangle {
                                 implicitWidth: 20
