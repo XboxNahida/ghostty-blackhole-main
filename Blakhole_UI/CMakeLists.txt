@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL)
 
+include(CTest)
+
 qt_standard_project_setup(REQUIRES 6.8)
 
 # Fix windres popen issue on Windows (MinGW)
@@ -17,6 +19,7 @@ qt_add_executable(appBlakholeUI
     ../src/foreground_window.cpp
     ../src/game_detection.cpp
     ../src/media_session.cpp
+    core/application_catalog.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h
@@ -54,8 +57,18 @@ set_target_properties(appBlakholeUI PROPERTIES
 )
 
 target_link_libraries(appBlakholeUI
-    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL advapi32 dwmapi ole32 runtimeobject
+    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL advapi32 dwmapi ole32 runtimeobject version
 )
+
+if(BUILD_TESTING)
+    add_executable(application_catalog_tests EXCLUDE_FROM_ALL
+        ../tests/application_catalog_tests.cpp
+        core/application_catalog.cpp
+    )
+    target_include_directories(application_catalog_tests PRIVATE core)
+    target_link_libraries(application_catalog_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets version)
+    add_test(NAME application_catalog_tests COMMAND application_catalog_tests)
+endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)
 # 缺这些会启动报错 "找不到 libgcc_s_seh-1.dll" / "找不到 libfreetype-6.dll" / "找不到 Qt6Core.dll"
