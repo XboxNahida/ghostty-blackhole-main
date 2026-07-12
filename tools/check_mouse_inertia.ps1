@@ -26,6 +26,8 @@ Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'mouseInertia' 'QML local
 Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'bhCore\.mouseInertia' 'QML core binding'
 Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'limitMouseOvershoot' 'QML overshoot limit property'
 Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'bhCore\.limitMouseOvershoot' 'QML overshoot limit binding'
+Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'bhCore\.spawnPosition' 'QML spawn position binding'
+Require-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'bhCore\.movementSpeed' 'QML movement speed binding'
 Require-Pattern 'src\gui_config.h' 'mouseInertia' 'renderer config field'
 Require-Pattern 'src\gui_config.h' 'limitMouseOvershoot' 'renderer overshoot limit field'
 Require-Pattern 'src\gui_config.cpp' 'mouseInertia=' 'renderer config save/read key'

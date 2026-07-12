@@ -25,6 +25,7 @@ qt_add_executable(appBlakholeUI
     ../src/foreground_window.cpp
     ../src/game_detection.cpp
     ../src/media_session.cpp
+    ../src/movement_settings.cpp
     core/application_catalog.cpp
     core/avatar_storage.cpp
     core/update_release.cpp

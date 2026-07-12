@@ -135,7 +135,8 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool followMouse READ followMouse WRITE setFollowMouse NOTIFY followMouseChanged)
     Q_PROPERTY(float mouseInertia READ mouseInertia WRITE setMouseInertia NOTIFY mouseInertiaChanged)
     Q_PROPERTY(bool limitMouseOvershoot READ limitMouseOvershoot WRITE setLimitMouseOvershoot NOTIFY limitMouseOvershootChanged)
-    Q_PROPERTY(bool randomPath READ randomPath WRITE setRandomPath NOTIFY randomPathChanged)
+    Q_PROPERTY(int spawnPosition READ spawnPosition WRITE setSpawnPosition NOTIFY spawnPositionChanged)
+    Q_PROPERTY(float movementSpeed READ movementSpeed WRITE setMovementSpeed NOTIFY movementSpeedChanged)
     Q_PROPERTY(int animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
     Q_PROPERTY(bool lightingEffect READ lightingEffect WRITE setLightingEffect NOTIFY lightingEffectChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
@@ -248,8 +249,10 @@ public:
     void setMouseInertia(float v);
     bool limitMouseOvershoot() const;
     void setLimitMouseOvershoot(bool v);
-    bool randomPath() const;
-    void setRandomPath(bool v);
+    int spawnPosition() const;
+    void setSpawnPosition(int v);
+    float movementSpeed() const;
+    void setMovementSpeed(float v);
     int animationSpeed() const;
     void setAnimationSpeed(int v);
     bool lightingEffect() const;
@@ -377,7 +380,8 @@ signals:
     void followMouseChanged();
     void mouseInertiaChanged();
     void limitMouseOvershootChanged();
-    void randomPathChanged();
+    void spawnPositionChanged();
+    void movementSpeedChanged();
     void animationSpeedChanged();
     void lightingEffectChanged();
     void distortionChanged();
@@ -489,7 +493,8 @@ private:
     bool    m_followMouse    = false;
     float   m_mouseInertia   = 0.30f;
     bool    m_limitMouseOvershoot = true;
-    bool    m_randomPath     = true;
+    int     m_spawnPosition  = 0;
+    float   m_movementSpeed  = 1.0f;
     int     m_animationSpeed = 1;
     bool    m_lightingEffect = false;
     float   m_distortion     = 1.0f;
