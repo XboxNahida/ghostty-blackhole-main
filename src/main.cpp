@@ -15,6 +15,7 @@
 #include <vector>
 #include <cstring>
 #include <algorithm>
+#include <utility>
 #include <windows.h>
 #include <d3d11.h>
 #include <dwmapi.h>
@@ -231,8 +232,28 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     const std::string realMovementTime = "float t = iTime * DRIFT_SPEED;";
     size_t movementTimePos = body.find(realMovementTime);
     if (movementTimePos != std::string::npos) {
-        body.replace(movementTimePos, realMovementTime.length(),
-                     "float t = uMovementTime * DRIFT_SPEED;");
+        body.insert(movementTimePos + realMovementTime.length(),
+                    "\n    float moveT = uMovementTime * DRIFT_SPEED;");
+    }
+
+    const std::pair<const char*, const char*> movementTimeExpressions[] = {
+        {"sin(t * 0.21)", "sin(moveT * 0.21)"},
+        {"sin(t * 0.083)", "sin(moveT * 0.083)"},
+        {"sin(t * 0.157 + 2.0)", "sin(moveT * 0.157 + 2.0)"},
+        {"sin(t * 0.117)", "sin(moveT * 0.117)"},
+        {"sin(t * 0.83)", "sin(moveT * 0.83)"},
+        {"sin(t * 1.31)", "sin(moveT * 1.31)"},
+        {"sin(t * 1.03 + 1.0)", "sin(moveT * 1.03 + 1.0)"},
+        {"lissa(t * TOKEN_CALM)", "lissa(moveT * TOKEN_CALM)"},
+        {"lissa(t * TOKEN_RUSH)", "lissa(moveT * TOKEN_RUSH)"},
+        {"cos(t * 0.8)", "cos(moveT * 0.8)"},
+        {"sin(t * 1.0)", "sin(moveT * 1.0)"}
+    };
+    for (const auto& expression : movementTimeExpressions) {
+        size_t pos = body.find(expression.first);
+        if (pos != std::string::npos) {
+            body.replace(pos, strlen(expression.first), expression.second);
+        }
     }
 
     // 检查是否还有 BOM
@@ -427,14 +448,14 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     // ---- Randomize trajectory: add uRandPhase to lissa calls ----
     {
         size_t p;
-        while ((p = body.find("lissa(t * TOKEN_CALM)")) != std::string::npos)
-            body.replace(p, 21, "lissa(t * TOKEN_CALM + uRandPhase)");
-        while ((p = body.find("lissa(t * TOKEN_RUSH)")) != std::string::npos)
-            body.replace(p, 21, "lissa(t * TOKEN_RUSH + uRandPhase)");
-        while ((p = body.find("cos(t * 0.8)")) != std::string::npos)
-            body.replace(p, 12, "cos((t + uRandPhase) * 0.8)");
-        while ((p = body.find("sin(t * 1.0)")) != std::string::npos)
-            body.replace(p, 12, "sin((t + uRandPhase) * 1.0)");
+        while ((p = body.find("lissa(moveT * TOKEN_CALM)")) != std::string::npos)
+            body.replace(p, 25, "lissa(moveT * TOKEN_CALM + uRandPhase)");
+        while ((p = body.find("lissa(moveT * TOKEN_RUSH)")) != std::string::npos)
+            body.replace(p, 25, "lissa(moveT * TOKEN_RUSH + uRandPhase)");
+        while ((p = body.find("cos(moveT * 0.8)")) != std::string::npos)
+            body.replace(p, 16, "cos((moveT + uRandPhase) * 0.8)");
+        while ((p = body.find("sin(moveT * 1.0)")) != std::string::npos)
+            body.replace(p, 16, "sin((moveT + uRandPhase) * 1.0)");
     }
 
     // ---- Runtime visual controls ----

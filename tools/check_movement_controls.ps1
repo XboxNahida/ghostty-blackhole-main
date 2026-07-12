@@ -42,6 +42,8 @@ Require-Pattern 'src\gui_config.cpp' 'movementSpeed=' 'renderer movement speed c
 Require-Pattern 'src\gui_config.cpp' 'ClampMovementSpeed' 'renderer movement speed clamp'
 Require-Pattern 'src\main.cpp' 'ResolveMovementSpawn' 'spawn resolver use'
 Require-Pattern 'src\main.cpp' 'uMovementTime' 'movement time uniform'
+Require-Pattern 'src\main.cpp' 'float moveT = uMovementTime \* DRIFT_SPEED;' 'separate movement time variable'
+Reject-Pattern 'src\main.cpp' 'body\.replace\(movementTimePos, realMovementTime\.length\(\),\s*"float t = uMovementTime' 'global shader time replacement'
 
 Reject-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' '\u8def\u5f84\u968f\u673a\u5316' 'legacy random path label'
 Reject-Pattern 'Blakhole_UI\pages\AdvancedConfig.qml' 'label:\s*"\u52a8\u753b\u901f\u5ea6"' 'legacy animation speed slider'
