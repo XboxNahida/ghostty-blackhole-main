@@ -189,6 +189,12 @@ foreach ($dir in @(
 Write-Host "[5/9] Copying shaders, icons, default configs, and release documents..."
 Copy-DirectoryIfExists -Source (Join-Path $ProjectRoot "shaders") -Destination (Join-Path $ReleaseDir "shaders")
 
+$previewShaderSource = Join-Path $UiBuildDir "blackhole_preview.glsl"
+if (-not (Test-Path -LiteralPath $previewShaderSource -PathType Leaf)) {
+    throw "Missing Qt preview shader: $previewShaderSource"
+}
+Copy-Item -LiteralPath $previewShaderSource -Destination (Join-Path $ReleaseDir "blackhole_preview.glsl") -Force
+
 foreach ($file in @(
     "blackhole.glsl",
     "blackhole_preview.glsl",
@@ -234,6 +240,7 @@ $requiredFiles = @(
     "appBlakholeUI.exe",
     "blackhole.exe",
     "blackhole.glsl",
+    "blackhole_preview.glsl",
     "blackhole_presets.txt",
     "blackhole_advanced.txt",
     "LICENSE",

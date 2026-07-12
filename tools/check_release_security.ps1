@@ -70,6 +70,11 @@ if (-not (Test-Path -LiteralPath $ReleaseDir -PathType Container)) {
     throw "RELEASE_SECURITY_CHECK_FAILED: release directory not found: $ReleaseDir"
 }
 
+$previewShader = Join-Path $ReleaseDir "blackhole_preview.glsl"
+if (-not (Test-Path -LiteralPath $previewShader -PathType Leaf)) {
+    Add-Failure "missing blackhole_preview.glsl required by the Qt preview"
+}
+
 $objdump = Resolve-Objdump
 $executables = @(
     @{ Name = "blackhole.exe"; ProductName = "Blakhole Renderer"; OriginalFilename = "blackhole.exe" },
