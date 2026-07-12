@@ -5,7 +5,7 @@ project(BlakholeUI VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network)
 
 include(CTest)
 
@@ -28,6 +28,7 @@ qt_add_executable(appBlakholeUI
     core/application_catalog.cpp
     core/avatar_storage.cpp
     core/update_release.cpp
+    core/update_checker.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h
@@ -66,7 +67,7 @@ set_target_properties(appBlakholeUI PROPERTIES
 )
 
 target_link_libraries(appBlakholeUI
-    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL advapi32 dwmapi ole32 runtimeobject version
+    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL Qt6::Network advapi32 dwmapi ole32 runtimeobject version
 )
 
 if(BUILD_TESTING)
@@ -93,6 +94,15 @@ if(BUILD_TESTING)
     target_include_directories(update_release_tests PRIVATE core)
     target_link_libraries(update_release_tests PRIVATE Qt6::Core)
     add_test(NAME update_release_tests COMMAND update_release_tests)
+
+    add_executable(update_checker_state_tests EXCLUDE_FROM_ALL
+        ../tests/update_checker_state_tests.cpp
+        core/update_checker.cpp
+        core/update_release.cpp
+    )
+    target_include_directories(update_checker_state_tests PRIVATE core)
+    target_link_libraries(update_checker_state_tests PRIVATE Qt6::Core Qt6::Network Qt6::Gui)
+    add_test(NAME update_checker_state_tests COMMAND update_checker_state_tests)
 endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)

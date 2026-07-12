@@ -9,6 +9,7 @@
 #include "core/systemtray.h"
 #include "core/blackholecore.h"
 #include "core/blackholepreviewfbo.h"
+#include "core/update_checker.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -40,7 +41,9 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     BlackHoleCore blackHoleCore;
+    UpdateChecker updateChecker(QStringLiteral(APP_VERSION_STRING));
     engine.rootContext()->setContextProperty("blackHoleCore", &blackHoleCore);
+    engine.rootContext()->setContextProperty("updateChecker", &updateChecker);
     blackHoleCore.loadConfig();
 
     // MSYS2 的 Qt6 编译时硬编码 QML 导入路径为 <exe_dir>/share/qt6/qml/,
