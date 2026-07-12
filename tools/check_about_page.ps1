@@ -47,6 +47,7 @@ Require-Match $page 'onClicked\s*:\s*root\.backRequested\(\)' "back button must 
 Require-Match $page 'customAvatarUrl' "AboutPage must display the persisted avatar"
 Require-Match $page 'chooseCustomAvatar\s*\(\s*\)' "AboutPage avatar must open the custom avatar picker"
 Require-Match $page 'paymentQrAvailable' "payment section must be conditional"
+Require-Match $page 'text\s*:\s*"\u8bf7\u4f5c\u8005\u559d\u5496\u5561"' "payment section must use the approved coffee title"
 Require-Match $page 'RowLayout\s*\{[\s\S]*paymentQrPrimaryUrl[\s\S]*paymentQrSecondaryUrl' "payment QR codes must share one row"
 Require-Match $page 'Layout\.preferredWidth\s*:\s*1[\s\S]*paymentQrPrimaryUrl[\s\S]*Layout\.preferredWidth\s*:\s*1[\s\S]*paymentQrSecondaryUrl' "payment QR codes must use equal preferred widths"
 Require-Match $page 'github\.com/XboxNahida/ghostty-blackhole-main' "GitHub URL is missing"

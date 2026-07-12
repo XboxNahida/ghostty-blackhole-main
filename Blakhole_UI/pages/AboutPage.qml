@@ -144,8 +144,8 @@ Item {
             Text {
                 Layout.fillWidth: true
                 visible: root.bhCore && root.bhCore.paymentQrAvailable
-                text: "支持项目"
-                font.pixelSize: 20
+                text: "请作者喝咖啡"
+                font.pixelSize: 18
                 font.bold: true
                 color: root.theme.textColor
             }
