@@ -71,6 +71,13 @@ target_link_libraries(appBlakholeUI
 )
 
 if(BUILD_TESTING)
+    add_executable(movement_settings_tests EXCLUDE_FROM_ALL
+        ../tests/movement_settings_tests.cpp
+        ../src/movement_settings.cpp
+    )
+    target_include_directories(movement_settings_tests PRIVATE ../src)
+    add_test(NAME movement_settings_tests COMMAND movement_settings_tests)
+
     add_executable(application_catalog_tests EXCLUDE_FROM_ALL
         ../tests/application_catalog_tests.cpp
         core/application_catalog.cpp
