@@ -13,7 +13,10 @@ $required = @(
     @{ Name = "allowRecordingCapture config"; Text = "allowRecordingCapture" },
     @{ Name = "recordingCaptureRuntimeAllowed"; Text = "recordingCaptureRuntimeAllowed" },
     @{ Name = "recordingCaptureFrozen"; Text = "recordingCaptureFrozen" },
-    @{ Name = "ToggleRecordingCaptureHotkeyPressed"; Text = "ToggleRecordingCaptureHotkeyPressed" },
+    @{ Name = "RegisterHotKey"; Text = "RegisterHotKey" },
+    @{ Name = "WM_HOTKEY"; Text = "WM_HOTKEY" },
+    @{ Name = "Win32GL_TakeRecordingHotkey"; Text = "Win32GL_TakeRecordingHotkey" },
+    @{ Name = "UnregisterHotKey"; Text = "UnregisterHotKey" },
     @{ Name = "Win32GL_SetCaptureExcluded"; Text = "Win32GL_SetCaptureExcluded" },
     @{ Name = "WDA_NONE restore"; Text = "WDA_NONE" }
 )
@@ -37,8 +40,12 @@ if (-not $main.Contains("bool captureUpdateDue = !recordingCaptureFrozen") -or -
     throw "RECORDING_CAPTURE_CHECK_FAILED: one-shot freeze cadence is missing"
 }
 
-if (-not $main.Contains("VK_R") -or -not $main.Contains("Ctrl+Alt+R")) {
+if (-not $main.Contains("'R'") -or -not $main.Contains("Ctrl+Alt+R")) {
     throw "RECORDING_CAPTURE_CHECK_FAILED: runtime recording capture hotkey is missing"
+}
+
+if ($main.Contains("GetAsyncKeyState") -or $main.Contains("ToggleRecordingCaptureHotkeyPressed")) {
+    throw "RECORDING_CAPTURE_CHECK_FAILED: runtime hotkey must use WM_HOTKEY instead of keyboard polling"
 }
 
 if (-not $qtCoreH.Contains("Q_PROPERTY(bool allowRecordingCapture") -or -not $qtQml.Contains("bhCore.allowRecordingCapture")) {

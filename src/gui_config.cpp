@@ -7,23 +7,6 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-#include <windows.h>
-
-static void SetAutoStart(bool enable) {
-    HKEY hKey;
-    const char* keyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    char exePath[MAX_PATH];
-    GetModuleFileNameA(NULL, exePath, MAX_PATH);
-    
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, keyPath, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
-        if (enable) {
-            RegSetValueExA(hKey, "BlackholeScreensaver", 0, REG_SZ, (const BYTE*)exePath, strlen(exePath) + 1);
-        } else {
-            RegDeleteValueA(hKey, "BlackholeScreensaver");
-        }
-        RegCloseKey(hKey);
-    }
-}
 
 static const DiskPreset DEFAULT_PRESETS[16] = {
     // 原始8个
@@ -65,9 +48,6 @@ static bool       g_hasClipboard = false;
 
 // ---- Save/Load presets to local file ----
 void SavePresetsToFile(const BlackholeConfig& cfg, const char names[64][64]) {
-    // 更新注册表开机自启设置
-    SetAutoStart(cfg.autoStart);
-
     FILE* f = fopen("blackhole_presets.txt", "w");
     if (!f) return;
     fprintf(f, "# Blackhole Presets v4\n");
@@ -202,8 +182,6 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
             if (cfg.idleSec > 1800) cfg.idleSec = 1800;
             ImGui::Checkbox("播放视频视为空闲", &cfg.videoAsIdle);
         }
-
-        ImGui::Checkbox("开机自启", &cfg.autoStart);
 
         ImGui::Checkbox("固定大小", &cfg.fixedSize);
         if (cfg.fixedSize) {
@@ -404,8 +382,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "mouseInertia=%.3f\n", cfg.mouseInertia);
     fprintf(f, "limitMouseOvershoot=%d\n", cfg.limitMouseOvershoot ? 1 : 0);
     fprintf(f, "randomPath=%d\n",   cfg.randomPath ? 1 : 0);
-    fprintf(f, "screenSwallow=%d\n", cfg.screenSwallow ? 1 : 0);
-    fprintf(f, "swallowStrength=%.3f\n", cfg.swallowStrength);
+    fprintf(f, "lightingEffect=%d\n", cfg.lightingEffect ? 1 : 0);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
     fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
@@ -417,6 +394,7 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
     FILE* f = fopen("blackhole_advanced.txt", "r");
     if (!f) return;  // file not found, keep defaults (-1.0)
     char line[256];
+    bool hasLightingEffect = false;
     while (fgets(line, sizeof(line), f)) {
         // skip comments and empty lines
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
@@ -440,12 +418,9 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
             }
             else if (strcmp(key, "limitMouseOvershoot") == 0) cfg.limitMouseOvershoot = (val != 0.0f);
             else if (strcmp(key, "randomPath") == 0) cfg.randomPath = (val != 0.0f);
-            else if (strcmp(key, "screenSwallow") == 0) cfg.screenSwallow = (val != 0.0f);
-            else if (strcmp(key, "swallowStrength") == 0) {
-                if (val < 0.0f) val = 0.0f;
-                if (val > 1.0f) val = 1.0f;
-                cfg.swallowStrength = val;
-            }
+            else if (strcmp(key, "lightingEffect") == 0) { cfg.lightingEffect = (val != 0.0f); hasLightingEffect = true; }
+            else if (strcmp(key, "screenSwallow") == 0 && !hasLightingEffect) cfg.lightingEffect = (val != 0.0f);
+            else if (strcmp(key, "swallowStrength") == 0) { /* 旧配置兼容：强度参数已废弃。 */ }
             else if (strcmp(key, "distortion") == 0) {
                 if (val < 0.0f) val = 0.0f;
                 cfg.distortion = val;

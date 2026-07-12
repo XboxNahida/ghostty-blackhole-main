@@ -14,37 +14,82 @@ Item {
     property var bhCore: null
 
     property var whitelist: {
-        if (bhCore && bhCore.idleWhitelist && bhCore.idleWhitelist.length > 0)
+        if (bhCore)
             return bhCore.idleWhitelist
         return []
     }
     property var blacklist: {
-        if (bhCore && bhCore.idleBlacklist && bhCore.idleBlacklist.length > 0)
+        if (bhCore)
             return bhCore.idleBlacklist
         return ["vlc", "mpv", "potplayer", "mpc", "wmplayer", "bilibili", "iqiyi", "youku", "芒果TV", "腾讯视频"]
     }
+    property var forceBlocklist: {
+        if (bhCore)
+            return bhCore.idleForceBlocklist
+        return []
+    }
 
-    ListModel { id: whiteModel }
-    ListModel { id: blackModel }
+    function containsIgnoreCase(values, candidate) {
+        var lowerCandidate = candidate.toLowerCase()
+        for (var i = 0; i < values.length; i++) {
+            if (String(values[i]).toLowerCase() === lowerCandidate)
+                return true
+        }
+        return false
+    }
 
-    Component.onCompleted: {
-        refreshModels()
-        // sync to bhCore if available
-        if (bhCore) {
-            bhCore.idleWhitelist = listPage.whitelist
-            bhCore.idleBlacklist = listPage.blacklist
+    property string pickerTarget: ""
+
+    function valuesForTarget(target) {
+        if (target === "whitelist") return listPage.whitelist
+        if (target === "mediaHints") return listPage.blacklist
+        return listPage.forceBlocklist
+    }
+
+    function commitTarget(target, values) {
+        if (target === "whitelist") {
+            listPage.whitelist = values
+            if (bhCore) bhCore.idleWhitelist = values
+        } else if (target === "mediaHints") {
+            listPage.blacklist = values
+            if (bhCore) bhCore.idleBlacklist = values
+        } else {
+            listPage.forceBlocklist = values
+            if (bhCore) bhCore.idleForceBlocklist = values
         }
     }
 
-    function refreshModels() {
-        whiteModel.clear()
-        for (var i = 0; i < listPage.whitelist.length; i++) {
-            whiteModel.append({ name: listPage.whitelist[i] })
+    function addEntry(target, processName) {
+        var value = String(processName).trim()
+        var current = valuesForTarget(target)
+        if (value === "" || containsIgnoreCase(current, value)) return
+        var next = []
+        for (var i = 0; i < current.length; i++) next.push(String(current[i]))
+        next.push(value)
+        commitTarget(target, next)
+    }
+
+    function removeEntry(target, processName) {
+        var current = valuesForTarget(target)
+        var next = []
+        for (var i = 0; i < current.length; i++) {
+            if (String(current[i]).toLowerCase() !== String(processName).toLowerCase())
+                next.push(String(current[i]))
         }
-        blackModel.clear()
-        for (var j = 0; j < listPage.blacklist.length; j++) {
-            blackModel.append({ name: listPage.blacklist[j] })
-        }
+        commitTarget(target, next)
+    }
+
+    function openRunningPicker(target) {
+        if (!bhCore) return
+        pickerTarget = target
+        runningPicker.open(bhCore.runningApplications())
+    }
+
+    function chooseExecutable(target) {
+        if (!bhCore) return
+        var application = bhCore.chooseExecutable()
+        if (application && application.processName)
+            addEntry(target, application.processName)
     }
 
     ColumnLayout {
@@ -69,282 +114,103 @@ Item {
             Item { Layout.fillWidth: true }
         }
 
-        // === 白名单 ===
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: 16
+            Layout.preferredHeight: 44
+            radius: 6
             color: theme.secondaryColor
-            opacity: 0.85
 
-            ColumnLayout {
+            RowLayout {
                 anchors.fill: parent
-                anchors.margins: 16
-                spacing: 8
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 10
 
                 Text {
-                    text: "\uf058  白名单 (视频空闲检测)"
+                    text: bhCore && bhCore.idleDetectionBlocked ? "\uf05e" : "\uf058"
                     font.family: iconFont.name
                     font.pixelSize: 14
-                    color: theme.focusColor
+                    color: bhCore && bhCore.idleDetectionBlocked ? "#ff6b6b" : theme.focusColor
+                }
+
+                Text {
+                    text: bhCore ? bhCore.idleDetectionSummary : "等待空闲检测"
+                    font.pixelSize: 12
+                    color: theme.textColor
+                    elide: Text.ElideMiddle
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: bhCore && bhCore.idleDetectionBlocked ? "阻止触发" : "允许触发"
+                    font.pixelSize: 12
                     font.bold: true
-                }
-                Text {
-                    text: "检测到以下应用时视为空闲，不阻止黑洞显示"
-                    font.pixelSize: 11
-                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                // 输入行
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 34
-                        radius: 8
-                        color: theme.primaryColor
-                        border.color: theme.borderColor
-                        border.width: 1
-
-                        TextInput {
-                            id: whiteInput
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            color: theme.textColor
-                            font.pixelSize: 13
-                            verticalAlignment: Text.AlignVCenter
-                            Text {
-                                anchors.fill: parent
-                                text: "输入进程名..."
-                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.30)
-                                font.pixelSize: 13
-                                verticalAlignment: Text.AlignVCenter
-                                visible: !whiteInput.activeFocus && whiteInput.text === ""
-                            }
-                        }
-                    }
-
-                    Components.EButton {
-                        text: "添加"
-                        size: "xs"
-                        iconCharacter: "\uf067"
-                        radius: 8
-                        implicitHeight: 34
-                        onClicked: {
-                            var t = whiteInput.text.trim()
-                            if (t !== "" && listPage.whitelist.indexOf(t) < 0) {
-                                listPage.whitelist.push(t)
-                                refreshModels()
-                                whiteInput.text = ""
-                                if (bhCore) bhCore.idleWhitelist = listPage.whitelist
-                            }
-                        }
-                    }
-                }
-
-                // 列表
-                ListView {
-                    id: whiteListView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: whiteModel
-                    clip: true
-                    spacing: 2
-
-                    delegate: Rectangle {
-                        width: whiteListView.width
-                        height: 32
-                        radius: 6
-                        color: itemMouse.containsMouse ? Qt.darker(theme.secondaryColor, 1.15) : "transparent"
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.leftMargin: 10
-                            text: model.name
-                            font.pixelSize: 13
-                            color: theme.textColor
-                        }
-
-                        Components.EButton {
-                            anchors.right: parent.right
-                            anchors.rightMargin: 4
-                            anchors.verticalCenter: parent.verticalCenter
-                            size: "xs"
-                            text: ""
-                            iconCharacter: "\uf00d"
-                            radius: 6
-                            implicitHeight: 26
-                            containerColor: "transparent"
-                            textColor: "#ff5555"
-                            iconColor: "#ff5555"
-                            onClicked: {
-                                var idx = listPage.whitelist.indexOf(model.name)
-                                if (idx >= 0) listPage.whitelist.splice(idx, 1)
-                                refreshModels()
-                                if (bhCore) bhCore.idleWhitelist = listPage.whitelist
-                            }
-                        }
-
-                        MouseArea {
-                            id: itemMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.NoButton
-                        }
-                    }
-                }
-
-                Text {
-                    text: whiteModel.count + " 条"
-                    font.pixelSize: 11
-                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.35)
-                    Layout.alignment: Qt.AlignRight
+                    color: bhCore && bhCore.idleDetectionBlocked ? "#ff6b6b" : theme.focusColor
                 }
             }
         }
 
-        // === 黑名单 ===
-        Rectangle {
+        GridLayout {
+            id: listsGrid
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
+            columns: width >= 1250 ? 3 : 2
+            columnSpacing: 12
+            rowSpacing: 12
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 8
-
-                Text {
-                    text: "\uf057  黑名单 (始终阻止)"
-                    font.family: iconFont.name
-                    font.pixelSize: 14
-                    color: "#ff6b6b"
-                    font.bold: true
-                }
-                Text {
-                    text: "检测到以下应用时始终阻止黑洞显示"
-                    font.pixelSize: 11
-                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                // 输入行
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 34
-                        radius: 8
-                        color: theme.primaryColor
-                        border.color: theme.borderColor
-                        border.width: 1
-
-                        TextInput {
-                            id: blackInput
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            color: theme.textColor
-                            font.pixelSize: 13
-                            verticalAlignment: Text.AlignVCenter
-                            Text {
-                                anchors.fill: parent
-                                text: "输入进程名..."
-                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.30)
-                                font.pixelSize: 13
-                                verticalAlignment: Text.AlignVCenter
-                                visible: !blackInput.activeFocus && blackInput.text === ""
-                            }
-                        }
-                    }
-
-                    Components.EButton {
-                        text: "添加"
-                        size: "xs"
-                        iconCharacter: "\uf067"
-                        radius: 8
-                        implicitHeight: 34
-                        onClicked: {
-                            var t = blackInput.text.trim()
-                            if (t !== "" && listPage.blacklist.indexOf(t) < 0) {
-                                listPage.blacklist.push(t)
-                                refreshModels()
-                                blackInput.text = ""
-                                if (bhCore) bhCore.idleBlacklist = listPage.blacklist
-                            }
-                        }
-                    }
-                }
-
-                // 列表
-                ListView {
-                    id: blackListView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: blackModel
-                    clip: true
-                    spacing: 2
-
-                    delegate: Rectangle {
-                        width: blackListView.width
-                        height: 32
-                        radius: 6
-                        color: itemMouse2.containsMouse ? Qt.darker(theme.secondaryColor, 1.15) : "transparent"
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.leftMargin: 10
-                            text: model.name
-                            font.pixelSize: 13
-                            color: theme.textColor
-                        }
-
-                        Components.EButton {
-                            anchors.right: parent.right
-                            anchors.rightMargin: 4
-                            anchors.verticalCenter: parent.verticalCenter
-                            size: "xs"
-                            text: ""
-                            iconCharacter: "\uf00d"
-                            radius: 6
-                            implicitHeight: 26
-                            containerColor: "transparent"
-                            textColor: "#ff5555"
-                            iconColor: "#ff5555"
-                            onClicked: {
-                                var idx = listPage.blacklist.indexOf(model.name)
-                                if (idx >= 0) listPage.blacklist.splice(idx, 1)
-                                refreshModels()
-                                if (bhCore) bhCore.idleBlacklist = listPage.blacklist
-                            }
-                        }
-
-                        MouseArea {
-                            id: itemMouse2
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.NoButton
-                        }
-                    }
-                }
-
-                Text {
-                    text: blackModel.count + " 条"
-                    font.pixelSize: 11
-                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.35)
-                    Layout.alignment: Qt.AlignRight
-                }
+            Components.IdleListPanel {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 260
+                title: "始终允许触发"
+                description: "前台命中时忽略媒体与游戏检测"
+                accentColor: theme.focusColor
+                values: listPage.whitelist
+                onManualAddRequested: function(name) { listPage.addEntry("whitelist", name) }
+                onRunningPickerRequested: listPage.openRunningPicker("whitelist")
+                onExecutablePickerRequested: listPage.chooseExecutable("whitelist")
+                onRemoveRequested: function(name) { listPage.removeEntry("whitelist", name) }
             }
+
+            Components.IdleListPanel {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 260
+                title: "媒体识别提示"
+                description: "仅在实际播放且检测到媒体信号时阻止"
+                accentColor: theme.focusColor
+                values: listPage.blacklist
+                onManualAddRequested: function(name) { listPage.addEntry("mediaHints", name) }
+                onRunningPickerRequested: listPage.openRunningPicker("mediaHints")
+                onExecutablePickerRequested: listPage.chooseExecutable("mediaHints")
+                onRemoveRequested: function(name) { listPage.removeEntry("mediaHints", name) }
+            }
+
+            Components.IdleListPanel {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 260
+                Layout.columnSpan: listsGrid.columns === 2 ? 2 : 1
+                title: "前台强制不触发"
+                description: "前台命中时无条件阻止，切到后台后失效"
+                accentColor: "#ff6b6b"
+                values: listPage.forceBlocklist
+                onManualAddRequested: function(name) { listPage.addEntry("forceBlocklist", name) }
+                onRunningPickerRequested: listPage.openRunningPicker("forceBlocklist")
+                onExecutablePickerRequested: listPage.chooseExecutable("forceBlocklist")
+                onRemoveRequested: function(name) { listPage.removeEntry("forceBlocklist", name) }
+            }
+        }
+    }
+
+    Components.RunningApplicationPicker {
+        id: runningPicker
+        onRefreshRequested: {
+            if (bhCore) runningPicker.open(bhCore.runningApplications())
+        }
+        onApplicationSelected: function(application) {
+            if (application && application.processName)
+                listPage.addEntry(listPage.pickerTarget, application.processName)
         }
     }
 }

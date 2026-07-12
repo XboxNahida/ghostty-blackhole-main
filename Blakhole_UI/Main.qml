@@ -26,6 +26,12 @@ ApplicationWindow {
         id: theme
     }
 
+    Components.UpdateDialog {
+        id: updateDialog
+        theme: theme
+        checker: updateChecker
+    }
+
     SystemTray {
         id: systemTray
         Component.onCompleted: systemTray.visible = false
@@ -45,7 +51,15 @@ ApplicationWindow {
         }
     }
 
+    Connections {
+        target: updateChecker
+        function onManualResultReady() {
+            updateDialog.open()
+        }
+    }
+
     Component.onCompleted: {
+        updateChecker.checkAutomatically()
         if (root.launchMinimized && blackHoleCore) {
             root.visible = false
             systemTray.visible = true
@@ -57,6 +71,8 @@ ApplicationWindow {
 
     readonly property int resizeMargin: 6
     property int currentPageIndex: 0
+    property int previousPageIndex: 0
+    readonly property int aboutPageIndex: 4
     property bool skipExitDialog: blackHoleCore ? blackHoleCore.skipExitDialog : false
     property int defaultCloseAction: blackHoleCore ? blackHoleCore.defaultCloseAction : 0
     property bool autoStart: blackHoleCore ? blackHoleCore.autoStart : false
@@ -66,6 +82,12 @@ ApplicationWindow {
     property string closeHotkeySequence: blackHoleCore ? blackHoleCore.closeHotkeySequence : "Ctrl+Alt+B"
     property string closeHotkeyStatus: blackHoleCore ? blackHoleCore.closeHotkeyStatus : ""
     property bool recordingHotkey: false
+
+    function navigateToAbout() {
+        if (root.currentPageIndex === root.aboutPageIndex) return
+        root.previousPageIndex = root.currentPageIndex
+        root.currentPageIndex = root.aboutPageIndex
+    }
 
     function hotkeyKeyName(key) {
         if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
@@ -287,7 +309,9 @@ ApplicationWindow {
                 anchors.left: parent.left
                 anchors.topMargin: 40
                 anchors.leftMargin: 50
-                avatarSource: "qrc:/new/prefix1/fonts/pic/avatar.png"
+                clickable: true
+                avatarSource: blackHoleCore ? blackHoleCore.customAvatarUrl : "qrc:/new/prefix1/fonts/pic/avatar.png"
+                onClicked: root.navigateToAbout()
             }
 
             // 时间
@@ -325,6 +349,7 @@ ApplicationWindow {
 
             // 设置按钮
             Components.EButton {
+                id: settingsButton
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.bottomMargin: 100
@@ -334,6 +359,21 @@ ApplicationWindow {
                 iconCharacter: "\uf013"
                 onClicked: {
                     settingsDrawer.toggle()
+                }
+
+                Rectangle {
+                    id: settingsUpdateBadge
+                    width: 10
+                    height: 10
+                    radius: 5
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.topMargin: 5
+                    anchors.rightMargin: 5
+                    color: "#e53935"
+                    border.width: 1
+                    border.color: theme.isDark ? "#ffffff" : "#8b0000"
+                    visible: updateChecker.updateAvailable
                 }
             }
 
@@ -401,6 +441,14 @@ ApplicationWindow {
                 anchors.fill: parent
                 visible: root.currentPageIndex === 3
             }
+
+            Pages.AboutPage {
+                theme: theme
+                bhCore: blackHoleCore
+                anchors.fill: parent
+                visible: root.currentPageIndex === root.aboutPageIndex
+                onBackRequested: root.currentPageIndex = previousPageIndex
+            }
         }
 
         // === 右侧设置抽屉 ===
@@ -429,6 +477,69 @@ ApplicationWindow {
                     height: 1
                     color: theme.borderColor
                     opacity: 0.3
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 76
+                    radius: 12
+                    color: theme.secondaryColor
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 12
+
+                        Text {
+                            text: "\uf021"
+                            font.family: iconFont.name
+                            font.pixelSize: 18
+                            color: theme.focusColor
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "检查更新"
+                                font.pixelSize: 15
+                                color: theme.textColor
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "当前版本 v" + Qt.application.version
+                                font.pixelSize: 11
+                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.52)
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: updateChecker.statusText
+                                font.pixelSize: 11
+                                color: updateChecker.updateAvailable
+                                       ? theme.focusColor
+                                       : Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.52)
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        Components.EButton {
+                            size: "xs"
+                            radius: 8
+                            backgroundVisible: true
+                            enabled: !updateChecker.checking
+                            opacity: enabled ? 1.0 : 0.55
+                            text: updateChecker.checking ? "检查中" : "检查"
+                            Layout.preferredWidth: 86
+                            Layout.preferredHeight: 32
+                            iconCharacter: "\uf021"
+                            onClicked: updateChecker.checkManually()
+                        }
+                    }
                 }
 
                 Rectangle {
@@ -518,11 +629,12 @@ ApplicationWindow {
                             }
                         }
                     }
+
                 }
 
                 Rectangle {
                     width: parent.width
-                    height: 50
+                    height: 68
                     radius: 12
                     color: theme.secondaryColor
 
@@ -538,17 +650,29 @@ ApplicationWindow {
                             color: theme.textColor
                         }
 
-                        Text {
-                            text: "\u5f00\u673a\u81ea\u52a8\u542f\u52a8"
-                            font.pixelSize: 15
-                            color: theme.textColor
+                        ColumnLayout {
                             Layout.fillWidth: true
+
+                            Text {
+                                text: "\u5f00\u673a\u81ea\u52a8\u542f\u52a8"
+                                font.pixelSize: 15
+                                color: theme.textColor
+                            }
+
+                            Text {
+                                text: blackHoleCore ? blackHoleCore.autoStartStatus : ""
+                                visible: text.length > 0
+                                font.pixelSize: 11
+                                color: text.indexOf("\u5931\u8d25") >= 0
+                                       ? "#ff6b6b"
+                                       : Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                            }
                         }
 
                         CheckBox {
                             id: autoStartCheck
                             checked: root.autoStart
-                            onToggled: { root.autoStart = checked; if (blackHoleCore) blackHoleCore.autoStart = checked }
+                            onToggled: { if (blackHoleCore) blackHoleCore.autoStart = checked }
 
                             indicator: Rectangle {
                                 implicitWidth: 20
@@ -789,9 +913,18 @@ ApplicationWindow {
                         }
 
                         Text {
-                            text: "v1.0.0"
+                            text: "v" + Qt.application.version
                             font.pixelSize: 13
                             color: theme.borderColor
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            settingsDrawer.close()
+                            root.navigateToAbout()
                         }
                     }
                 }

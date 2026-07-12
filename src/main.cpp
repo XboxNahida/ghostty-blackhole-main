@@ -22,6 +22,10 @@
 #include "capture_wgc.h"
 #include "capture_dxgi.h"
 #include "gl_texture.h"
+#include "bloom_renderer.h"
+#include "foreground_window.h"
+#include "game_detection.h"
+#include "media_session.h"
 #include "gui_config.h"
 #include "win32_gl.h"
 #include "monitors.h"
@@ -35,6 +39,10 @@
 #endif
 #ifndef VK_R
 #define VK_R 0x52
+#endif
+#ifndef PROC_THREAD_ATTRIBUTE_JOB_LIST
+#define PROC_THREAD_ATTRIBUTE_JOB_LIST \
+    ProcThreadAttributeValue(13, FALSE, TRUE, FALSE)
 #endif
 
 #define GLFW_INCLUDE_NONE
@@ -413,76 +421,12 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     // ---- Runtime visual controls ----
     {
         const std::string oldDefl = "* window * shield;";
-        const std::string newDefl =
-            "* window * shield * max(uDistortion, 0.0);\n"
-            "        float farSwallowPhase = (uScreenSwallow > 0) ? clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
-            "        float sharedLensBoost = 1.0 + farSwallowPhase * (0.65 + 1.35 * window);\n"
-            "        defl *= sharedLensBoost;";
+        const std::string newDefl = "* window * shield * max(uDistortion, 0.0);";
         size_t p = body.find(oldDefl);
         if (p != std::string::npos) body.replace(p, oldDefl.length(), newDefl);
 
         const std::string oldNear = "vec2  suv = mirrorUV(center + (p + (sp - p) * window * shield) / vec2(aspect, 1.0));";
-        const std::string newNear =
-            "            float continuousSwallow = (uScreenSwallow > 0) ? clamp(uSwallowStrength, 0.0, 1.0) : 0.0;\n"
-            "            float swallowPhase = continuousSwallow;\n"
-            "            float ringBirth = smoothstep(0.02, 0.92, max(uBornProgress, swallowPhase));\n"
-            "            float originalWindow = window * shield;\n"
-            "            float screenRadius = length(p);\n"
-            "            float swallowLensField = originalWindow;\n"
-            "            float baseDistortion = max(uDistortion, 0.0);\n"
-            "            float sharedLensBoost = 1.0 + swallowPhase * (0.65 + 1.35 * window);\n"
-            "            vec2  lensVector = (sp - p) * baseDistortion;\n"
-            "            vec2  singleLensP = p + lensVector * originalWindow * sharedLensBoost;\n"
-            "            vec2  noShellLensP = singleLensP;\n"
-            "            float r = max(length(p), 0.0005);\n"
-            "            float theta = atan(p.y, p.x);\n"
-            "            vec2  radialDir = p / r;\n"
-            "            vec2  tangentDir = vec2(-radialDir.y, radialDir.x);\n"
-            "            float screenWideLensBlend = smoothstep(0.010, 0.42, swallowLensField) * swallowPhase;\n"
-            "            float colorlessOuterLens = screenWideLensBlend;\n"
-            "            float outerLensBlend = colorlessOuterLens;\n"
-            "            float boundaryDither = 0.018 * sin(theta * 5.0 + iTime * 0.36) + 0.010 * sin(theta * 11.0 - iTime * 0.21);\n"
-            "            float handoffFade = 1.0 - smoothstep(bmax * 0.72, bmax, b);\n"
-            "            float diskInnerScreen = rin * rh / B_CRIT;\n"
-            "            float diskOuterScreen = rout * rh / B_CRIT;\n"
-            "            float diskSpan = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
-            "            float diskMid = 0.5 * (diskInnerScreen + diskOuterScreen);\n"
-            "            vec2  diskFrameP = rot(vec2(p.x, -p.y), L.roll);\n"
-            "            float presetDiskAspect = max(abs(cos(L.incl)), 0.16);\n"
-            "            vec2  projectedDiskP = vec2(diskFrameP.x, diskFrameP.y / presetDiskAspect);\n"
-            "            float projectedDiskRadius = max(length(projectedDiskP), 0.0005);\n"
-            "            float diskBandDistance = abs(projectedDiskRadius - diskMid) / max(diskSpan, 0.003);\n"
-            "            float gravityRadius = max(rh * (4.4 + 1.8 * ringBirth), 0.004);\n"
-            "            float gravityWellField = swallowPhase * shield * handoffFade / (1.0 + pow(r / gravityRadius, 2.15));\n"
-            "            float diskDistanceField = 1.0 / (1.0 + diskBandDistance * diskBandDistance * 0.72);\n"
-            "            float diskRadialTail = 1.0 / (1.0 + pow(max(projectedDiskRadius - diskInnerScreen, 0.0) / max(diskSpan * 2.35, 0.004), 2.0));\n"
-            "            float softDiskMatterField = swallowPhase * shield * handoffFade * diskDistanceField * diskRadialTail;\n"
-            "            float dimensionCollapse = softDiskMatterField * (0.58 + 0.22 * ringBirth) + gravityWellField * 0.42;\n"
-            "            float softCollapse = clamp(dimensionCollapse, 0.0, 1.0);\n"
-            "            vec3  geodesicDiskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
-            "            float geodesicDiskEnergy = max(max(geodesicDiskLight.r, geodesicDiskLight.g), geodesicDiskLight.b);\n"
-            "            float geodesicDiskMask = smoothstep(0.018, 0.22, geodesicDiskEnergy) * swallowPhase;\n"
-            "            float projectedCollapse = softDiskMatterField * (0.30 + 0.18 * ringBirth);\n"
-            "            float smoothInfallField = clamp(gravityWellField * 0.58 + softDiskMatterField * 0.42 + geodesicDiskMask * 0.22, 0.0, 1.0);\n"
-            "            float adaptiveCollapse = smoothstep(0.02, 0.86, smoothInfallField);\n"
-            "            float normalizedDiskDistance = clamp((projectedDiskRadius - diskInnerScreen) / max(diskSpan, 0.003), 0.0, 1.0);\n"
-            "            float curvatureFalloff = adaptiveCollapse * (1.0 - smoothstep(0.16, 1.0, normalizedDiskDistance));\n"
-            "            float luminosityBoost = 1.0 + adaptiveCollapse * 0.18;\n"
-            "            vec2  diskTangentFlat = normalize(vec2(-projectedDiskP.y, projectedDiskP.x));\n"
-            "            vec2  diskTangentFrame = normalize(vec2(diskTangentFlat.x, diskTangentFlat.y * presetDiskAspect));\n"
-            "            vec2  screenTangentYUp = rot(diskTangentFrame, -L.roll);\n"
-            "            vec2  screenTangentDir = normalize(vec2(screenTangentYUp.x, -screenTangentYUp.y));\n"
-            "            float accretionOrbitPhase = iTime * (0.18 + 0.42 * swallowPhase) + projectedDiskRadius * (1.6 + 3.4 * curvatureFalloff) + theta * 0.55;\n"
-            "            float infallTangentFlow = curvatureFalloff * (0.16 + 0.58 / (1.0 + r / max(rh, 0.002))) * (0.78 + 0.22 * sin(accretionOrbitPhase));\n"
-            "            float inwardPull = smoothInfallField * (0.08 + 0.22 * (1.0 - normalizedDiskDistance));\n"
-            "            float infallDisplacementScale = rh * (0.42 + 0.28 * ringBirth);\n"
-            "            float tangentialStretch = infallTangentFlow * infallDisplacementScale;\n"
-            "            float radialCompression = inwardPull * infallDisplacementScale;\n"
-            "            vec2  orbitalInfall = screenTangentDir * tangentialStretch - radialDir * radialCompression;\n"
-            "            vec2  adaptiveDiskP = noShellLensP + lensVector * swallowLensField * (0.22 + 0.62 * smoothInfallField) + orbitalInfall;\n"
-            "            float eventHorizonMask = (1.0 - smoothstep(rh * 0.52, rh * 1.20, r)) * swallowPhase;\n"
-            "            vec2  finalP = mix(noShellLensP, adaptiveDiskP, adaptiveCollapse * handoffFade);\n"
-            "            vec2  suv = mirrorUV(center + mix(finalP, radialDir * 0.020, eventHorizonMask) / vec2(aspect, 1.0));";
+        const std::string newNear = "vec2  suv = mirrorUV(center + (p + (sp - p) * window * shield * max(uDistortion, 0.0)) / vec2(aspect, 1.0));";
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
 
@@ -490,33 +434,41 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         p = body.find(finalColor);
         if (p != std::string::npos) {
             body.replace(p, finalColor.length(),
-                "    if (uScreenSwallow > 0) {\n"
-                "        float continuousSwallow = clamp(uSwallowStrength, 0.0, 1.0);\n"
-                "        float swallowPhase = continuousSwallow;\n"
+                "    if (uLightingEffect > 0) {\n"
                 "        vec3 diskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
                 "        float diskEnergy = max(max(diskLight.r, diskLight.g), diskLight.b);\n"
-                "        float realAccretionMask = smoothstep(0.025, 0.24, diskEnergy) * swallowPhase;\n"
+                "        float realDiskMask = smoothstep(0.012, 0.20, diskEnergy);\n"
+                "        vec2 diskLocalP = rot(vec2(p.x, -p.y), L.roll);\n"
+                "        float diskInclScale = max(abs(cos(L.incl)), 0.16);\n"
+                "        vec2 projectedLightP = vec2(diskLocalP.x, diskLocalP.y / diskInclScale);\n"
+                "        float projectedLightRadius = max(length(projectedLightP), 0.0005);\n"
+                "        float diskInnerScreen = rin * rh / B_CRIT;\n"
+                "        float diskOuterScreen = rout * rh / B_CRIT;\n"
+                "        float diskWidth = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
+                "        float diskUnit = clamp((projectedLightRadius - diskInnerScreen) / diskWidth, 0.0, 1.0);\n"
+                "        float outerLightMist = smoothstep(0.006, 0.028, diskEnergy) * (1.0 - smoothstep(0.10, 0.24, diskEnergy));\n"
+                "        float nativeGapEntry = smoothstep(0.036, 0.042, diskEnergy);\n"
+                "        float nativeGapExit = 1.0 - smoothstep(0.046, 0.052, diskEnergy);\n"
+                "        float darkFlowBands = nativeGapEntry * nativeGapExit;\n"
+                "        float bandTransmission = 1.0 - darkFlowBands * 0.88;\n"
+                "        float diskSide = smoothstep(-0.30, 0.30, projectedLightP.x / projectedLightRadius);\n"
+                "        vec3 warmGoldLight = vec3(1.00, 0.40, 0.08) * (1.0 - diskSide);\n"
+                "        vec3 coldBlueLight = vec3(0.10, 0.54, 1.00) * diskSide;\n"
+                "        vec3 dualToneLight = warmGoldLight + coldBlueLight;\n"
+                "        float outerDiskFade = smoothstep(0.15, 1.0, diskUnit);\n"
+                "        float nativeDiskDetail = smoothstep(0.018, 0.32, diskEnergy);\n"
+                "        float middleBrightLayer = realDiskMask * nativeDiskDetail * (0.32 + 0.82 * (1.0 - outerDiskFade));\n"
                 "        float screenR = length(p);\n"
-                "        float colorHandoffFade = 1.0 - smoothstep(bmax * 0.72, bmax, b);\n"
-                "        float opacityWake = (1.0 - trans) * swallowPhase;\n"
-                "        float wideTidalErase = swallowPhase * shield / (1.0 + pow(screenR / max(rh * 6.8, 0.006), 2.35));\n"
-                "        float nearFieldRange = 1.0 - smoothstep(rh * 0.74, rh * 3.20, screenR);\n"
-                "        float nearFieldUiCutoff = clamp(max(realAccretionMask, opacityWake) + nearFieldRange * swallowPhase, 0.0, 1.0);\n"
-                "        float tidalUiErase = clamp(max(nearFieldUiCutoff * (0.80 + 0.18 * swallowPhase), wideTidalErase * realAccretionMask * 0.35), 0.0, 1.0);\n"
-                "        float photonRingFeather = smoothstep(0.015, 0.18, diskEnergy) * (1.0 - smoothstep(rh * 0.82, rh * 2.40, screenR)) * swallowPhase;\n"
-                "        float eventHorizonMask = (captured ? 1.0 : 0.0) * swallowPhase;\n"
-                "        float softShadowMask = clamp(max(eventHorizonMask, (1.0 - smoothstep(rh * 0.58, rh * 1.35, screenR)) * swallowPhase * (1.0 - realAccretionMask * 0.35)), 0.0, 1.0);\n"
-                "        float uiDebrisSuppression = clamp(max(nearFieldUiCutoff, realAccretionMask * 0.86), 0.0, 1.0);\n"
-                "        float uiSuppression = clamp(max(uiDebrisSuppression, photonRingFeather * 0.55) + softShadowMask, 0.0, 1.0) * colorHandoffFade;\n"
-                "        float bgLuma = dot(bg, vec3(0.2126, 0.7152, 0.0722));\n"
-                "        vec3 thermalColor = blackbody(max(L.temp, 1500.0));\n"
-                "        vec3 deUiBg = mix(bg, vec3(bgLuma) * 0.12 + thermalColor * bgLuma * 0.08, tidalUiErase);\n"
-                "        vec3 programmaticAccretion = diskLight * (1.0 + 0.85 * swallowPhase) + thermalColor * (realAccretionMask + photonRingFeather * 0.38) * (0.18 + 0.30 * swallowPhase);\n"
-                "        vec3 uiFreeAccretion = programmaticAccretion + thermalColor * nearFieldUiCutoff * (0.035 + 0.060 * swallowPhase);\n"
-                "        vec3 swallowedColor = mix(deUiBg * trans, uiFreeAccretion, nearFieldUiCutoff);\n"
-                "        col = mix(col, swallowedColor, uiSuppression);\n"
-                "        col += thermalColor * photonRingFeather * 0.08;\n"
-                "        col = mix(col, vec3(0.0), softShadowMask);\n"
+                "        float ringWidth = max(rh * 0.10, 0.0004);\n"
+                "        float lightingPhotonRing = exp(-pow((screenR - rh * 1.10) / ringWidth, 2.0)) * (captured ? 0.0 : 1.0);\n"
+                "        float eventHorizonMask = captured ? 1.0 : 0.0;\n"
+                "        float subtleDiskLighting = middleBrightLayer * bandTransmission;\n"
+                "        vec3 clampedBaseScene = clamp(col * (1.0 - darkFlowBands * 0.32), vec3(0.0), vec3(1.0));\n"
+                "        vec3 lightingHdr = dualToneLight * subtleDiskLighting * 0.18;\n"
+                "        lightingHdr += dualToneLight * outerLightMist * shield * (1.0 - eventHorizonMask) * 0.035;\n"
+                "        lightingHdr += vec3(1.00, 0.86, 0.66) * lightingPhotonRing * 0.12;\n"
+                "        col = clampedBaseScene + lightingHdr;\n"
+                "        col = mix(col, vec3(0.0), eventHorizonMask);\n"
                 "    }\n"
                 "    fragColor = vec4(col, 1.0);");
         }
@@ -575,16 +527,9 @@ static bool isWatchingVideo() {
     HWND fg = GetForegroundWindow();
     if (!fg) return false;
 
-    // 排除黑洞自己的渲染窗口（WS_EX_NOACTIVATE + WS_EX_TOPMOST + WS_EX_TRANSPARENT）
-    {
-        LONG_PTR ex = GetWindowLongPtrW(fg, GWL_EXSTYLE);
-        if ((ex & (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-            == (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-            return false;
-        // 也通过窗口类名排除
-        wchar_t cls[64] = {};
-        if (GetClassNameW(fg, cls, 64) && wcscmp(cls, L"BlackHoleWGL") == 0)
-            return false;
+    // 桌面、系统外壳和黑洞自身都不能进入全屏视频/游戏判断。
+    if (Foreground_Classify(fg) != ForegroundKind::Application) {
+        return false;
     }
 
     // Method 1: D3D exclusive fullscreen (catches most fullscreen games)
@@ -599,18 +544,9 @@ static bool isWatchingVideo() {
             return true;
     }
 
-    // Method 1b: any foreground window covering entire screen (borderless fullscreen games)
-    // 但排除最大化的普通窗口（只针对真正的全屏游戏）
-    {
-        RECT r;
-        if (GetWindowRect(fg, &r)) {
-            int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-            int ww = r.right - r.left, wh = r.bottom - r.top;
-            // 只有窗口完全覆盖屏幕且不是最大化窗口时才认为是全屏游戏
-            // 最大化窗口 (WS_MAXIMIZE) 不算全屏，避免误判编辑器/浏览器
-            LONG_PTR style = GetWindowLongPtrW(fg, GWL_STYLE);
-            if (ww >= sw && wh >= sh && !(style & WS_MAXIMIZE)) return true;
-        }
+    // Method 1b: 当前显示器上的无边框全屏游戏。
+    if (Foreground_IsBorderlessFullscreen(fg)) {
+        return true;
     }
 
     // Get foreground process name
@@ -620,7 +556,9 @@ static bool isWatchingVideo() {
     char pname[260]; GetProcessName(pid, pname, sizeof(pname));
     if (!pname[0]) return false;
 
-    // Check if process is a known video player, game launcher, or browser
+    if (GameDetection_IsKnownGameProcess(pid)) return true;
+
+    // Check if process is a known video player or browser
     bool isDedicatedVideoPlayer = (strstr(pname, "vlc") || strstr(pname, "mpv") || strstr(pname, "potplayer") ||
                     strstr(pname, "mpc") || strstr(pname, "wmplayer") || strstr(pname, "bilibili") ||
                     strstr(pname, "哔哩哔哩") || strstr(pname, "bili") ||
@@ -633,12 +571,6 @@ static bool isWatchingVideo() {
                     strstr(pname, "nvidia"));
     bool isBrowser = (strstr(pname, "chrome") || strstr(pname, "msedge") || strstr(pname, "firefox") ||
                       strstr(pname, "opera") || strstr(pname, "brave"));
-    // Common game launchers (Steam overlay, EOS, Ubisoft Connect, etc.)
-    // These indicate user is likely in-game even if game exe name isn't matched
-    bool isGameLauncher = (strstr(pname, "steam") || strstr(pname, "epic") || strstr(pname, "ubisoft") ||
-                          strstr(pname, "ubiconnect") || strstr(pname, "eaapp") || strstr(pname, "origin") ||
-                          strstr(pname, "battlenet") || strstr(pname, "riot") || strstr(pname, "gog") ||
-                          strstr(pname, "xbox") || strstr(pname, "gamebar"));
     bool uwpDetected = false;
     // UWP apps run under ApplicationFrameHost.exe  check window title for media players
     bool isUWPVideo = false;
@@ -654,8 +586,6 @@ static bool isWatchingVideo() {
             }
         }
     }
-    // Game launcher in foreground = user is gaming, skip audio check
-    if (isGameLauncher) return true;
     // Not a known video app or browser  no need for audio check
     if (!isDedicatedVideoPlayer && !isBrowser && !isUWPVideo) return false;
 
@@ -674,6 +604,12 @@ static bool isWatchingVideo() {
                                 wcsstr(wtitle, L"直播") || wcsstr(wtitle, L"Live"));
         // 浏览器没有视频关键词标题，不阻止触发
         if (!hasVideoKeyword) return false;
+    }
+
+    const MediaSessionSnapshot mediaSession = MediaSession_QueryCurrent();
+    if (mediaSession.state == MediaPlaybackState::Playing &&
+        MediaSession_SourceMatchesProcess(mediaSession.sourceAppId, pname)) {
+        return true;
     }
 
     // Method 3: check if this app has audio
@@ -739,16 +675,6 @@ static bool isIdle(DWORD ms) {
     return GetLastInputInfo(&lii) && (GetTickCount() - lii.dwTime) >= ms;
 }
 
-static bool ToggleRecordingCaptureHotkeyPressed() {
-    static bool wasDown = false;
-    bool down = ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) &&
-                ((GetAsyncKeyState(VK_MENU) & 0x8000) != 0) &&
-                ((GetAsyncKeyState(VK_R) & 0x8000) != 0);
-    bool pressed = down && !wasDown;
-    wasDown = down;
-    return pressed;
-}
-
 // ---- Renderer process management (monitor mode) ----
 static PROCESS_INFORMATION g_pi = {};
 static bool g_sessionLocked = false;  // 跟踪当前会话是否被锁屏
@@ -758,6 +684,7 @@ static bool g_sessionLocked = false;  // 跟踪当前会话是否被锁屏
 // 用 Job Object 保证父进程退出（含被强杀）时子进程自动终止。
 static HWND FindWindowByPID(DWORD pid);  // 前向声明（定义在下方）
 static HANDLE g_hChildJob = nullptr;
+static HANDLE g_hMonitorJob = nullptr;
 static std::vector<PROCESS_INFORMATION> g_childRenderers;
 
 static void EnsureChildJob() {
@@ -767,25 +694,62 @@ static void EnsureChildJob() {
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
     info.BasicLimitInformation.LimitFlags =
         JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    SetInformationJobObject(g_hChildJob, JobObjectExtendedLimitInformation,
-                            &info, sizeof(info));
+    if (!SetInformationJobObject(g_hChildJob, JobObjectExtendedLimitInformation,
+                                 &info, sizeof(info))) {
+        CloseHandle(g_hChildJob);
+        g_hChildJob = nullptr;
+    }
+}
+
+static void EnsureMonitorJob() {
+    if (g_hMonitorJob) return;
+    g_hMonitorJob = CreateJobObjectA(nullptr, nullptr);
+    if (!g_hMonitorJob) return;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+    info.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if (!SetInformationJobObject(g_hMonitorJob, JobObjectExtendedLimitInformation,
+                                 &info, sizeof(info))) {
+        CloseHandle(g_hMonitorJob);
+        g_hMonitorJob = nullptr;
+    }
+}
+
+static bool CreateProcessInJob(char* cmd, HANDLE job, PROCESS_INFORMATION& pi) {
+    SIZE_T attributeListSize = 0;
+    InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeListSize);
+    auto* attributeList = static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+        HeapAlloc(GetProcessHeap(), 0, attributeListSize));
+    if (!attributeList) return false;
+
+    bool created = false;
+    if (InitializeProcThreadAttributeList(attributeList, 1, 0, &attributeListSize)) {
+        HANDLE jobList[] = { job };
+        if (UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST,
+                                      jobList, sizeof(jobList), nullptr, nullptr)) {
+            STARTUPINFOEXA si = {};
+            si.StartupInfo.cb = sizeof(si);
+            si.StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
+            si.StartupInfo.wShowWindow = SW_HIDE;
+            si.lpAttributeList = attributeList;
+            pi = {};
+            created = CreateProcessA(nullptr, cmd, nullptr, nullptr, FALSE,
+                                     EXTENDED_STARTUPINFO_PRESENT, nullptr, nullptr,
+                                     &si.StartupInfo, &pi) != FALSE;
+        }
+        DeleteProcThreadAttributeList(attributeList);
+    }
+    HeapFree(GetProcessHeap(), 0, attributeList);
+    return created;
 }
 
 static void SpawnChildRenderer(const char* selfPath, int screenIdx) {
     EnsureChildJob();
-    STARTUPINFOA si = {}; si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
+    if (!g_hChildJob) return;
     char cmd[MAX_PATH + 32];
     snprintf(cmd, sizeof(cmd), "\"%s\" --render --screen %d", selfPath, screenIdx);
     PROCESS_INFORMATION pi = {};
-    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
-                       CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
-        // 必须在挂起状态下加入 Job Object，再恢复主线程，最后关闭线程句柄。
-        // 顺序不能错：AssignProcessToJobObject 要在 ResumeThread 之前完成，
-        // 而 ResumeThread 需要的是线程句柄 (pi.hThread) 不是进程句柄。
-        if (g_hChildJob) AssignProcessToJobObject(g_hChildJob, pi.hProcess);
-        ResumeThread(pi.hThread);
+    if (CreateProcessInJob(cmd, g_hChildJob, pi)) {
         CloseHandle(pi.hThread);
         pi.hThread = NULL;
         g_childRenderers.push_back(pi);
@@ -800,22 +764,26 @@ static void KillChildRenderers() {
     }
     for (auto& pi : g_childRenderers) {
         if (!pi.hProcess) continue;
-        if (WaitForSingleObject(pi.hProcess, 2000) == WAIT_TIMEOUT)
-            TerminateProcess(pi.hProcess, 0);
+        WaitForSingleObject(pi.hProcess, 2000);
         CloseHandle(pi.hProcess);
     }
     g_childRenderers.clear();
+    if (g_hChildJob) {
+        CloseHandle(g_hChildJob);
+        g_hChildJob = nullptr;
+    }
 }
 
 static void MonitorSpawn(const char* selfPath) {
     if (g_pi.hProcess) return;
-    STARTUPINFOA si = {}; si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
+    EnsureMonitorJob();
+    if (!g_hMonitorJob) return;
     char cmd[MAX_PATH + 16];
     snprintf(cmd, sizeof(cmd), "\"%s\" --render", selfPath);
-    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &g_pi))
+    if (CreateProcessInJob(cmd, g_hMonitorJob, g_pi)) {
         CloseHandle(g_pi.hThread);
+        g_pi.hThread = NULL;
+    }
 }
 
 static HWND FindWindowByPID(DWORD pid) {
@@ -830,17 +798,17 @@ static HWND FindWindowByPID(DWORD pid) {
 }
 
 static void MonitorKill() {
-    if (!g_pi.hProcess) return;
-    HWND hwnd = FindWindowByPID(g_pi.dwProcessId);
-    if (hwnd) {
-        PostMessage(hwnd, WM_CLOSE, 0, 0);
-        if (WaitForSingleObject(g_pi.hProcess, 2000) == WAIT_TIMEOUT)
-            TerminateProcess(g_pi.hProcess, 0);
-    } else {
-        TerminateProcess(g_pi.hProcess, 0);
+    if (g_pi.hProcess) {
+        HWND hwnd = FindWindowByPID(g_pi.dwProcessId);
+        if (hwnd) PostMessage(hwnd, WM_CLOSE, 0, 0);
+        WaitForSingleObject(g_pi.hProcess, 2000);
+        CloseHandle(g_pi.hProcess);
+        g_pi.hProcess = NULL;
     }
-    CloseHandle(g_pi.hProcess);
-    g_pi.hProcess = NULL;
+    if (g_hMonitorJob) {
+        CloseHandle(g_hMonitorJob);
+        g_hMonitorJob = nullptr;
+    }
 }
 
 static bool MonitorRunning() {
@@ -850,6 +818,10 @@ static bool MonitorRunning() {
         return true;
     CloseHandle(g_pi.hProcess);
     g_pi.hProcess = NULL;
+    if (g_hMonitorJob) {
+        CloseHandle(g_hMonitorJob);
+        g_hMonitorJob = nullptr;
+    }
     return false;
 }
 
@@ -871,6 +843,19 @@ int main(int argc, char* argv[]) {
     bool isConfig = (argc >= 2 && strcmp(argv[1], "--config") == 0);
     bool isMonitor = (argc >= 2 && strcmp(argv[1], "--monitor") == 0);
 
+    HANDLE controlMutex = nullptr;
+    if (!isRenderer) {
+        const char* mutexName = isConfig
+            ? "Local\\BlakholeRendererConfig"
+            : "Local\\BlakholeRendererControl";
+        controlMutex = CreateMutexA(nullptr, TRUE, mutexName);
+        if (!controlMutex) return 1;
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            CloseHandle(controlMutex);
+            return 0;
+        }
+    }
+
     // --screen <idx>: 一屏一黑洞模式的子进程参数，指定渲染到第几个显示器
     // 父进程不传 --screen，子进程传 --screen N (N>=1)
     int screenIdx = -1;
@@ -891,24 +876,6 @@ int main(int argc, char* argv[]) {
     }
     // 让 WGC 捕获模块也把诊断写到同一个 debug 日志（用于排查黄边框）
     WGC_SetDebugLog(debugLog);
-
-    // 主程序启动时杀掉旧的 blackhole 进程（避免新旧实例冲突）
-    // --render 子进程不杀（它由 monitor 管理）
-    if (!isRenderer) {
-        DWORD myPid = GetCurrentProcessId();
-        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        PROCESSENTRY32 pe = { sizeof(pe) };
-        if (Process32First(snap, &pe)) {
-            do {
-                if (stricmp(pe.szExeFile, "blackhole.exe") == 0 && pe.th32ProcessID != myPid) {
-                    HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
-                    if (h) { TerminateProcess(h, 0); CloseHandle(h); }
-                }
-            } while (Process32Next(snap, &pe));
-        }
-        CloseHandle(snap);
-        Sleep(200);
-    }
 
     BlackholeConfig cfg;
 
@@ -1251,6 +1218,8 @@ int main(int argc, char* argv[]) {
     gl_EnableVertexAttribArray(0);
     gl_BindVertexArray(0);
 
+    BloomRenderer* bloom = Bloom_Create(wgl.width, wgl.height, debugLog);
+
     GLint locRes   = gl_GetUniformLocation(program, "iResolution");
     GLint locTime  = gl_GetUniformLocation(program, "iTime");
     GLint locDate  = gl_GetUniformLocation(program, "iDate");
@@ -1284,8 +1253,7 @@ int main(int argc, char* argv[]) {
     GLint locFixedLvl = gl_GetUniformLocation(program, "uFixedLevel");
     GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
     GLint locInitialSize = gl_GetUniformLocation(program, "uInitialSize");
-    GLint locScreenSwallow = gl_GetUniformLocation(program, "uScreenSwallow");
-    GLint locSwallowStrength = gl_GetUniformLocation(program, "uSwallowStrength");
+    GLint locLightingEffect = gl_GetUniformLocation(program, "uLightingEffect");
     GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
@@ -1393,7 +1361,7 @@ int main(int argc, char* argv[]) {
     // 先渲染一帧保证窗口有内容（用预热阶段已经上传过的纹理，不再重新取帧）
     {
         int fbW=wgl.width, fbH=wgl.height;
-        glViewport(0,0,fbW,fbH); glClearColor(0,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
+        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
         gl_UseProgram(program);
         gl_ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, GLTex_GetTexture(glTex));
         gl_Uniform1i(locCh0,0);
@@ -1402,8 +1370,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform4f(locDate,0,0,0,(float)time(nullptr));
         gl_Uniform1f(loc_uHR,cfg.holeRadius); gl_Uniform1f(loc_uDG,cfg.diskGain);
         gl_Uniform1f(loc_uDT,cfg.diskTemp); gl_Uniform1f(loc_uEX,cfg.exposure);
-        float effectiveShaderSpeed = cfg.screenSwallow ? cfg.spd * 0.30f : cfg.spd;
-        gl_Uniform1f(loc_uSP,effectiveShaderSpeed); gl_Uniform1f(loc_uSG,cfg.starGain);
+        gl_Uniform1f(loc_uSP,cfg.spd); gl_Uniform1f(loc_uSG,cfg.starGain);
         gl_Uniform1f(loc_uDI,cfg.diskIncl);
         gl_Uniform1i(loc_uPM,cfg.playMode); gl_Uniform1f(loc_uSlot,cfg.slotSec);
         gl_Uniform1i(loc_uPC,cfg.presetCount);
@@ -1426,9 +1393,9 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
-        gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
-        gl_Uniform1f(locSwallowStrength, cfg.swallowStrength);
-        gl_Uniform1f(locDistortion, cfg.distortion);
+        gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
+        float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
+        gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
         gl_Uniform1f(locHomeY, homeY);
@@ -1436,11 +1403,23 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
         gl_BindVertexArray(vao); gl_DrawArrays(GL_TRIANGLE_STRIP,0,4); gl_BindVertexArray(0);
-        gl_UseProgram(0); Win32GL_SwapBuffers(wgl);
+        gl_UseProgram(0);
+        Bloom_EndScene(bloom, fbW, fbH, bloomActive);
+        Win32GL_SwapBuffers(wgl);
     }
 
     // 启用分层模式（鼠标穿透）
     Win32GL_EnableLayered(wgl);
+    bool recordingHotkeyRegistered = false;
+    if (screenIdx < 0) {
+        recordingHotkeyRegistered = RegisterHotKey(
+            wgl.hwnd, WIN32GL_RECORDING_HOTKEY_ID,
+            MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'R') != FALSE;
+        if (!recordingHotkeyRegistered && debugLog) {
+            fprintf(debugLog, "[RecordingCapture] RegisterHotKey failed: %lu\n", GetLastError());
+            fflush(debugLog);
+        }
+    }
     // 不再隐藏系统光标 — WGC 已通过 IsCursorCaptureEnabled=false 禁用光标捕获，
     // 捕获的纹理不含光标，不会出现双重光标，系统光标始终保持正常可用
 
@@ -1481,7 +1460,7 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, fbW, fbH);
 
         double now = Win32GL_GetTime();
-        if (ToggleRecordingCaptureHotkeyPressed()) {
+        if (!exiting && Win32GL_TakeRecordingHotkey(wgl)) {
             recordingCaptureRuntimeAllowed = !recordingCaptureRuntimeAllowed;
             recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
             Win32GL_SetCaptureExcluded(wgl, !recordingCaptureRuntimeAllowed);
@@ -1558,11 +1537,9 @@ int main(int argc, char* argv[]) {
                     mouseVelX = 0.0f;
                     mouseVelY = 0.0f;
                 } else {
-                    float swallowMotionScale = cfg.screenSwallow ? 0.25f : 1.0f;
                     float gravityStrength = cfg.limitMouseOvershoot
                         ? (0.0000025f + 0.0000065f * (1.0f - inertia))
                         : (0.0000045f + 0.0000105f * (1.0f - inertia));
-                    gravityStrength *= swallowMotionScale;
                     float gravitySoftening = cfg.limitMouseOvershoot
                         ? (0.030f + 0.045f * inertia)
                         : (0.024f + 0.035f * inertia);
@@ -1570,11 +1547,10 @@ int main(int argc, char* argv[]) {
                     float settleSpeed = 0.00022f + 0.00018f * inertia;
                     float gravityDeadZone = settleRadius * 1.85f;
                     float maxGravityAccel = 0.00075f + 0.00055f * (1.0f - inertia);
-                    float maxGravitySpeed = (0.0065f + 0.0035f * (1.0f - inertia)) * (cfg.screenSwallow ? 0.35f : 1.0f);
+                    float maxGravitySpeed = 0.0065f + 0.0035f * (1.0f - inertia);
                     float farReturnStrength = cfg.limitMouseOvershoot
                         ? (0.00055f + 0.00035f * (1.0f - inertia))
                         : (0.00080f + 0.00065f * (1.0f - inertia));
-                    farReturnStrength *= swallowMotionScale;
                     float driftKeep = 0.9960f - 0.0050f * (1.0f - inertia);
                     float maxSeparation = 0.26f + 0.30f * inertia;
                     float worldMargin = 0.04f;
@@ -1654,7 +1630,7 @@ int main(int argc, char* argv[]) {
             frameHomeY = cursorHomeY;
 
             if (inertia > 0.0001f) {
-                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f * (cfg.screenSwallow ? 0.35f : 1.0f);
+                float wanderRadius = (0.018f + 0.057f * inertia) * 0.45f;
                 float wanderX = cosf(t * 0.42f + phaseOffset) * wanderRadius;
                 float wanderY = sinf(t * 0.33f + phaseOffset * 1.37f) * wanderRadius * 0.65f;
                 frameHomeX += wanderX;
@@ -1696,7 +1672,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        glClearColor(0,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
+        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
         gl_UseProgram(program);
 
         gl_ActiveTexture(GL_TEXTURE0);
@@ -1710,8 +1686,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(loc_uDG, cfg.diskGain);
         gl_Uniform1f(loc_uDT, cfg.diskTemp);
         gl_Uniform1f(loc_uEX, cfg.exposure);
-        float effectiveShaderSpeed = cfg.screenSwallow ? cfg.spd * 0.30f : cfg.spd;
-        gl_Uniform1f(loc_uSP, effectiveShaderSpeed);
+        gl_Uniform1f(loc_uSP, cfg.spd);
         gl_Uniform1f(loc_uSG, cfg.starGain);
         gl_Uniform1f(loc_uDI, cfg.diskIncl);
         gl_Uniform1i(loc_uPM, cfg.playMode);
@@ -1752,9 +1727,9 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
-        gl_Uniform1i(locScreenSwallow, cfg.screenSwallow ? 1 : 0);
-        gl_Uniform1f(locSwallowStrength, cfg.swallowStrength);
-        gl_Uniform1f(locDistortion, cfg.distortion);
+        gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
+        float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
+        gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);
         gl_Uniform1f(locHomeY, frameHomeY);
@@ -1767,6 +1742,8 @@ int main(int argc, char* argv[]) {
         gl_BindVertexArray(0);
         gl_UseProgram(0);
 
+        Bloom_EndScene(bloom, fbW, fbH, bloomActive);
+
         Win32GL_SwapBuffers(wgl);
 
         frames++;
@@ -1777,16 +1754,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    Bloom_Destroy(bloom);
     GLTex_Shutdown(glTex);
     if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
     else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }
     gl_DeleteProgram(program);
     gl_DeleteVertexArrays(1, &vao);
     gl_DeleteBuffers(1, &vbo);
+    if (recordingHotkeyRegistered) {
+        UnregisterHotKey(wgl.hwnd, WIN32GL_RECORDING_HOTKEY_ID);
+    }
     Win32GL_Shutdown(wgl);
 
-    // 一屏一黑洞: 终止所有子渲染器 (Job Object 也会兜底)
-    KillChildRenderers();
 #else
     {
         Win32Window win;
@@ -1813,5 +1792,7 @@ int main(int argc, char* argv[]) {
         r.Shutdown(); if(useWGC)WGC_Release(wgc);else DXGI_Release(dxgi); Win32Window_ShowSystemCursor(true); Win32Window_Shutdown(win);
     }
 #endif
+    // 一屏一黑洞: 请求子渲染器关闭，Job Object 负责超时兜底。
+    KillChildRenderers();
     return 0;
 }

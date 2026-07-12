@@ -1,18 +1,34 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(BlakholeUI VERSION 1.0 LANGUAGES CXX)
+include(../cmake/AppVersion.cmake)
+project(BlakholeUI VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network)
+
+include(CTest)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
+set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${BLACKHOLE_GENERATED_DIR}")
+configure_file(../cmake/app_version.h.in "${BLACKHOLE_GENERATED_DIR}/app_version.h" @ONLY)
+configure_file(app_version.rc.in "${BLACKHOLE_GENERATED_DIR}/app_version.rc" @ONLY)
+
 # Fix windres popen issue on Windows (MinGW)
-set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
+set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file --codepage=65001")
 
 qt_add_executable(appBlakholeUI
     main.cpp
+    ../src/autostart_registry.cpp
+    ../src/foreground_window.cpp
+    ../src/game_detection.cpp
+    ../src/media_session.cpp
+    core/application_catalog.cpp
+    core/avatar_storage.cpp
+    core/update_release.cpp
+    core/update_checker.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h
@@ -20,7 +36,10 @@ qt_add_executable(appBlakholeUI
     core/blackholepreviewfbo.h
     core/blackholepreviewfbo.cpp
     app.rc
+    "${BLACKHOLE_GENERATED_DIR}/app_version.rc"
 )
+
+target_include_directories(appBlakholeUI PRIVATE ../src "${BLACKHOLE_GENERATED_DIR}")
 
 file(GLOB QML_COMPONENTS CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "components/*.qml")
 file(GLOB QML_PAGES CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "pages/*.qml")
@@ -48,8 +67,43 @@ set_target_properties(appBlakholeUI PROPERTIES
 )
 
 target_link_libraries(appBlakholeUI
-    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL dwmapi ole32
+    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL Qt6::Network advapi32 dwmapi ole32 runtimeobject version
 )
+
+if(BUILD_TESTING)
+    add_executable(application_catalog_tests EXCLUDE_FROM_ALL
+        ../tests/application_catalog_tests.cpp
+        core/application_catalog.cpp
+    )
+    target_include_directories(application_catalog_tests PRIVATE core)
+    target_link_libraries(application_catalog_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets version)
+    add_test(NAME application_catalog_tests COMMAND application_catalog_tests)
+
+    add_executable(avatar_storage_tests EXCLUDE_FROM_ALL
+        ../tests/avatar_storage_tests.cpp
+        core/avatar_storage.cpp
+    )
+    target_include_directories(avatar_storage_tests PRIVATE core)
+    target_link_libraries(avatar_storage_tests PRIVATE Qt6::Core Qt6::Gui)
+    add_test(NAME avatar_storage_tests COMMAND avatar_storage_tests)
+
+    add_executable(update_release_tests EXCLUDE_FROM_ALL
+        ../tests/update_release_tests.cpp
+        core/update_release.cpp
+    )
+    target_include_directories(update_release_tests PRIVATE core)
+    target_link_libraries(update_release_tests PRIVATE Qt6::Core)
+    add_test(NAME update_release_tests COMMAND update_release_tests)
+
+    add_executable(update_checker_state_tests EXCLUDE_FROM_ALL
+        ../tests/update_checker_state_tests.cpp
+        core/update_checker.cpp
+        core/update_release.cpp
+    )
+    target_include_directories(update_checker_state_tests PRIVATE core)
+    target_link_libraries(update_checker_state_tests PRIVATE Qt6::Core Qt6::Network Qt6::Gui)
+    add_test(NAME update_checker_state_tests COMMAND update_checker_state_tests)
+endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)
 # 缺这些会启动报错 "找不到 libgcc_s_seh-1.dll" / "找不到 libfreetype-6.dll" / "找不到 Qt6Core.dll"

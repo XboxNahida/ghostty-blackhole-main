@@ -1,13 +1,19 @@
 // blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
+#include "application_catalog.h"
+#include "avatar_storage.h"
+#include "autostart_registry.h"
+#include "foreground_window.h"
+#include "game_detection.h"
+#include "media_session.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFileDialog>
 #include <QTextStream>
 #include <QStandardPaths>
-#include <QSettings>
 #include <QDebug>
 
 #ifdef Q_OS_WIN
@@ -451,6 +457,10 @@ void BlackHoleCore::loadConfig()
 
     setCurrentPresetIndex(0);
     refreshCurrentPresetProps();
+#ifdef Q_OS_WIN
+    std::wstring registeredCommand;
+    m_autoStart = AutoStart_Query(registeredCommand);
+#endif
     emit displayModeChanged();
     emit idleSecondsChanged();
     emit playModeChanged();
@@ -519,18 +529,16 @@ void BlackHoleCore::saveConfig()
 
     file.close();
 
-    // 开机自启 (Windows 注册表)
-    if (m_autoStart) {
-        QSettings reg("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                      QSettings::NativeFormat);
-        QString appPath = QCoreApplication::applicationFilePath();
-        appPath.replace('/', '\\');
-        reg.setValue("BlakholeUI", appPath);
-    } else {
-        QSettings reg("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
-                      QSettings::NativeFormat);
-        reg.remove("BlakholeUI");
+    // 开机自启与配置文件使用同一状态；写入后由共享模块回读验证。
+#ifdef Q_OS_WIN
+    const AutoStartResult autoStartResult = AutoStart_Set(
+        m_autoStart,
+        QDir::toNativeSeparators(QCoreApplication::applicationFilePath()).toStdWString());
+    if (!autoStartResult.success) {
+        m_autoStartStatus = tr("开机自启动更新失败，错误码 %1").arg(autoStartResult.errorCode);
+        emit autoStartStatusChanged();
     }
+#endif
 
     // also save all other configs
     saveAdvancedConfig();
@@ -631,7 +639,7 @@ void BlackHoleCore::resetDefaults()
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
     m_limitMouseOvershoot = true;
-    m_swallowStrength = 0.65f;
+    m_lightingEffect = false;
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -650,14 +658,14 @@ void BlackHoleCore::resetDefaults()
     emit limitMouseOvershootChanged();
     emit randomPathChanged();
     emit animationSpeedChanged();
-    emit screenSwallowChanged();
-    emit swallowStrengthChanged();
+    emit lightingEffectChanged();
     emit distortionChanged();
     emit holeSizeChanged();
     emit growEnabledChanged();
     emit initialSizeChanged();
     emit idleWhitelistChanged();
     emit idleBlacklistChanged();
+    emit idleForceBlocklistChanged();
     emit scheduleEnabledChanged();
     emit startHourChanged(); emit startMinuteChanged();
     emit endHourChanged(); emit endMinuteChanged();
@@ -803,7 +811,25 @@ bool BlackHoleCore::videoAsIdle() const       { return m_videoAsIdle; }
 void BlackHoleCore::setVideoAsIdle(bool v)    { if (m_videoAsIdle != v) { m_videoAsIdle = v; emit videoAsIdleChanged(); } }
 
 bool BlackHoleCore::autoStart() const         { return m_autoStart; }
-void BlackHoleCore::setAutoStart(bool v)      { if (m_autoStart != v) { m_autoStart = v; emit autoStartChanged(); } }
+void BlackHoleCore::setAutoStart(bool v)
+{
+    if (m_autoStart == v) return;
+#ifdef Q_OS_WIN
+    const AutoStartResult result = AutoStart_Set(
+        v, QDir::toNativeSeparators(QCoreApplication::applicationFilePath()).toStdWString());
+    if (!result.success) {
+        m_autoStartStatus = tr("开机自启动更新失败，错误码 %1").arg(result.errorCode);
+        emit autoStartStatusChanged();
+        emit autoStartChanged();
+        return;
+    }
+#endif
+    m_autoStart = v;
+    m_autoStartStatus = v ? tr("开机自启动已开启") : tr("开机自启动已关闭");
+    emit autoStartChanged();
+    emit autoStartStatusChanged();
+}
+QString BlackHoleCore::autoStartStatus() const { return m_autoStartStatus; }
 
 bool BlackHoleCore::launchMinimized() const          { return m_launchMinimized; }
 void BlackHoleCore::setLaunchMinimized(bool v)     { if (m_launchMinimized == v) return; m_launchMinimized = v; emit launchMinimizedChanged(); }
@@ -1094,10 +1120,22 @@ static void GetProcName(DWORD pid, char* out, int maxLen) {
     CloseHandle(snap);
 }
 
+static bool IdleListMatchesProcess(const QStringList &list, const char *processName)
+{
+    const QString process = QString::fromUtf8(processName);
+    for (const QString &entry : list) {
+        if (process.contains(entry, Qt::CaseInsensitive)) return true;
+    }
+    return false;
+}
+
 void BlackHoleCore::checkIdle()
 {
 #ifdef Q_OS_WIN
-    if (m_displayMode != 1) return;
+    if (m_displayMode != 1) {
+        setIdleDetectionState(tr("空闲检测未启用"), false);
+        return;
+    }
 
     LASTINPUTINFO lii = { sizeof(LASTINPUTINFO) };
     if (!GetLastInputInfo(&lii)) return;
@@ -1108,18 +1146,19 @@ void BlackHoleCore::checkIdle()
 
     HWND fg = GetForegroundWindow();
     bool watchingVideo = false;
+    bool forceBlocked = false;
     bool uwpDetected = false;
+    QString foregroundProcess;
+    QString detectionReason = tr("未发现可靠媒体或游戏信号");
 
     if (fg) {
-        // 第1层: 排除黑洞自己的渲染窗口
-        {
-            LONG_PTR ex = GetWindowLongPtrW(fg, GWL_EXSTYLE);
-            if ((ex & (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-                == (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-                goto check_foreground_done;
-            wchar_t cls[64] = {};
-            if (GetClassNameW(fg, cls, 64) && wcscmp(cls, L"BlackHoleWGL") == 0)
-                goto check_foreground_done;
+        // 第1层: 排除桌面、系统外壳和黑洞自己的渲染窗口。
+        const ForegroundKind foregroundKind = Foreground_Classify(fg);
+        if (foregroundKind != ForegroundKind::Application) {
+            detectionReason = foregroundKind == ForegroundKind::Desktop
+                ? tr("Windows 桌面，允许触发")
+                : tr("系统界面，允许触发");
+            goto check_foreground_done;
         }
 
         // 第2层: D3D 独占全屏
@@ -1135,21 +1174,15 @@ void BlackHoleCore::checkIdle()
                 if (SUCCEEDED(pfnQuns(&state)) &&
                     (state == QUNS_RUNNING_D3D_FULL_SCREEN || state == QUNS_PRESENTATION_MODE)) {
                     watchingVideo = true;
+                    detectionReason = tr("系统全屏或演示模式");
                 }
             }
         }
 
-        // 第3层: 无边框窗口覆盖全屏 (排除最大化窗口)
-        if (!watchingVideo) {
-            RECT r;
-            if (GetWindowRect(fg, &r)) {
-                int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-                int ww = r.right - r.left, wh = r.bottom - r.top;
-                LONG_PTR style = GetWindowLongPtrW(fg, GWL_STYLE);
-                if (ww >= sw && wh >= sh && !(style & WS_MAXIMIZE)) {
-                    watchingVideo = true;
-                }
-            }
+        // 第3层: 当前显示器上的无边框全屏窗口。
+        if (!watchingVideo && Foreground_IsBorderlessFullscreen(fg)) {
+            watchingVideo = true;
+            detectionReason = tr("无边框全屏应用");
         }
 
         // 获取进程名 (使用 CreateToolhelp32Snapshot, 匹配原生)
@@ -1159,45 +1192,41 @@ void BlackHoleCore::checkIdle()
         char pname[260];
         GetProcName(pid, pname, sizeof(pname));
         if (!pname[0]) goto check_foreground_done;
+        foregroundProcess = QString::fromUtf8(pname);
 
         // 白名单检测 (新UI独有: 白名单进程不阻止黑洞触发)
         bool isWhitelisted = false;
         if (!m_idleWhitelist.isEmpty()) {
-            for (const QString &w : m_idleWhitelist) {
-                QByteArray wLower = w.toLower().toUtf8();
-                if (strstr(pname, wLower.constData())) {
-                    isWhitelisted = true;
-                    break;
-                }
+            isWhitelisted = IdleListMatchesProcess(m_idleWhitelist, pname);
+            if (isWhitelisted) {
+                watchingVideo = false;
+                detectionReason = tr("命中始终允许触发名单");
+                goto check_foreground_done;
             }
-            if (isWhitelisted) goto check_foreground_done;
+        }
+
+        if (IdleListMatchesProcess(m_idleForceBlocklist, pname)) {
+            forceBlocked = true;
+            detectionReason = tr("命中前台强制不触发名单");
+            goto check_foreground_done;
+        }
+
+        if (GameDetection_IsKnownGameProcess(pid)) {
+            watchingVideo = true;
+            detectionReason = tr("Windows 或 Steam 游戏记录");
+            goto check_foreground_done;
         }
 
         // 第4层: 进程名分类检测
 
         // 专用视频播放器黑名单匹配
         bool isDedicatedVideoPlayer = false;
-        for (const QString &b : m_idleBlacklist) {
-            QByteArray bLower = b.toLower().toUtf8();
-            if (strstr(pname, bLower.constData())) {
-                isDedicatedVideoPlayer = true;
-                break;
-            }
-        }
+        isDedicatedVideoPlayer = IdleListMatchesProcess(m_idleBlacklist, pname);
 
         // 浏览器
         bool isBrowser = (strstr(pname, "chrome") || strstr(pname, "msedge") ||
                           strstr(pname, "firefox") || strstr(pname, "opera") ||
                           strstr(pname, "brave"));
-
-        // 游戏启动器 -> 立即返回 true (匹配原生: 用户在游戏中)
-        if (strstr(pname, "steam") || strstr(pname, "epic") || strstr(pname, "ubisoft") ||
-            strstr(pname, "ubiconnect") || strstr(pname, "eaapp") || strstr(pname, "origin") ||
-            strstr(pname, "battlenet") || strstr(pname, "riot") || strstr(pname, "gog") ||
-            strstr(pname, "xbox") || strstr(pname, "gamebar")) {
-            watchingVideo = true;
-            goto check_foreground_done;
-        }
 
         // 第5层: UWP 窗口标题检测
         bool isUWPVideo = false;
@@ -1235,6 +1264,14 @@ void BlackHoleCore::checkIdle()
                                     wcsstr(wtitle, L"\u7535\u5f71") || wcsstr(wtitle, L"Movie") ||
                                     wcsstr(wtitle, L"\u76f4\u64ad") || wcsstr(wtitle, L"Live"));
             if (!hasVideoKeyword) goto check_foreground_done;
+        }
+
+        const MediaSessionSnapshot mediaSession = MediaSession_QueryCurrent();
+        if (mediaSession.state == MediaPlaybackState::Playing &&
+            MediaSession_SourceMatchesProcess(mediaSession.sourceAppId, pname)) {
+            watchingVideo = true;
+            detectionReason = tr("系统媒体会话正在播放");
+            goto check_foreground_done;
         }
 
         // 第6层: 音频检测 (匹配原生 IAudioSessionManager2 + IAudioMeterInformation2)
@@ -1291,13 +1328,23 @@ void BlackHoleCore::checkIdle()
             }
             se->Release(); mgr->Release();
             watchingVideo = hasAudio;
+            if (hasAudio) detectionReason = tr("媒体应用音频正在播放");
         }
+    } else {
+        detectionReason = tr("未检测到前台窗口");
     }
 
 check_foreground_done:
 
     // videoAsIdle: 视频播放时不阻止黑洞触发
-    bool blocked = watchingVideo && !m_videoAsIdle;
+    bool blocked = forceBlocked || (watchingVideo && !m_videoAsIdle);
+    if (watchingVideo && m_videoAsIdle && !forceBlocked) {
+        detectionReason += tr("，已按设置允许触发");
+    }
+    const QString detectionSummary = foregroundProcess.isEmpty()
+        ? detectionReason
+        : QStringLiteral("%1 · %2").arg(foregroundProcess, detectionReason);
+    setIdleDetectionState(detectionSummary, blocked);
 
     bool running = (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning);
 
@@ -1345,18 +1392,8 @@ void BlackHoleCore::setRandomPath(bool v) { if (m_randomPath == v) return; m_ran
 int BlackHoleCore::animationSpeed() const { return m_animationSpeed; }
 void BlackHoleCore::setAnimationSpeed(int v) { if (m_animationSpeed == v) return; m_animationSpeed = v; emit animationSpeedChanged(); }
 
-bool BlackHoleCore::screenSwallow() const { return m_screenSwallow; }
-void BlackHoleCore::setScreenSwallow(bool v) { if (m_screenSwallow == v) return; m_screenSwallow = v; emit screenSwallowChanged(); }
-
-float BlackHoleCore::swallowStrength() const { return m_swallowStrength; }
-void BlackHoleCore::setSwallowStrength(float v)
-{
-    if (v < 0.0f) v = 0.0f;
-    if (v > 1.0f) v = 1.0f;
-    if (qFuzzyCompare(m_swallowStrength, v)) return;
-    m_swallowStrength = v;
-    emit swallowStrengthChanged();
-}
+bool BlackHoleCore::lightingEffect() const { return m_lightingEffect; }
+void BlackHoleCore::setLightingEffect(bool v) { if (m_lightingEffect == v) return; m_lightingEffect = v; emit lightingEffectChanged(); }
 
 float BlackHoleCore::distortion() const { return m_distortion; }
 void BlackHoleCore::setDistortion(float v) { if (qFuzzyCompare(m_distortion, v)) return; m_distortion = v; emit distortionChanged(); }
@@ -1380,11 +1417,109 @@ void BlackHoleCore::setInitialSize(float v) { if (qFuzzyCompare(m_initialSize, v
 
 // ====== 空闲名单 getter/setter ======
 
+static QStringList NormalizeIdleList(const QStringList &list)
+{
+    QStringList normalized;
+    for (const QString &entry : list) {
+        const QString value = entry.trimmed();
+        if (value.isEmpty()) continue;
+        bool duplicate = false;
+        for (const QString &existing : normalized) {
+            if (existing.compare(value, Qt::CaseInsensitive) == 0) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (!duplicate) normalized.append(value);
+    }
+    return normalized;
+}
+
+static QVariantMap ApplicationEntryToMap(const ApplicationCatalogEntry &entry)
+{
+    if (entry.processName.isEmpty() || entry.executablePath.isEmpty()) return {};
+    return {
+        {QStringLiteral("displayName"), entry.displayName},
+        {QStringLiteral("processName"), entry.processName},
+        {QStringLiteral("executablePath"), entry.executablePath},
+        {QStringLiteral("iconDataUrl"), entry.iconDataUrl}
+    };
+}
+
 QStringList BlackHoleCore::idleWhitelist() const { return m_idleWhitelist; }
-void BlackHoleCore::setIdleWhitelist(const QStringList &list) { m_idleWhitelist = list; emit idleWhitelistChanged(); }
+void BlackHoleCore::setIdleWhitelist(const QStringList &list)
+{
+    const QStringList normalized = NormalizeIdleList(list);
+    if (m_idleWhitelist == normalized) return;
+    m_idleWhitelist = normalized;
+    emit idleWhitelistChanged();
+}
 
 QStringList BlackHoleCore::idleBlacklist() const { return m_idleBlacklist; }
-void BlackHoleCore::setIdleBlacklist(const QStringList &list) { m_idleBlacklist = list; emit idleBlacklistChanged(); }
+void BlackHoleCore::setIdleBlacklist(const QStringList &list)
+{
+    const QStringList normalized = NormalizeIdleList(list);
+    if (m_idleBlacklist == normalized) return;
+    m_idleBlacklist = normalized;
+    emit idleBlacklistChanged();
+}
+
+QStringList BlackHoleCore::idleForceBlocklist() const { return m_idleForceBlocklist; }
+void BlackHoleCore::setIdleForceBlocklist(const QStringList &list)
+{
+    const QStringList normalized = NormalizeIdleList(list);
+    if (m_idleForceBlocklist == normalized) return;
+    m_idleForceBlocklist = normalized;
+    emit idleForceBlocklistChanged();
+}
+
+QVariantList BlackHoleCore::runningApplications() const
+{
+    QVariantList applications;
+#ifdef Q_OS_WIN
+    const QVector<ApplicationCatalogEntry> entries =
+        ApplicationCatalog_EnumerateRunning(GetCurrentProcessId());
+    applications.reserve(entries.size());
+    for (const ApplicationCatalogEntry &entry : entries) {
+        const QVariantMap application = ApplicationEntryToMap(entry);
+        if (!application.isEmpty()) applications.append(application);
+    }
+#endif
+    return applications;
+}
+
+QVariantMap BlackHoleCore::chooseExecutable()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        nullptr,
+        tr("选择程序"),
+        QString(),
+        tr("可执行程序 (*.exe)"));
+    if (path.isEmpty()) return {};
+    return ApplicationEntryToMap(ApplicationCatalog_FromExecutable(path));
+}
+
+QString BlackHoleCore::idleDetectionSummary() const
+{
+    return m_idleDetectionSummary;
+}
+
+bool BlackHoleCore::idleDetectionBlocked() const
+{
+    return m_idleDetectionBlocked;
+}
+
+void BlackHoleCore::setIdleDetectionState(const QString &summary, bool blocked)
+{
+    if (m_idleDetectionSummary != summary) {
+        m_idleDetectionSummary = summary;
+        emit idleDetectionSummaryChanged();
+    }
+    if (m_idleDetectionBlocked != blocked) {
+        m_idleDetectionBlocked = blocked;
+        emit idleDetectionBlockedChanged();
+    }
+}
 
 // ====== 定时显示 getter/setter ======
 
@@ -1425,8 +1560,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "videoAsIdle="   << (m_videoAsIdle ? 1 : 0) << "\n";
     out << "randomPath="    << (m_randomPath ? 1 : 0) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
-    out << "screenSwallow=" << (m_screenSwallow ? 1 : 0) << "\n";
-    out << "swallowStrength=" << QString::number(m_swallowStrength, 'f', 2) << "\n";
+    out << "lightingEffect=" << (m_lightingEffect ? 1 : 0) << "\n";
     out << "distortion="    << QString::number(m_distortion, 'f', 2) << "\n";
     out << "allowRecordingCapture=" << (m_allowRecordingCapture ? 1 : 0) << "\n";
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
@@ -1450,6 +1584,7 @@ void BlackHoleCore::loadAdvancedConfig()
     }
 
     QTextStream in(&file);
+    bool hasLightingEffect = false;
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
@@ -1463,8 +1598,9 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "videoAsIdle")   m_videoAsIdle    = (val.toInt() != 0);
         else if (key == "randomPath")     m_randomPath     = (val.toInt() != 0);
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
-        else if (key == "screenSwallow")  m_screenSwallow  = (val.toInt() != 0);
-        else if (key == "swallowStrength") setSwallowStrength(val.toFloat());
+        else if (key == "lightingEffect") { m_lightingEffect = (val.toInt() != 0); hasLightingEffect = true; }
+        else if (key == "screenSwallow" && !hasLightingEffect) m_lightingEffect = (val.toInt() != 0);
+        else if (key == "swallowStrength") { /* 旧配置兼容：强度参数已废弃。 */ }
         else if (key == "distortion")     m_distortion     = val.toFloat();
         else if (key == "allowRecordingCapture") m_allowRecordingCapture = (val.toInt() != 0);
         else if (key == "holeSize")       m_holeSize       = val.toFloat();
@@ -1481,7 +1617,7 @@ void BlackHoleCore::loadAdvancedConfig()
     file.close();
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
-    emit swallowStrengthChanged();
+    emit lightingEffectChanged();
     emit allowRecordingCaptureChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }
@@ -1495,13 +1631,16 @@ void BlackHoleCore::saveIdleListConfig()
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
     QTextStream out(&file);
-    out << "# Blackhole Idle Lists v1\n";
+    out << "# Blackhole Idle Lists v2\n";
     out << "[whitelist]\n";
     for (const QString &s : m_idleWhitelist) out << s << "\n";
     out << "[/whitelist]\n";
-    out << "[blacklist]\n";
+    out << "[mediaHints]\n";
     for (const QString &s : m_idleBlacklist) out << s << "\n";
-    out << "[/blacklist]\n";
+    out << "[/mediaHints]\n";
+    out << "[forceBlocklist]\n";
+    for (const QString &s : m_idleForceBlocklist) out << s << "\n";
+    out << "[/forceBlocklist]\n";
     file.close();
 }
 
@@ -1516,16 +1655,24 @@ void BlackHoleCore::loadIdleListConfig()
     QTextStream in(&file);
     m_idleWhitelist.clear();
     m_idleBlacklist.clear();
+    m_idleForceBlocklist.clear();
     QStringList *currentList = nullptr;
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
         if (line == "[whitelist]") { currentList = &m_idleWhitelist; continue; }
         if (line == "[/whitelist]") { currentList = nullptr; continue; }
+        if (line == "[mediaHints]") { currentList = &m_idleBlacklist; continue; }
+        if (line == "[/mediaHints]") { currentList = nullptr; continue; }
         if (line == "[blacklist]") { currentList = &m_idleBlacklist; continue; }
         if (line == "[/blacklist]") { currentList = nullptr; continue; }
+        if (line == "[forceBlocklist]") { currentList = &m_idleForceBlocklist; continue; }
+        if (line == "[/forceBlocklist]") { currentList = nullptr; continue; }
         if (currentList) currentList->append(line);
     }
+    m_idleWhitelist = NormalizeIdleList(m_idleWhitelist);
+    m_idleBlacklist = NormalizeIdleList(m_idleBlacklist);
+    m_idleForceBlocklist = NormalizeIdleList(m_idleForceBlocklist);
     file.close();
     qDebug() << "BlackHoleCore: loaded idle lists";
 }
@@ -1598,6 +1745,7 @@ void BlackHoleCore::saveSystemConfig()
     out << "defaultCloseAction=" << m_defaultCloseAction << "\n";
     out << "closeHotkeyEnabled=" << (m_closeHotkeyEnabled ? 1 : 0) << "\n";
     out << "closeHotkeySequence=" << m_closeHotkeySequence << "\n";
+    out << "customAvatarPath=" << QDir::toNativeSeparators(m_customAvatarPath) << "\n";
     file.close();
     qDebug() << "BlackHoleCore: saved system config";
 }
@@ -1627,8 +1775,15 @@ void BlackHoleCore::loadSystemConfig()
         else if (key == "defaultCloseAction") m_defaultCloseAction = val.toInt();
         else if (key == "closeHotkeyEnabled") m_closeHotkeyEnabled = (val.toInt() != 0);
         else if (key == "closeHotkeySequence") m_closeHotkeySequence = normalizedHotkeySequence(val);
+        else if (key == "customAvatarPath") m_customAvatarPath = QDir::fromNativeSeparators(val);
     }
     file.close();
+    if (!AvatarStorage_FileUrl(m_customAvatarPath).isEmpty()) {
+        m_avatarStatus.clear();
+    } else if (!m_customAvatarPath.isEmpty()) {
+        m_customAvatarPath.clear();
+        m_avatarStatus = tr("自定义头像文件不存在，已恢复默认头像");
+    }
     updateCloseHotkeyRegistration();
     qDebug() << "BlackHoleCore: loaded system config";
 }
@@ -1809,6 +1964,43 @@ void BlackHoleCore::setCloseHotkeySequence(const QString &v)
 }
 
 QString BlackHoleCore::closeHotkeyStatus() const { return m_closeHotkeyStatus; }
+
+QString BlackHoleCore::customAvatarUrl() const
+{
+    const QString customUrl = AvatarStorage_FileUrl(m_customAvatarPath);
+    return customUrl.isEmpty()
+        ? QStringLiteral("qrc:/new/prefix1/fonts/pic/avatar.png")
+        : customUrl;
+}
+
+QString BlackHoleCore::avatarStatus() const
+{
+    return m_avatarStatus;
+}
+
+void BlackHoleCore::chooseCustomAvatar()
+{
+    const QString sourcePath = QFileDialog::getOpenFileName(
+        nullptr, tr("选择头像"), QString(),
+        tr("图片文件 (*.png *.jpg *.jpeg *.webp)"));
+    if (sourcePath.isEmpty()) return;
+
+    const QString avatarDirectory = QStandardPaths::writableLocation(
+        QStandardPaths::AppDataLocation) + QStringLiteral("/avatar");
+    QString savedPath;
+    QString error;
+    if (!AvatarStorage_Save(sourcePath, avatarDirectory, &savedPath, &error)) {
+        m_avatarStatus = error;
+        emit avatarStatusChanged();
+        return;
+    }
+
+    m_customAvatarPath = savedPath;
+    m_avatarStatus = tr("头像已更新");
+    saveSystemConfig();
+    emit customAvatarUrlChanged();
+    emit avatarStatusChanged();
+}
 
 bool BlackHoleCore::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result)
 {

@@ -29,4 +29,10 @@ if ($missing.Count -gt 0) {
     throw "Missing bhCore binding in Main.qml: $($missing -join ', ')"
 }
 
+$blackholeConfig = Get-Content -Raw -Encoding UTF8 (Join-Path $pagesDir "BlackholeConfig.qml")
+if ($blackholeConfig -match 'bhCore\.startRenderer\s*\(' -or
+    $blackholeConfig -notmatch 'else\s+bhCore\.applyAndStart\s*\(\s*\)') {
+    throw "Blackhole start button must use applyAndStart() so idle mode starts the idle timer"
+}
+
 "QML_CORE_BINDINGS_OK"

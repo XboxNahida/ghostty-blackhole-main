@@ -43,8 +43,7 @@ struct BlackholeConfig {
     float mouseInertia    = 0.30f;  // 鼠标跟随惯性（0=贴住鼠标, 1=最大惯性/游走）
     bool  limitMouseOvershoot = true; // 是否把过冲限制在鼠标半径内
     bool  randomPath      = true;  // 是否随机出生位置/轨迹/预设偏移
-    bool  screenSwallow   = false; // 出生/退出时的屏幕吞噬效果
-    float swallowStrength = 0.65f; // shader 层吞噬强度
+    bool  lightingEffect  = false; // 吸积盘分层光影与 Bloom
     float distortion      = 1.0f;  // 引力透镜扭曲强度
     bool  allowRecordingCapture = false; // 允许截图/录屏捕获黑洞窗口
     bool  growEnabled     = false; // 是否从 initialSize 逐渐增长

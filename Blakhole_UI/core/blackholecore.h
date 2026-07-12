@@ -9,6 +9,8 @@
 #include <QVector>
 #include <QString>
 #include <QColor>
+#include <QVariantList>
+#include <QVariantMap>
 
 class QFile;
 
@@ -89,6 +91,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(float slotSeconds READ slotSeconds WRITE setSlotSeconds NOTIFY slotSecondsChanged)
     Q_PROPERTY(bool videoAsIdle READ videoAsIdle WRITE setVideoAsIdle NOTIFY videoAsIdleChanged)
     Q_PROPERTY(bool autoStart READ autoStart WRITE setAutoStart NOTIFY autoStartChanged)
+    Q_PROPERTY(QString autoStartStatus READ autoStartStatus NOTIFY autoStartStatusChanged)
     Q_PROPERTY(bool launchMinimized READ launchMinimized WRITE setLaunchMinimized NOTIFY launchMinimizedChanged)
     // 多显示器
     Q_PROPERTY(int screenTarget READ screenTarget WRITE setScreenTarget NOTIFY screenTargetChanged)
@@ -134,8 +137,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool limitMouseOvershoot READ limitMouseOvershoot WRITE setLimitMouseOvershoot NOTIFY limitMouseOvershootChanged)
     Q_PROPERTY(bool randomPath READ randomPath WRITE setRandomPath NOTIFY randomPathChanged)
     Q_PROPERTY(int animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
-    Q_PROPERTY(bool screenSwallow READ screenSwallow WRITE setScreenSwallow NOTIFY screenSwallowChanged)
-    Q_PROPERTY(float swallowStrength READ swallowStrength WRITE setSwallowStrength NOTIFY swallowStrengthChanged)
+    Q_PROPERTY(bool lightingEffect READ lightingEffect WRITE setLightingEffect NOTIFY lightingEffectChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
     Q_PROPERTY(bool allowRecordingCapture READ allowRecordingCapture WRITE setAllowRecordingCapture NOTIFY allowRecordingCaptureChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
@@ -145,6 +147,9 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     // 空闲名单
     Q_PROPERTY(QStringList idleWhitelist READ idleWhitelist WRITE setIdleWhitelist NOTIFY idleWhitelistChanged)
     Q_PROPERTY(QStringList idleBlacklist READ idleBlacklist WRITE setIdleBlacklist NOTIFY idleBlacklistChanged)
+    Q_PROPERTY(QStringList idleForceBlocklist READ idleForceBlocklist WRITE setIdleForceBlocklist NOTIFY idleForceBlocklistChanged)
+    Q_PROPERTY(QString idleDetectionSummary READ idleDetectionSummary NOTIFY idleDetectionSummaryChanged)
+    Q_PROPERTY(bool idleDetectionBlocked READ idleDetectionBlocked NOTIFY idleDetectionBlockedChanged)
 
     // 定时显示
     Q_PROPERTY(bool scheduleEnabled READ scheduleEnabled WRITE setScheduleEnabled NOTIFY scheduleEnabledChanged)
@@ -164,6 +169,8 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool closeHotkeyEnabled READ closeHotkeyEnabled WRITE setCloseHotkeyEnabled NOTIFY closeHotkeyEnabledChanged)
     Q_PROPERTY(QString closeHotkeySequence READ closeHotkeySequence WRITE setCloseHotkeySequence NOTIFY closeHotkeySequenceChanged)
     Q_PROPERTY(QString closeHotkeyStatus READ closeHotkeyStatus NOTIFY closeHotkeyStatusChanged)
+    Q_PROPERTY(QString customAvatarUrl READ customAvatarUrl NOTIFY customAvatarUrlChanged)
+    Q_PROPERTY(QString avatarStatus READ avatarStatus NOTIFY avatarStatusChanged)
 
 
     // 渲染器覆盖参数 (默认 -1.0 = 不覆盖，使用预设值)
@@ -193,6 +200,7 @@ public:
     void setVideoAsIdle(bool v);
     bool autoStart() const;
     void setAutoStart(bool v);
+    QString autoStartStatus() const;
     bool launchMinimized() const;
     void setLaunchMinimized(bool v);
     int screenTarget() const;
@@ -244,10 +252,8 @@ public:
     void setRandomPath(bool v);
     int animationSpeed() const;
     void setAnimationSpeed(int v);
-    bool screenSwallow() const;
-    void setScreenSwallow(bool v);
-    float swallowStrength() const;
-    void setSwallowStrength(float v);
+    bool lightingEffect() const;
+    void setLightingEffect(bool v);
     float distortion() const;
     void setDistortion(float v);
     bool allowRecordingCapture() const;
@@ -264,6 +270,12 @@ public:
     void setIdleWhitelist(const QStringList &list);
     QStringList idleBlacklist() const;
     void setIdleBlacklist(const QStringList &list);
+    QStringList idleForceBlocklist() const;
+    void setIdleForceBlocklist(const QStringList &list);
+    Q_INVOKABLE QVariantList runningApplications() const;
+    Q_INVOKABLE QVariantMap chooseExecutable();
+    QString idleDetectionSummary() const;
+    bool idleDetectionBlocked() const;
 
     // 定时显示
     bool scheduleEnabled() const;
@@ -293,6 +305,9 @@ public:
     QString closeHotkeySequence() const;
     void setCloseHotkeySequence(const QString &v);
     QString closeHotkeyStatus() const;
+    QString customAvatarUrl() const;
+    QString avatarStatus() const;
+    Q_INVOKABLE void chooseCustomAvatar();
 
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
@@ -340,6 +355,7 @@ signals:
     void slotSecondsChanged();
     void videoAsIdleChanged();
     void autoStartChanged();
+    void autoStartStatusChanged();
     void launchMinimizedChanged();
 
     void screenTargetChanged();
@@ -363,8 +379,7 @@ signals:
     void limitMouseOvershootChanged();
     void randomPathChanged();
     void animationSpeedChanged();
-    void screenSwallowChanged();
-    void swallowStrengthChanged();
+    void lightingEffectChanged();
     void distortionChanged();
     void allowRecordingCaptureChanged();
     void holeSizeChanged();
@@ -374,6 +389,9 @@ signals:
     // 空闲名单信号
     void idleWhitelistChanged();
     void idleBlacklistChanged();
+    void idleForceBlocklistChanged();
+    void idleDetectionSummaryChanged();
+    void idleDetectionBlockedChanged();
 
     // 定时显示信号
     void scheduleEnabledChanged();
@@ -391,6 +409,8 @@ signals:
     void closeHotkeyEnabledChanged();
     void closeHotkeySequenceChanged();
     void closeHotkeyStatusChanged();
+    void customAvatarUrlChanged();
+    void avatarStatusChanged();
 
     // 渲染器覆盖信号
     void overrideHoleRadiusChanged();
@@ -418,6 +438,7 @@ private:
     void loadAdvancedConfig();
     void saveIdleListConfig();
     void loadIdleListConfig();
+    void setIdleDetectionState(const QString &summary, bool blocked);
     void saveScheduleConfig();
     void loadScheduleConfig();
     void saveSystemConfig();
@@ -438,6 +459,7 @@ private:
     float   m_slotSeconds  = 5.25f;
     bool    m_videoAsIdle  = false;
     bool    m_autoStart    = false;
+    QString m_autoStartStatus;
     bool    m_launchMinimized  = false;
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
@@ -469,8 +491,7 @@ private:
     bool    m_limitMouseOvershoot = true;
     bool    m_randomPath     = true;
     int     m_animationSpeed = 1;
-    bool    m_screenSwallow  = false;
-    float   m_swallowStrength = 0.65f;
+    bool    m_lightingEffect = false;
     float   m_distortion     = 1.0f;
     bool    m_allowRecordingCapture = false;
     float   m_holeSize       = 1.0f;
@@ -480,6 +501,9 @@ private:
     // 空闲名单
     QStringList m_idleWhitelist;
     QStringList m_idleBlacklist;
+    QStringList m_idleForceBlocklist;
+    QString m_idleDetectionSummary = QStringLiteral("等待空闲检测");
+    bool m_idleDetectionBlocked = false;
 
     // 定时显示
     bool m_scheduleEnabled   = false;
@@ -500,6 +524,8 @@ private:
     QString m_closeHotkeySequence = QStringLiteral("Ctrl+Alt+B");
     QString m_closeHotkeyStatus;
     bool    m_closeHotkeyRegistered = false;
+    QString m_customAvatarPath;
+    QString m_avatarStatus;
 
     // 渲染器覆盖参数
     float   m_overrideHoleRadius = -1.0f;

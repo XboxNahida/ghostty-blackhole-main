@@ -19,6 +19,8 @@ struct Win32GL {
     bool   active = false;
 };
 
+constexpr int WIN32GL_RECORDING_HOTKEY_ID = 0x4248;
+
 // 初始化：创建全屏无边框窗口 + WGL OpenGL 3.3 兼容上下文
 // x,y = 窗口目标位置（Show 时移到该坐标），width/height = 0 表示用主显示器分辨率
 bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int height);
@@ -49,6 +51,9 @@ bool Win32GL_PollEvents(Win32GL& wgl);
 
 // 仅处理消息队列，不做关闭检测（用于退出动画期间）
 void Win32GL_DrainMessages(Win32GL& wgl);
+
+// 返回并清除由窗口过程记录的 Ctrl+Alt+R 热键事件。
+bool Win32GL_TakeRecordingHotkey(Win32GL& wgl);
 
 // 显示窗口（在所有初始化完成后调用，避免启动黑屏）
 void Win32GL_Show(Win32GL& wgl);

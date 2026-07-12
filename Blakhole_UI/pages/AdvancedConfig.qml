@@ -19,8 +19,7 @@ Item {
     property bool limitMouseOvershoot: bhCore ? bhCore.limitMouseOvershoot : true
     property bool randomPath: bhCore ? bhCore.randomPath : true
     property int animationSpeed: bhCore ? bhCore.animationSpeed : 1
-    property bool screenSwallow: bhCore ? bhCore.screenSwallow : false
-    property real swallowStrength: bhCore ? bhCore.swallowStrength : 0.65
+    property bool lightingEffect: bhCore ? bhCore.lightingEffect : false
     property real distortion: bhCore ? bhCore.distortion : 1.0
     property bool allowRecordingCapture: bhCore ? bhCore.allowRecordingCapture : false
     property real holeSize: bhCore ? bhCore.holeSize : 1.0
@@ -288,57 +287,45 @@ Item {
                     opacity: 0.2
                 }
 
-                // 吞噬屏幕UI
+                // 吸积盘光影
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
 
                     Text {
-                        text: "吞噬屏幕UI特效"
+                        text: "吸积盘光影效果"
                         font.pixelSize: 14
                         color: theme.textColor
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: "UI元素被黑洞引力吸入扭曲"
+                        text: "分层吸积盘、冷暖双色照明与辉光"
                         font.pixelSize: 11
                         color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
                     }
                     CheckBox {
-                        id: swallowCheck
-                        checked: advPage.screenSwallow
+                        id: lightingCheck
+                        checked: advPage.lightingEffect
                         onToggled: {
-                            advPage.screenSwallow = checked
-                            if (bhCore) bhCore.screenSwallow = checked
+                            advPage.lightingEffect = checked
+                            if (bhCore) bhCore.lightingEffect = checked
                         }
                         indicator: Rectangle {
                             implicitWidth: 20; implicitHeight: 20
-                            x: swallowCheck.leftPadding
+                            x: lightingCheck.leftPadding
                             y: parent.height / 2 - height / 2
                             radius: 4
-                            color: swallowCheck.checked ? theme.focusColor : "transparent"
-                            border.color: swallowCheck.checked ? theme.focusColor : theme.borderColor
+                            color: lightingCheck.checked ? theme.focusColor : "transparent"
+                            border.color: lightingCheck.checked ? theme.focusColor : theme.borderColor
                             border.width: 2
                             Behavior on color { ColorAnimation { duration: 120 } }
                             Text {
                                 anchors.centerIn: parent; text: "\uf00c"
                                 font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: swallowCheck.checked
+                                color: "#ffffff"; visible: lightingCheck.checked
                             }
                         }
                     }
-                }
-
-                Components.ESlider {
-                    label: "吞噬强度"
-                    from: 0.0; to: 1.0; stepSize: 0.01; decimals: 2
-                    value: advPage.swallowStrength
-                    onValueChanged: {
-                        advPage.swallowStrength = value
-                        if (bhCore) bhCore.swallowStrength = value
-                    }
-                    visible: advPage.screenSwallow
-                    implicitHeight: advPage.screenSwallow ? 48 : 0
                 }
 
                 // 扭曲程度
