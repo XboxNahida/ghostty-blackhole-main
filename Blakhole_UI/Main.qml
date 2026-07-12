@@ -26,12 +26,6 @@ ApplicationWindow {
         id: theme
     }
 
-    Components.AboutWindow {
-        id: aboutWindow
-        theme: theme
-        bhCore: blackHoleCore
-    }
-
     Components.UpdateDialog {
         id: updateDialog
         theme: theme
@@ -77,6 +71,8 @@ ApplicationWindow {
 
     readonly property int resizeMargin: 6
     property int currentPageIndex: 0
+    property int previousPageIndex: 0
+    readonly property int aboutPageIndex: 4
     property bool skipExitDialog: blackHoleCore ? blackHoleCore.skipExitDialog : false
     property int defaultCloseAction: blackHoleCore ? blackHoleCore.defaultCloseAction : 0
     property bool autoStart: blackHoleCore ? blackHoleCore.autoStart : false
@@ -309,7 +305,10 @@ ApplicationWindow {
                 anchors.leftMargin: 50
                 clickable: true
                 avatarSource: blackHoleCore ? blackHoleCore.customAvatarUrl : "qrc:/new/prefix1/fonts/pic/avatar.png"
-                onClicked: aboutWindow.openAndActivate()
+                onClicked: {
+                    root.previousPageIndex = root.currentPageIndex
+                    root.currentPageIndex = root.aboutPageIndex
+                }
             }
 
             // 时间
@@ -438,6 +437,14 @@ ApplicationWindow {
                 bhCore: blackHoleCore
                 anchors.fill: parent
                 visible: root.currentPageIndex === 3
+            }
+
+            Pages.AboutPage {
+                theme: theme
+                bhCore: blackHoleCore
+                anchors.fill: parent
+                visible: root.currentPageIndex === root.aboutPageIndex
+                onBackRequested: root.currentPageIndex = previousPageIndex
             }
         }
 
@@ -914,7 +921,8 @@ ApplicationWindow {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             settingsDrawer.close()
-                            aboutWindow.openAndActivate()
+                            root.previousPageIndex = root.currentPageIndex
+                            root.currentPageIndex = root.aboutPageIndex
                         }
                     }
                 }

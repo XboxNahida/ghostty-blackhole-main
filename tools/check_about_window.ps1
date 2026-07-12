@@ -1,56 +1,26 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
+$avatarPath = Join-Path $root "Blakhole_UI\components\EAvatar.qml"
+$pageCheckPath = Join-Path $PSScriptRoot "check_about_page.ps1"
 
 function Fail-AboutCheck {
     param([Parameter(Mandatory = $true)][string]$Message)
     throw "ABOUT_WINDOW_CHECK_FAILED: $Message"
 }
 
-function Require-Text {
-    param([string]$Content, [string]$Text, [string]$Message)
-    if (-not $Content.Contains($Text)) { Fail-AboutCheck $Message }
-}
-
-$aboutPath = Join-Path $root "Blakhole_UI\components\AboutWindow.qml"
-$avatarPath = Join-Path $root "Blakhole_UI\components\EAvatar.qml"
-$mainPath = Join-Path $root "Blakhole_UI\Main.qml"
-$qrcPath = Join-Path $root "Blakhole_UI\src.qrc"
-
-foreach ($path in @($aboutPath, $avatarPath, $mainPath, $qrcPath)) {
+foreach ($path in @($avatarPath, $pageCheckPath)) {
     if (-not (Test-Path -LiteralPath $path)) { Fail-AboutCheck "missing $path" }
 }
 
-$about = Get-Content -Raw -Encoding UTF8 -LiteralPath $aboutPath
+& $pageCheckPath | Out-Null
+
 $avatar = Get-Content -Raw -Encoding UTF8 -LiteralPath $avatarPath
-$main = Get-Content -Raw -Encoding UTF8 -LiteralPath $mainPath
-$qrc = Get-Content -Raw -Encoding UTF8 -LiteralPath $qrcPath
-$pendingFeature = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("6buR5rSe5ZCe5Zms5pWI5p6c6YCJ6aG5"))
-
-Require-Text $about "Window" "AboutWindow must be an independent QML Window"
-Require-Text $about "openAndActivate" "AboutWindow must expose openAndActivate"
-Require-Text $about "chooseCustomAvatar" "AboutWindow must expose avatar replacement"
-Require-Text $about "github.com/XboxNahida/ghostty-blackhole-main" "GitHub URL is missing"
-Require-Text $about "QR_payment.jpg" "Alipay QR resource is missing"
-Require-Text $about "WeChat_QR.png" "WeChat QR resource is missing"
-Require-Text $about $pendingFeature "pending feature explanation is missing"
-Require-Text $avatar "signal clicked" "EAvatar must expose a click signal"
-Require-Text $avatar "clickable" "EAvatar must preserve optional click behavior"
-Require-Text $main "aboutWindow.openAndActivate()" "Main.qml must open AboutWindow from both entries"
-Require-Text $main "customAvatarUrl" "Main.qml must bind the shared avatar URL"
-if (($main.Split("aboutWindow.openAndActivate()").Count - 1) -lt 2) {
-    Fail-AboutCheck "Main.qml must wire both avatar and settings entries"
+if ($avatar -notmatch 'signal\s+clicked\s*\(') {
+    Fail-AboutCheck "EAvatar must expose a click signal"
 }
-Require-Text $about "onClosing" "AboutWindow must hide instead of destroying the shared instance"
-Require-Text $about "columns: width >= 620 ? 2 : 1" "QR layout must switch columns responsively"
-Require-Text $about "Layout.preferredHeight: 420" "QR images must reserve enough height for scanning"
-Require-Text $qrc "fonts/pic/QR_payment.jpg" "Alipay QR is not embedded in Qt resources"
-Require-Text $qrc "fonts/pic/WeChat_QR.png" "WeChat QR is not embedded in Qt resources"
-
-foreach ($relative in @("Blakhole_UI\fonts\pic\QR_payment.jpg", "Blakhole_UI\fonts\pic\WeChat_QR.png")) {
-    if (-not (Test-Path -LiteralPath (Join-Path $root $relative))) {
-        Fail-AboutCheck "missing binary resource $relative"
-    }
+if ($avatar -notmatch 'property\s+bool\s+clickable') {
+    Fail-AboutCheck "EAvatar must preserve optional click behavior"
 }
 
 "ABOUT_WINDOW_OK"
