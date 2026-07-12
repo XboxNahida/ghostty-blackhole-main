@@ -23,7 +23,7 @@ function Build-And-Run {
     )
 
     $exe = Join-Path $outputDir "$Name.exe"
-    $args = @("-std=c++17", "-Wall", "-Wextra", "-Werror", "-Isrc") + $Sources + @("-o", $exe) + $Libraries
+    $args = @("-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-Isrc") + $Sources + @("-o", $exe) + $Libraries
     & $compiler @args
     if ($LASTEXITCODE -ne 0) {
         throw "IDLE_PHASE1_TESTS_FAILED: compile $Name"

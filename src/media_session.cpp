@@ -6,6 +6,7 @@
 #include <winstring.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cctype>
 
 namespace {
@@ -13,32 +14,8 @@ namespace {
 struct MediaSessionManager;
 struct MediaSession;
 struct MediaPlaybackInfo;
-
-struct MediaSessionManagerAsyncOperation : IInspectable {
-    virtual HRESULT STDMETHODCALLTYPE put_Completed(IInspectable *handler) = 0;
-    virtual HRESULT STDMETHODCALLTYPE get_Completed(IInspectable **handler) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetResults(MediaSessionManager **results) = 0;
-};
-
-struct MediaSessionManagerStatics : IInspectable {
-    virtual HRESULT STDMETHODCALLTYPE RequestAsync(MediaSessionManagerAsyncOperation **operation) = 0;
-};
-
-struct MediaSessionManager : IInspectable {
-    virtual HRESULT STDMETHODCALLTYPE GetCurrentSession(MediaSession **session) = 0;
-};
-
-struct MediaSession : IInspectable {
-    virtual HRESULT STDMETHODCALLTYPE get_SourceAppUserModelId(HSTRING *value) = 0;
-    virtual HRESULT STDMETHODCALLTYPE TryGetMediaPropertiesAsync(IInspectable **operation) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetTimelineProperties(IInspectable **value) = 0;
-    virtual HRESULT STDMETHODCALLTYPE GetPlaybackInfo(MediaPlaybackInfo **value) = 0;
-};
-
-struct MediaPlaybackInfo : IInspectable {
-    virtual HRESULT STDMETHODCALLTYPE get_Controls(IInspectable **value) = 0;
-    virtual HRESULT STDMETHODCALLTYPE get_PlaybackStatus(int *value) = 0;
-};
+struct MediaSessionManagerAsyncOperation;
+struct MediaSessionManagerStatics;
 
 constexpr wchar_t kManagerClassName[] =
     L"Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager";
@@ -50,16 +27,79 @@ const GUID kAsyncInfoIid = {
     0x00000036, 0x0000, 0x0000, {0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}
 };
 
+template<typename Function>
+Function AbiFunction(void *object, size_t slot)
+{
+    return reinterpret_cast<Function>((*reinterpret_cast<void ***>(object))[slot]);
+}
+
+HRESULT AbiQueryInterface(void *object, REFIID iid, void **result)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, REFIID, void **);
+    return AbiFunction<Function>(object, 0)(object, iid, result);
+}
+
+void AbiRelease(void *object)
+{
+    if (!object) return;
+    using Function = ULONG (STDMETHODCALLTYPE *)(void *);
+    AbiFunction<Function>(object, 2)(object);
+}
+
+void AbiAddRef(void *object)
+{
+    using Function = ULONG (STDMETHODCALLTYPE *)(void *);
+    AbiFunction<Function>(object, 1)(object);
+}
+
+HRESULT AbiRequestManager(MediaSessionManagerStatics *statics,
+                          MediaSessionManagerAsyncOperation **operation)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, MediaSessionManagerAsyncOperation **);
+    return AbiFunction<Function>(statics, 6)(statics, operation);
+}
+
+HRESULT AbiGetManager(MediaSessionManagerAsyncOperation *operation,
+                      MediaSessionManager **manager)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, MediaSessionManager **);
+    return AbiFunction<Function>(operation, 8)(operation, manager);
+}
+
+HRESULT AbiGetCurrentSession(MediaSessionManager *manager, MediaSession **session)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, MediaSession **);
+    return AbiFunction<Function>(manager, 6)(manager, session);
+}
+
+HRESULT AbiGetSourceAppId(MediaSession *session, HSTRING *value)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, HSTRING *);
+    return AbiFunction<Function>(session, 6)(session, value);
+}
+
+HRESULT AbiGetPlaybackInfo(MediaSession *session, MediaPlaybackInfo **playbackInfo)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, MediaPlaybackInfo **);
+    return AbiFunction<Function>(session, 9)(session, playbackInfo);
+}
+
+HRESULT AbiGetPlaybackStatus(MediaPlaybackInfo *playbackInfo, int *status)
+{
+    using Function = HRESULT (STDMETHODCALLTYPE *)(void *, int *);
+    return AbiFunction<Function>(playbackInfo, 7)(playbackInfo, status);
+}
+
 struct ManagerCache {
     bool attempted = false;
+    bool ownsInitialization = false;
     HRESULT error = S_OK;
     MediaSessionManager *manager = nullptr;
 
     ~ManagerCache()
     {
-        if (manager) {
-            manager->Release();
-        }
+        AbiRelease(manager);
+        if (ownsInitialization) RoUninitialize();
     }
 };
 
@@ -78,13 +118,11 @@ HRESULT AcquireManager(unsigned timeoutMs, MediaSessionManager **manager)
 
     ManagerCache &cache = Cache();
     if (cache.manager) {
-        cache.manager->AddRef();
+        AbiAddRef(cache.manager);
         *manager = cache.manager;
         return S_OK;
     }
-    if (cache.attempted) {
-        return cache.error;
-    }
+    if (cache.attempted) return cache.error;
     cache.attempted = true;
 
     HRESULT hr = RoInitialize(RO_INIT_MULTITHREADED);
@@ -92,6 +130,7 @@ HRESULT AcquireManager(unsigned timeoutMs, MediaSessionManager **manager)
         cache.error = hr;
         return hr;
     }
+    cache.ownsInitialization = SUCCEEDED(hr);
 
     HSTRING className = nullptr;
     hr = WindowsCreateString(kManagerClassName,
@@ -112,17 +151,17 @@ HRESULT AcquireManager(unsigned timeoutMs, MediaSessionManager **manager)
     }
 
     MediaSessionManagerAsyncOperation *operation = nullptr;
-    hr = statics->RequestAsync(&operation);
-    statics->Release();
+    hr = AbiRequestManager(statics, &operation);
+    AbiRelease(statics);
     if (FAILED(hr) || !operation) {
         cache.error = FAILED(hr) ? hr : E_FAIL;
         return cache.error;
     }
 
     IAsyncInfo *asyncInfo = nullptr;
-    hr = operation->QueryInterface(kAsyncInfoIid, reinterpret_cast<void **>(&asyncInfo));
+    hr = AbiQueryInterface(operation, kAsyncInfoIid, reinterpret_cast<void **>(&asyncInfo));
     if (FAILED(hr) || !asyncInfo) {
-        operation->Release();
+        AbiRelease(operation);
         cache.error = FAILED(hr) ? hr : E_NOINTERFACE;
         return cache.error;
     }
@@ -138,7 +177,7 @@ HRESULT AcquireManager(unsigned timeoutMs, MediaSessionManager **manager)
     }
 
     if (SUCCEEDED(hr) && status == Completed) {
-        hr = operation->GetResults(&cache.manager);
+        hr = AbiGetManager(operation, &cache.manager);
     } else if (SUCCEEDED(hr) && status == Error) {
         hr = asyncInfo->get_ErrorCode(&hr) == S_OK ? hr : E_FAIL;
     } else if (SUCCEEDED(hr)) {
@@ -147,13 +186,12 @@ HRESULT AcquireManager(unsigned timeoutMs, MediaSessionManager **manager)
     }
 
     asyncInfo->Release();
-    operation->Release();
+    AbiRelease(operation);
     if (FAILED(hr) || !cache.manager) {
         cache.error = FAILED(hr) ? hr : E_FAIL;
         return cache.error;
     }
-
-    cache.manager->AddRef();
+    AbiAddRef(cache.manager);
     *manager = cache.manager;
     cache.error = S_OK;
     return S_OK;
@@ -245,8 +283,8 @@ MediaSessionSnapshot MediaSession_QueryCurrent(unsigned timeoutMs)
     }
 
     MediaSession *session = nullptr;
-    hr = manager->GetCurrentSession(&session);
-    manager->Release();
+    hr = AbiGetCurrentSession(manager, &session);
+    AbiRelease(manager);
     if (FAILED(hr)) {
         snapshot.error = hr;
         return snapshot;
@@ -257,23 +295,23 @@ MediaSessionSnapshot MediaSession_QueryCurrent(unsigned timeoutMs)
     }
 
     HSTRING source = nullptr;
-    hr = session->get_SourceAppUserModelId(&source);
+    hr = AbiGetSourceAppId(session, &source);
     if (SUCCEEDED(hr) && source) {
         snapshot.sourceAppId = HStringToUtf8(source);
         WindowsDeleteString(source);
     }
 
     MediaPlaybackInfo *playbackInfo = nullptr;
-    const HRESULT playbackHr = session->GetPlaybackInfo(&playbackInfo);
-    session->Release();
+    const HRESULT playbackHr = AbiGetPlaybackInfo(session, &playbackInfo);
+    AbiRelease(session);
     if (FAILED(playbackHr) || !playbackInfo) {
         snapshot.error = FAILED(playbackHr) ? playbackHr : E_FAIL;
         return snapshot;
     }
 
     int playbackStatus = -1;
-    hr = playbackInfo->get_PlaybackStatus(&playbackStatus);
-    playbackInfo->Release();
+    hr = AbiGetPlaybackStatus(playbackInfo, &playbackStatus);
+    AbiRelease(playbackInfo);
     if (FAILED(hr)) {
         snapshot.error = hr;
         return snapshot;
