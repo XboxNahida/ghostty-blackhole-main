@@ -3,6 +3,7 @@
         <file>fonts/icon.ico</file>
         <file>fonts/fontawesome-free-6.7.2-desktop/otfs/Font Awesome 6 Free-Solid-900.otf</file>
         <file>fonts/pic/avatar.png</file>
+        <file>fonts/pic/Starry_sky_background.png</file>
         <file>fonts/pic/QR_payment.jpg</file>
         <file>fonts/pic/WeChat_QR.png</file>
     </qresource>

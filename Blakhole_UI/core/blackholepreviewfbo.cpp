@@ -240,6 +240,7 @@ bool BlackholePreviewRenderer::initBlackTexture()
     // 尝试加载星空背景 PNG
     QString appDir = QCoreApplication::applicationDirPath();
     QStringList searchPaths;
+    searchPaths << ":/new/prefix1/fonts/pic/Starry_sky_background.png";
     searchPaths << appDir + "/fonts/pic/Starry_sky_background.png";
     searchPaths << appDir + "/../fonts/pic/Starry_sky_background.png";
     searchPaths << appDir + "/../../fonts/pic/Starry_sky_background.png";  // 回到源代码目录

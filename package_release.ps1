@@ -195,6 +195,14 @@ if (-not (Test-Path -LiteralPath $previewShaderSource -PathType Leaf)) {
 }
 Copy-Item -LiteralPath $previewShaderSource -Destination (Join-Path $ReleaseDir "blackhole_preview.glsl") -Force
 
+$previewBackgroundSource = Join-Path $ProjectRoot "Blakhole_UI\fonts\pic\Starry_sky_background.png"
+$previewBackgroundDestination = Join-Path $ReleaseDir "fonts\pic\Starry_sky_background.png"
+if (-not (Test-Path -LiteralPath $previewBackgroundSource -PathType Leaf)) {
+    throw "Missing Qt preview background: $previewBackgroundSource"
+}
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $previewBackgroundDestination) | Out-Null
+Copy-Item -LiteralPath $previewBackgroundSource -Destination $previewBackgroundDestination -Force
+
 foreach ($file in @(
     "blackhole.glsl",
     "blackhole_preview.glsl",
@@ -241,6 +249,7 @@ $requiredFiles = @(
     "blackhole.exe",
     "blackhole.glsl",
     "blackhole_preview.glsl",
+    "fonts\pic\Starry_sky_background.png",
     "blackhole_presets.txt",
     "blackhole_advanced.txt",
     "LICENSE",
