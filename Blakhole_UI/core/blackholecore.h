@@ -172,6 +172,9 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(QString closeHotkeyStatus READ closeHotkeyStatus NOTIFY closeHotkeyStatusChanged)
     Q_PROPERTY(QString customAvatarUrl READ customAvatarUrl NOTIFY customAvatarUrlChanged)
     Q_PROPERTY(QString avatarStatus READ avatarStatus NOTIFY avatarStatusChanged)
+    Q_PROPERTY(QString paymentQrPrimaryUrl READ paymentQrPrimaryUrl CONSTANT)
+    Q_PROPERTY(QString paymentQrSecondaryUrl READ paymentQrSecondaryUrl CONSTANT)
+    Q_PROPERTY(bool paymentQrAvailable READ paymentQrAvailable CONSTANT)
 
 
     // 渲染器覆盖参数 (默认 -1.0 = 不覆盖，使用预设值)
@@ -310,6 +313,9 @@ public:
     QString closeHotkeyStatus() const;
     QString customAvatarUrl() const;
     QString avatarStatus() const;
+    QString paymentQrPrimaryUrl() const;
+    QString paymentQrSecondaryUrl() const;
+    bool paymentQrAvailable() const;
     Q_INVOKABLE void chooseCustomAvatar();
 
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;

@@ -46,6 +46,9 @@ Require-Match $page 'signal\s+backRequested\s*\(\s*\)' "AboutPage must expose a 
 Require-Match $page 'onClicked\s*:\s*root\.backRequested\(\)' "back button must emit backRequested"
 Require-Match $page 'customAvatarUrl' "AboutPage must display the persisted avatar"
 Require-Match $page 'chooseCustomAvatar\s*\(\s*\)' "AboutPage avatar must open the custom avatar picker"
+Require-Match $page 'paymentQrAvailable' "payment section must be conditional"
+Require-Match $page 'RowLayout\s*\{[\s\S]*paymentQrPrimaryUrl[\s\S]*paymentQrSecondaryUrl' "payment QR codes must share one row"
+Require-Match $page 'Layout\.preferredWidth\s*:\s*1[\s\S]*paymentQrPrimaryUrl[\s\S]*Layout\.preferredWidth\s*:\s*1[\s\S]*paymentQrSecondaryUrl' "payment QR codes must use equal preferred widths"
 Require-Match $page 'github\.com/XboxNahida/ghostty-blackhole-main' "GitHub URL is missing"
 Require-Match $page ([regex]::Escape($pendingFeature)) "pending black-hole swallowing effect explanation is missing"
 if ($page -match 'QR_payment|WeChat_QR') {

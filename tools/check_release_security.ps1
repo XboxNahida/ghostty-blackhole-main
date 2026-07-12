@@ -78,6 +78,12 @@ $previewBackground = Join-Path $ReleaseDir "fonts\pic\Starry_sky_background.png"
 if (-not (Test-Path -LiteralPath $previewBackground -PathType Leaf)) {
     Add-Failure "missing Starry_sky_background.png required by the Qt preview"
 }
+foreach ($paymentQrName in @("QR_payment.jpg", "WeChat_QR.png")) {
+    $paymentQrPath = Join-Path $ReleaseDir "fonts\pic\$paymentQrName"
+    if (-not (Test-Path -LiteralPath $paymentQrPath -PathType Leaf)) {
+        Add-Failure "missing payment QR file: fonts/pic/$paymentQrName"
+    }
+}
 
 $objdump = Resolve-Objdump
 $executables = @(
@@ -273,6 +279,11 @@ else {
     foreach ($manifestName in $manifestEntries.Keys) {
         if (-not $actualEntries.ContainsKey($manifestName)) {
             Add-Failure "release_checksums.sha256 has an extra entry: $manifestName"
+        }
+    }
+    foreach ($paymentQrName in @("fonts/pic/qr_payment.jpg", "fonts/pic/wechat_qr.png")) {
+        if (-not $manifestEntries.ContainsKey($paymentQrName)) {
+            Add-Failure "release_checksums.sha256 is missing payment QR file: $paymentQrName"
         }
     }
 }

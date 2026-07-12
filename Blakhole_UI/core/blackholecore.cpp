@@ -16,6 +16,7 @@
 #include <QTextStream>
 #include <QStandardPaths>
 #include <QDebug>
+#include <QUrl>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -2004,6 +2005,29 @@ QString BlackHoleCore::customAvatarUrl() const
 QString BlackHoleCore::avatarStatus() const
 {
     return m_avatarStatus;
+}
+
+QString BlackHoleCore::paymentQrPrimaryUrl() const
+{
+    if (!paymentQrAvailable()) return {};
+    const QString path = QDir(QCoreApplication::applicationDirPath())
+                             .filePath(QStringLiteral("fonts/pic/QR_payment.jpg"));
+    return QUrl::fromLocalFile(path).toString();
+}
+
+QString BlackHoleCore::paymentQrSecondaryUrl() const
+{
+    if (!paymentQrAvailable()) return {};
+    const QString path = QDir(QCoreApplication::applicationDirPath())
+                             .filePath(QStringLiteral("fonts/pic/WeChat_QR.png"));
+    return QUrl::fromLocalFile(path).toString();
+}
+
+bool BlackHoleCore::paymentQrAvailable() const
+{
+    const QDir applicationDir(QCoreApplication::applicationDirPath());
+    return QFileInfo::exists(applicationDir.filePath(QStringLiteral("fonts/pic/QR_payment.jpg")))
+        && QFileInfo::exists(applicationDir.filePath(QStringLiteral("fonts/pic/WeChat_QR.png")));
 }
 
 void BlackHoleCore::chooseCustomAvatar()
