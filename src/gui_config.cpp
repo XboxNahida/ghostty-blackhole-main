@@ -7,23 +7,6 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-#include <windows.h>
-
-static void SetAutoStart(bool enable) {
-    HKEY hKey;
-    const char* keyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    char exePath[MAX_PATH];
-    GetModuleFileNameA(NULL, exePath, MAX_PATH);
-    
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, keyPath, 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
-        if (enable) {
-            RegSetValueExA(hKey, "BlackholeScreensaver", 0, REG_SZ, (const BYTE*)exePath, strlen(exePath) + 1);
-        } else {
-            RegDeleteValueA(hKey, "BlackholeScreensaver");
-        }
-        RegCloseKey(hKey);
-    }
-}
 
 static const DiskPreset DEFAULT_PRESETS[16] = {
     // 原始8个
@@ -65,9 +48,6 @@ static bool       g_hasClipboard = false;
 
 // ---- Save/Load presets to local file ----
 void SavePresetsToFile(const BlackholeConfig& cfg, const char names[64][64]) {
-    // 更新注册表开机自启设置
-    SetAutoStart(cfg.autoStart);
-
     FILE* f = fopen("blackhole_presets.txt", "w");
     if (!f) return;
     fprintf(f, "# Blackhole Presets v4\n");
@@ -202,8 +182,6 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
             if (cfg.idleSec > 1800) cfg.idleSec = 1800;
             ImGui::Checkbox("播放视频视为空闲", &cfg.videoAsIdle);
         }
-
-        ImGui::Checkbox("开机自启", &cfg.autoStart);
 
         ImGui::Checkbox("固定大小", &cfg.fixedSize);
         if (cfg.fixedSize) {

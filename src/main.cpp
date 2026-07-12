@@ -40,6 +40,10 @@
 #ifndef VK_R
 #define VK_R 0x52
 #endif
+#ifndef PROC_THREAD_ATTRIBUTE_JOB_LIST
+#define PROC_THREAD_ATTRIBUTE_JOB_LIST \
+    ProcThreadAttributeValue(13, FALSE, TRUE, FALSE)
+#endif
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -690,6 +694,7 @@ static bool g_sessionLocked = false;  // 跟踪当前会话是否被锁屏
 // 用 Job Object 保证父进程退出（含被强杀）时子进程自动终止。
 static HWND FindWindowByPID(DWORD pid);  // 前向声明（定义在下方）
 static HANDLE g_hChildJob = nullptr;
+static HANDLE g_hMonitorJob = nullptr;
 static std::vector<PROCESS_INFORMATION> g_childRenderers;
 
 static void EnsureChildJob() {
@@ -699,25 +704,62 @@ static void EnsureChildJob() {
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
     info.BasicLimitInformation.LimitFlags =
         JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    SetInformationJobObject(g_hChildJob, JobObjectExtendedLimitInformation,
-                            &info, sizeof(info));
+    if (!SetInformationJobObject(g_hChildJob, JobObjectExtendedLimitInformation,
+                                 &info, sizeof(info))) {
+        CloseHandle(g_hChildJob);
+        g_hChildJob = nullptr;
+    }
+}
+
+static void EnsureMonitorJob() {
+    if (g_hMonitorJob) return;
+    g_hMonitorJob = CreateJobObjectA(nullptr, nullptr);
+    if (!g_hMonitorJob) return;
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+    info.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if (!SetInformationJobObject(g_hMonitorJob, JobObjectExtendedLimitInformation,
+                                 &info, sizeof(info))) {
+        CloseHandle(g_hMonitorJob);
+        g_hMonitorJob = nullptr;
+    }
+}
+
+static bool CreateProcessInJob(char* cmd, HANDLE job, PROCESS_INFORMATION& pi) {
+    SIZE_T attributeListSize = 0;
+    InitializeProcThreadAttributeList(nullptr, 1, 0, &attributeListSize);
+    auto* attributeList = static_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+        HeapAlloc(GetProcessHeap(), 0, attributeListSize));
+    if (!attributeList) return false;
+
+    bool created = false;
+    if (InitializeProcThreadAttributeList(attributeList, 1, 0, &attributeListSize)) {
+        HANDLE jobList[] = { job };
+        if (UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST,
+                                      jobList, sizeof(jobList), nullptr, nullptr)) {
+            STARTUPINFOEXA si = {};
+            si.StartupInfo.cb = sizeof(si);
+            si.StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
+            si.StartupInfo.wShowWindow = SW_HIDE;
+            si.lpAttributeList = attributeList;
+            pi = {};
+            created = CreateProcessA(nullptr, cmd, nullptr, nullptr, FALSE,
+                                     EXTENDED_STARTUPINFO_PRESENT, nullptr, nullptr,
+                                     &si.StartupInfo, &pi) != FALSE;
+        }
+        DeleteProcThreadAttributeList(attributeList);
+    }
+    HeapFree(GetProcessHeap(), 0, attributeList);
+    return created;
 }
 
 static void SpawnChildRenderer(const char* selfPath, int screenIdx) {
     EnsureChildJob();
-    STARTUPINFOA si = {}; si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
+    if (!g_hChildJob) return;
     char cmd[MAX_PATH + 32];
     snprintf(cmd, sizeof(cmd), "\"%s\" --render --screen %d", selfPath, screenIdx);
     PROCESS_INFORMATION pi = {};
-    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
-                       CREATE_SUSPENDED, NULL, NULL, &si, &pi)) {
-        // 必须在挂起状态下加入 Job Object，再恢复主线程，最后关闭线程句柄。
-        // 顺序不能错：AssignProcessToJobObject 要在 ResumeThread 之前完成，
-        // 而 ResumeThread 需要的是线程句柄 (pi.hThread) 不是进程句柄。
-        if (g_hChildJob) AssignProcessToJobObject(g_hChildJob, pi.hProcess);
-        ResumeThread(pi.hThread);
+    if (CreateProcessInJob(cmd, g_hChildJob, pi)) {
         CloseHandle(pi.hThread);
         pi.hThread = NULL;
         g_childRenderers.push_back(pi);
@@ -732,22 +774,26 @@ static void KillChildRenderers() {
     }
     for (auto& pi : g_childRenderers) {
         if (!pi.hProcess) continue;
-        if (WaitForSingleObject(pi.hProcess, 2000) == WAIT_TIMEOUT)
-            TerminateProcess(pi.hProcess, 0);
+        WaitForSingleObject(pi.hProcess, 2000);
         CloseHandle(pi.hProcess);
     }
     g_childRenderers.clear();
+    if (g_hChildJob) {
+        CloseHandle(g_hChildJob);
+        g_hChildJob = nullptr;
+    }
 }
 
 static void MonitorSpawn(const char* selfPath) {
     if (g_pi.hProcess) return;
-    STARTUPINFOA si = {}; si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
+    EnsureMonitorJob();
+    if (!g_hMonitorJob) return;
     char cmd[MAX_PATH + 16];
     snprintf(cmd, sizeof(cmd), "\"%s\" --render", selfPath);
-    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &g_pi))
+    if (CreateProcessInJob(cmd, g_hMonitorJob, g_pi)) {
         CloseHandle(g_pi.hThread);
+        g_pi.hThread = NULL;
+    }
 }
 
 static HWND FindWindowByPID(DWORD pid) {
@@ -762,17 +808,17 @@ static HWND FindWindowByPID(DWORD pid) {
 }
 
 static void MonitorKill() {
-    if (!g_pi.hProcess) return;
-    HWND hwnd = FindWindowByPID(g_pi.dwProcessId);
-    if (hwnd) {
-        PostMessage(hwnd, WM_CLOSE, 0, 0);
-        if (WaitForSingleObject(g_pi.hProcess, 2000) == WAIT_TIMEOUT)
-            TerminateProcess(g_pi.hProcess, 0);
-    } else {
-        TerminateProcess(g_pi.hProcess, 0);
+    if (g_pi.hProcess) {
+        HWND hwnd = FindWindowByPID(g_pi.dwProcessId);
+        if (hwnd) PostMessage(hwnd, WM_CLOSE, 0, 0);
+        WaitForSingleObject(g_pi.hProcess, 2000);
+        CloseHandle(g_pi.hProcess);
+        g_pi.hProcess = NULL;
     }
-    CloseHandle(g_pi.hProcess);
-    g_pi.hProcess = NULL;
+    if (g_hMonitorJob) {
+        CloseHandle(g_hMonitorJob);
+        g_hMonitorJob = nullptr;
+    }
 }
 
 static bool MonitorRunning() {
@@ -782,6 +828,10 @@ static bool MonitorRunning() {
         return true;
     CloseHandle(g_pi.hProcess);
     g_pi.hProcess = NULL;
+    if (g_hMonitorJob) {
+        CloseHandle(g_hMonitorJob);
+        g_hMonitorJob = nullptr;
+    }
     return false;
 }
 
@@ -803,6 +853,19 @@ int main(int argc, char* argv[]) {
     bool isConfig = (argc >= 2 && strcmp(argv[1], "--config") == 0);
     bool isMonitor = (argc >= 2 && strcmp(argv[1], "--monitor") == 0);
 
+    HANDLE controlMutex = nullptr;
+    if (!isRenderer) {
+        const char* mutexName = isConfig
+            ? "Local\\BlakholeRendererConfig"
+            : "Local\\BlakholeRendererControl";
+        controlMutex = CreateMutexA(nullptr, TRUE, mutexName);
+        if (!controlMutex) return 1;
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            CloseHandle(controlMutex);
+            return 0;
+        }
+    }
+
     // --screen <idx>: 一屏一黑洞模式的子进程参数，指定渲染到第几个显示器
     // 父进程不传 --screen，子进程传 --screen N (N>=1)
     int screenIdx = -1;
@@ -823,24 +886,6 @@ int main(int argc, char* argv[]) {
     }
     // 让 WGC 捕获模块也把诊断写到同一个 debug 日志（用于排查黄边框）
     WGC_SetDebugLog(debugLog);
-
-    // 主程序启动时杀掉旧的 blackhole 进程（避免新旧实例冲突）
-    // --render 子进程不杀（它由 monitor 管理）
-    if (!isRenderer) {
-        DWORD myPid = GetCurrentProcessId();
-        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        PROCESSENTRY32 pe = { sizeof(pe) };
-        if (Process32First(snap, &pe)) {
-            do {
-                if (stricmp(pe.szExeFile, "blackhole.exe") == 0 && pe.th32ProcessID != myPid) {
-                    HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, pe.th32ProcessID);
-                    if (h) { TerminateProcess(h, 0); CloseHandle(h); }
-                }
-            } while (Process32Next(snap, &pe));
-        }
-        CloseHandle(snap);
-        Sleep(200);
-    }
 
     BlackholeConfig cfg;
 
@@ -1718,8 +1763,6 @@ int main(int argc, char* argv[]) {
     gl_DeleteBuffers(1, &vbo);
     Win32GL_Shutdown(wgl);
 
-    // 一屏一黑洞: 终止所有子渲染器 (Job Object 也会兜底)
-    KillChildRenderers();
 #else
     {
         Win32Window win;
@@ -1746,5 +1789,7 @@ int main(int argc, char* argv[]) {
         r.Shutdown(); if(useWGC)WGC_Release(wgc);else DXGI_Release(dxgi); Win32Window_ShowSystemCursor(true); Win32Window_Shutdown(win);
     }
 #endif
+    // 一屏一黑洞: 请求子渲染器关闭，Job Object 负责超时兜底。
+    KillChildRenderers();
     return 0;
 }
