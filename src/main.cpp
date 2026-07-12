@@ -14,6 +14,7 @@
 #include <sstream>
 #include <vector>
 #include <cstring>
+#include <algorithm>
 #include <windows.h>
 #include <d3d11.h>
 #include <dwmapi.h>
@@ -156,6 +157,10 @@ static std::string readFile(const char* path) {
             content = content.substr(3);
         }
     }
+
+    // Runtime shader patches use LF templates. Normalize Windows CRLF files so
+    // multi-line replacements remain effective in deployed Release folders.
+    content.erase(std::remove(content.begin(), content.end(), '\r'), content.end());
     return content;
 }
 
@@ -398,7 +403,7 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
             "               + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));";
         const std::string newCenter =
             "center = (uFollowMouse > 0)\n"
-            "               ? clamp(vec2(TOKEN_HOME_X, TOKEN_HOME_Y), fullLo, fullHi)\n"
+            "               ? vec2(TOKEN_HOME_X, TOKEN_HOME_Y)\n"
             "               : ((lo + hi) * 0.5 + wander * ampEff\n"
             "                  + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0)));";
         size_t p = body.find(oldCenter);

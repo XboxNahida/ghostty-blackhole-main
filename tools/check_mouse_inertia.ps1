@@ -48,8 +48,13 @@ Require-Pattern 'src\main.cpp' 'maxSeparation' 'large-distance safety boundary'
 Require-Pattern 'src\main.cpp' 'allowedRadius' 'bounded overshoot radius'
 Require-Pattern 'src\main.cpp' 'outwardVel' 'outward velocity boundary damping'
 Require-Pattern 'src\main.cpp' 'mouseDist' 'distance-to-cursor boundary check'
+Require-Pattern 'src\main.cpp' '\? vec2\(TOKEN_HOME_X, TOKEN_HOME_Y\)' 'exact mouse-follow shader center'
+Require-Pattern 'src\main.cpp' 'content\.erase\(.*\\r' 'shader CRLF normalization'
 
 $mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'src\main.cpp')
+if ($mainText -match '\? clamp\(vec2\(TOKEN_HOME_X, TOKEN_HOME_Y\), fullLo, fullHi\)') {
+    throw 'Mouse-follow center is still clamped away from the cursor near screen edges'
+}
 if ($mainText -match 'float\s+spring\s*=') {
     throw 'Spring model is still present in src\main.cpp'
 }
