@@ -214,7 +214,7 @@ else {
             Add-Failure "release_checksums.sha256 contains an empty line at $lineNumber"
             continue
         }
-        if ($line -cnotmatch '^([0-9a-f]{64})  ([a-z0-9][a-z0-9._/-]*)$') {
+        if ($line -cnotmatch '^([0-9a-f]{64})  ([a-z0-9][a-z0-9._/@+%()\-]*)$') {
             Add-Failure "release_checksums.sha256 has an invalid line at $lineNumber"
             continue
         }

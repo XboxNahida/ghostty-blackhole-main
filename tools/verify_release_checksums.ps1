@@ -22,7 +22,7 @@ $manifestEntries = @{}
 $lineNumber = 0
 foreach ($line in Get-Content -Encoding UTF8 -LiteralPath $manifestPath) {
     $lineNumber++
-    if ($line -cnotmatch '^([0-9a-f]{64})  ([a-z0-9][a-z0-9._/-]*)$') {
+    if ($line -cnotmatch '^([0-9a-f]{64})  ([a-z0-9][a-z0-9._/@+%()\-]*)$') {
         $failures.Add("invalid manifest line $lineNumber")
         continue
     }
