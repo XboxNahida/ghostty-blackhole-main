@@ -51,6 +51,9 @@ Require-Pattern 'src\main.cpp' 'allowedRadius' 'bounded overshoot radius'
 Require-Pattern 'src\main.cpp' 'outwardVel' 'outward velocity boundary damping'
 Require-Pattern 'src\main.cpp' 'mouseDist' 'distance-to-cursor boundary check'
 Require-Pattern 'src\main.cpp' '\? vec2\(TOKEN_HOME_X, TOKEN_HOME_Y\)' 'exact mouse-follow shader center'
+Require-Pattern 'src\main.cpp' 'oldCenter\s*=\s*[\s\S]*cos\(moveT \* 0\.8\), sin\(moveT \* 1\.0\)' 'mouse-follow patch template after movement-time rewrite'
+Require-Pattern 'src\main.cpp' 'Mouse-follow shader center template not found' 'mouse-follow shader injection failure diagnostic'
+Require-Pattern 'src\main.cpp' 'Mouse-follow shader center injected' 'mouse-follow shader injection success diagnostic'
 Require-Pattern 'src\main.cpp' 'content\.erase\(.*\\r' 'shader CRLF normalization'
 
 $mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'src\main.cpp')

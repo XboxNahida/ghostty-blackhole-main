@@ -435,14 +435,25 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     {
         const std::string oldCenter =
             "center = (lo + hi) * 0.5 + wander * ampEff\n"
-            "               + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));";
+            "               + wobAmp * vec2(cos(moveT * 0.8), sin(moveT * 1.0));";
         const std::string newCenter =
             "center = (uFollowMouse > 0)\n"
             "               ? vec2(TOKEN_HOME_X, TOKEN_HOME_Y)\n"
             "               : ((lo + hi) * 0.5 + wander * ampEff\n"
-            "                  + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0)));";
+            "                  + wobAmp * vec2(cos(moveT * 0.8), sin(moveT * 1.0)));";
         size_t p = body.find(oldCenter);
-        if (p != std::string::npos) body.replace(p, oldCenter.length(), newCenter);
+        if (p == std::string::npos) {
+            if (debugLog) {
+                fprintf(debugLog, "[FAIL] Mouse-follow shader center template not found\n");
+                fflush(debugLog);
+            }
+            return false;
+        }
+        body.replace(p, oldCenter.length(), newCenter);
+        if (debugLog) {
+            fprintf(debugLog, "[OK] Mouse-follow shader center injected\n");
+            fflush(debugLog);
+        }
     }
 
     // ---- Randomize trajectory: add uRandPhase to lissa calls ----
