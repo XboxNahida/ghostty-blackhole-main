@@ -63,7 +63,7 @@ Window {
 
             Text {
                 Layout.fillWidth: true
-                text: root.bhCore ? "版本 " + Qt.application.version : "版本 1.2.0"
+                text: "版本 " + Qt.application.version
                 horizontalAlignment: Text.AlignHCenter
                 font.pixelSize: 13
                 color: root.theme ? Qt.rgba(root.theme.textColor.r, root.theme.textColor.g, root.theme.textColor.b, 0.55) : "#999999"
@@ -149,8 +149,8 @@ Window {
                     Text { text: "支付宝"; font.pixelSize: 13; color: "#2d8cff"; Layout.alignment: Qt.AlignHCenter }
                     Image {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(300, root.width - 80)
-                        Layout.preferredHeight: Layout.preferredWidth
+                        Layout.preferredWidth: Math.min(360, root.width - 80)
+                        Layout.preferredHeight: 420
                         source: "qrc:/new/prefix1/fonts/pic/QR_payment.jpg"
                         fillMode: Image.PreserveAspectFit
                         smooth: true
@@ -162,8 +162,8 @@ Window {
                     Text { text: "微信支付"; font.pixelSize: 13; color: "#10b96b"; Layout.alignment: Qt.AlignHCenter }
                     Image {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(300, root.width - 80)
-                        Layout.preferredHeight: Layout.preferredWidth
+                        Layout.preferredWidth: Math.min(360, root.width - 80)
+                        Layout.preferredHeight: 420
                         source: "qrc:/new/prefix1/fonts/pic/WeChat_QR.png"
                         fillMode: Image.PreserveAspectFit
                         smooth: true

@@ -57,6 +57,16 @@ int main(int argc, char **argv)
     Require(existing.open(QIODevice::ReadOnly), "saved avatar disappeared after failure");
     Require(existing.readAll() == originalBytes, "saved avatar changed after failure");
 
+    const QString corruptPath = temp.filePath(QStringLiteral("corrupt.png"));
+    Require(QFile::copy(savedPath, corruptPath), "cannot create corrupt avatar fixture");
+    QFile corrupt(corruptPath);
+    Require(corrupt.open(QIODevice::WriteOnly), "cannot corrupt avatar fixture");
+    corrupt.resize(0);
+    corrupt.write("broken image");
+    corrupt.close();
+    Require(AvatarStorage_FileUrl(corruptPath).isEmpty(),
+            "corrupted saved avatar was treated as readable");
+
     QTextStream(stdout) << "AVATAR_STORAGE_OK" << Qt::endl;
     return 0;
 }

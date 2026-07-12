@@ -70,5 +70,7 @@ bool AvatarStorage_Save(const QString &sourcePath,
 QString AvatarStorage_FileUrl(const QString &savedPath)
 {
     if (savedPath.isEmpty() || !QFileInfo::exists(savedPath)) return {};
+    QImageReader reader(savedPath);
+    if (!reader.canRead() || reader.read().isNull()) return {};
     return QUrl::fromLocalFile(QFileInfo(savedPath).absoluteFilePath()).toString(QUrl::FullyEncoded);
 }

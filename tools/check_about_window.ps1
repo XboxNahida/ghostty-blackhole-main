@@ -38,6 +38,12 @@ Require-Text $avatar "signal clicked" "EAvatar must expose a click signal"
 Require-Text $avatar "clickable" "EAvatar must preserve optional click behavior"
 Require-Text $main "aboutWindow.openAndActivate()" "Main.qml must open AboutWindow from both entries"
 Require-Text $main "customAvatarUrl" "Main.qml must bind the shared avatar URL"
+if (($main.Split("aboutWindow.openAndActivate()").Count - 1) -lt 2) {
+    Fail-AboutCheck "Main.qml must wire both avatar and settings entries"
+}
+Require-Text $about "onClosing" "AboutWindow must hide instead of destroying the shared instance"
+Require-Text $about "columns: width >= 620 ? 2 : 1" "QR layout must switch columns responsively"
+Require-Text $about "Layout.preferredHeight: 420" "QR images must reserve enough height for scanning"
 Require-Text $qrc "fonts/pic/QR_payment.jpg" "Alipay QR is not embedded in Qt resources"
 Require-Text $qrc "fonts/pic/WeChat_QR.png" "WeChat QR is not embedded in Qt resources"
 
