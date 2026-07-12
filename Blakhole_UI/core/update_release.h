@@ -30,5 +30,6 @@ struct UpdateReleaseInfo
 };
 
 ParsedVersion ParseReleaseVersion(const QString &label);
+// 前置条件：left.valid 和 right.valid 均为 true。
 int CompareReleaseVersions(const ParsedVersion &left, const ParsedVersion &right);
 UpdateReleaseInfo ParseGitHubRelease(const QByteArray &json, QString *error);

@@ -5,15 +5,15 @@
 #include <QJsonObject>
 #include <QTextStream>
 
-#include <cstdlib>
-
 namespace {
+
+int g_failureCount = 0;
 
 void Require(bool condition, const char *message)
 {
     if (condition) return;
     QTextStream(stderr) << "UPDATE_RELEASE_TEST_FAILED: " << message << Qt::endl;
-    std::exit(1);
+    ++g_failureCount;
 }
 
 QByteArray ReleaseJson(const QString &tag,
@@ -26,6 +26,17 @@ QByteArray ReleaseJson(const QString &tag,
     object.insert(QStringLiteral("name"), name);
     object.insert(QStringLiteral("body"), notes);
     object.insert(QStringLiteral("html_url"), url);
+    return QJsonDocument(object).toJson(QJsonDocument::Compact);
+}
+
+QByteArray ReleaseJson(const QJsonValue &name, const QJsonValue &notes)
+{
+    QJsonObject object;
+    object.insert(QStringLiteral("tag_name"), QStringLiteral("v1.2.3"));
+    if (!name.isUndefined()) object.insert(QStringLiteral("name"), name);
+    if (!notes.isUndefined()) object.insert(QStringLiteral("body"), notes);
+    object.insert(QStringLiteral("html_url"), QStringLiteral(
+        "https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3"));
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
 
@@ -65,6 +76,9 @@ int main(int argc, char **argv)
         QStringLiteral(" v1.2.3"),
         QStringLiteral("v1.2.3 "),
         QStringLiteral("v-1.2.3"),
+        QStringLiteral("01.2.3"),
+        QStringLiteral("1.02.3"),
+        QStringLiteral("1.2.03"),
         QStringLiteral("v4294967296.0.0")
     };
     for (const QString &label : invalidLabels) {
@@ -91,6 +105,12 @@ int main(int argc, char **argv)
                 "https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3"),
             "html_url 未解析");
 
+    const UpdateReleaseInfo caseInsensitiveRepository = ParseGitHubRelease(
+        ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
+                    QStringLiteral("https://GITHUB.COM/xboxnahida/GHOSTTY-BLACKHOLE-MAIN/releases/tag/v1.2.3")),
+        &error);
+    Require(caseInsensitiveRepository.valid, "GitHub 仓库 URL 的合理大小写变化被拒绝");
+
     RequireReleaseFailure(QByteArrayLiteral("not json"), "非法 JSON 被接受");
     RequireReleaseFailure(QByteArrayLiteral("[]"), "非对象 JSON 被接受");
     RequireReleaseFailure(QByteArrayLiteral("{}"), "缺少正式字段的 JSON 被接受");
@@ -101,54 +121,92 @@ int main(int argc, char **argv)
     Require(oversizedJsonError.contains(QStringLiteral("超过")),
             "超过响应上限时未返回明确错误");
     RequireReleaseFailure(QByteArrayLiteral(
-        "{\"tag_name\":1,\"name\":\"x\",\"body\":\"x\",\"html_url\":\"https://github.com/a/b/releases/tag/v1.0.0\"}"),
+        "{\"tag_name\":1,\"name\":\"x\",\"body\":\"x\",\"html_url\":\"https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.0.0\"}"),
         "类型错误的正式字段被接受");
+    const UpdateReleaseInfo missingOptionalText = ParseGitHubRelease(
+        ReleaseJson(QJsonValue(QJsonValue::Undefined), QJsonValue(QJsonValue::Undefined)),
+        &error);
+    Require(missingOptionalText.valid && missingOptionalText.name.isEmpty()
+                && missingOptionalText.notes.isEmpty(),
+            "缺失的 name/body 未归一为空字符串");
+    const UpdateReleaseInfo nullOptionalText = ParseGitHubRelease(
+        ReleaseJson(QJsonValue(QJsonValue::Null), QJsonValue(QJsonValue::Null)), &error);
+    Require(nullOptionalText.valid && nullOptionalText.name.isEmpty()
+                && nullOptionalText.notes.isEmpty(),
+            "null name/body 未归一为空字符串");
+    RequireReleaseFailure(ReleaseJson(QJsonValue(1), QJsonValue(QStringLiteral("x"))),
+                          "非字符串 name 被接受");
+    RequireReleaseFailure(ReleaseJson(QJsonValue(QStringLiteral("x")), QJsonValue(false)),
+                          "非字符串 body 被接受");
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2"), QStringLiteral("x"), QStringLiteral("x"),
-                    QStringLiteral("https://github.com/a/b/releases/tag/v1.2")),
+                    QStringLiteral("https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2")),
         "非法 tag_name 被接受");
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"), QString()),
         "空 html_url 被接受");
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
-                    QStringLiteral("http://github.com/a/b/releases/tag/v1.2.3")),
+                    QStringLiteral("http://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3")),
         "非 HTTPS URL 被接受");
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
-                    QStringLiteral("https://github.com.evil.example/a/b/releases/tag/v1.2.3")),
+                    QStringLiteral("https://github.com.evil.example/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3")),
         "伪造 GitHub 主机 URL 被接受");
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
-                    QStringLiteral("https://user@github.com/a/b/releases/tag/v1.2.3")),
+                    QStringLiteral("https://user@github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3")),
         "包含用户信息的 URL 被接受");
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
-                    QStringLiteral("https://github.com/a/b/issues/1")),
+                    QStringLiteral("https://github.com/XboxNahida/ghostty-blackhole-main/issues/1")),
         "非 Release 页面 URL 被接受");
+    RequireReleaseFailure(
+        ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
+                    QStringLiteral("https://github.com/OtherOwner/ghostty-blackhole-main/releases/tag/v1.2.3")),
+        "其他 GitHub 所有者的 Release URL 被接受");
+    RequireReleaseFailure(
+        ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
+                    QStringLiteral("https://github.com/XboxNahida/other-repository/releases/tag/v1.2.3")),
+        "其他 GitHub 仓库的 Release URL 被接受");
+    RequireReleaseFailure(
+        ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
+                    QStringLiteral("https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3/")),
+        "带额外尾斜杠的 Release URL 被接受");
+    RequireReleaseFailure(
+        ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"),
+                    QStringLiteral("https://github.com/%58boxNahida/ghostty-blackhole-main/releases/tag/v1.2.3")),
+        "编码混淆的仓库路径被接受");
 
-    const QString oversizedName(kUpdateReleaseMaxNameLength + 20, QLatin1Char('n'));
-    const QString oversizedNotes(kUpdateReleaseMaxNotesLength + 20, QLatin1Char('b'));
+    const QString emoji = QString::fromUtf8("\xF0\x9F\x98\x80");
+    const QString expectedName(kUpdateReleaseMaxNameLength - 1, QLatin1Char('n'));
+    const QString expectedNotes(kUpdateReleaseMaxNotesLength - 1, QLatin1Char('b'));
+    const QString oversizedName = expectedName + emoji + QStringLiteral("tail");
+    const QString oversizedNotes = expectedNotes + emoji + QStringLiteral("tail");
     const UpdateReleaseInfo bounded = ParseGitHubRelease(
         ReleaseJson(QStringLiteral("v2.0.0"), oversizedName, oversizedNotes,
-                    QStringLiteral("https://github.com/a/b/releases/tag/v2.0.0")),
+                    QStringLiteral("https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v2.0.0")),
         &error);
     Require(bounded.valid, "可截断的超长文本导致 Release 被拒绝");
-    Require(bounded.name.size() == kUpdateReleaseMaxNameLength, "name 未按上限截断");
-    Require(bounded.notes.size() == kUpdateReleaseMaxNotesLength, "body 未按上限截断");
-    Require(bounded.notes == oversizedNotes.left(kUpdateReleaseMaxNotesLength),
-            "超长说明未保留正确前缀");
+    Require(bounded.name == expectedName, "name 截断破坏 UTF-16 surrogate pair");
+    Require(bounded.notes == expectedNotes, "body 截断破坏 UTF-16 surrogate pair");
 
     const QString oversizedTag(kUpdateReleaseMaxTagLength + 1, QLatin1Char('1'));
     RequireReleaseFailure(
         ReleaseJson(oversizedTag, QStringLiteral("x"), QStringLiteral("x"),
-                    QStringLiteral("https://github.com/a/b/releases/tag/v1.0.0")),
+                    QStringLiteral("https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.0.0")),
         "超长 tag_name 被接受");
-    const QString oversizedUrl = QStringLiteral("https://github.com/a/b/releases/tag/")
+    const QString oversizedUrl = QStringLiteral(
+        "https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/")
         + QString(kUpdateReleaseMaxUrlLength, QLatin1Char('x'));
     RequireReleaseFailure(
         ReleaseJson(QStringLiteral("v1.2.3"), QStringLiteral("x"), QStringLiteral("x"), oversizedUrl),
         "超长 html_url 被接受");
+
+    if (g_failureCount != 0) {
+        QTextStream(stderr) << "UPDATE_RELEASE_TEST_FAILURES: " << g_failureCount << Qt::endl;
+        return 1;
+    }
 
     QTextStream(stdout) << "UPDATE_RELEASE_TESTS_OK" << Qt::endl;
     return 0;

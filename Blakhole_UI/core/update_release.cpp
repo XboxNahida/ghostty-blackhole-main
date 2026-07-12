@@ -17,7 +17,31 @@ bool HasStringField(const QJsonObject &object, const QString &name)
     return object.contains(name) && object.value(name).isString();
 }
 
-bool IsSafeGitHubReleaseUrl(const QUrl &url, const QString &tagName)
+bool ReadOptionalStringField(const QJsonObject &object, const QString &name, QString *value)
+{
+    const QJsonValue field = object.value(name);
+    if (field.isUndefined() || field.isNull()) {
+        value->clear();
+        return true;
+    }
+    if (!field.isString()) return false;
+    *value = field.toString();
+    return true;
+}
+
+QString TruncateUtf16Safe(const QString &text, qsizetype maxLength)
+{
+    if (text.size() <= maxLength) return text;
+
+    qsizetype length = maxLength;
+    if (length > 0 && text.at(length - 1).isHighSurrogate()
+        && text.at(length).isLowSurrogate()) {
+        --length;
+    }
+    return text.left(length);
+}
+
+bool IsSafeGitHubReleaseUrl(const QUrl &url, const QString &urlText, const QString &tagName)
 {
     if (!url.isValid() || url.scheme() != QStringLiteral("https")
         || url.host().compare(QStringLiteral("github.com"), Qt::CaseInsensitive) != 0
@@ -26,10 +50,18 @@ bool IsSafeGitHubReleaseUrl(const QUrl &url, const QString &tagName)
         return false;
     }
 
+    const qsizetype schemeSeparator = urlText.indexOf(QStringLiteral("://"));
+    const qsizetype pathStart = urlText.indexOf(QLatin1Char('/'), schemeSeparator + 3);
+    if (schemeSeparator < 0 || pathStart < 0) return false;
+
     static const QRegularExpression releasePath(
-        QStringLiteral("^/[^/]+/[^/]+/releases/tag/([^/]+)/?$"));
-    const QRegularExpressionMatch match = releasePath.match(url.path());
-    return match.hasMatch() && match.captured(1) == tagName;
+        QStringLiteral("^/([^/]+)/([^/]+)/releases/tag/([^/]+)$"));
+    const QRegularExpressionMatch match = releasePath.match(urlText.mid(pathStart));
+    return match.hasMatch()
+        && match.captured(1).compare(QStringLiteral("XboxNahida"), Qt::CaseInsensitive) == 0
+        && match.captured(2).compare(QStringLiteral("ghostty-blackhole-main"),
+                                     Qt::CaseInsensitive) == 0
+        && match.captured(3) == tagName;
 }
 
 }
@@ -39,7 +71,7 @@ ParsedVersion ParseReleaseVersion(const QString &label)
     if (label.isEmpty() || label.size() > kUpdateReleaseMaxTagLength) return {};
 
     static const QRegularExpression versionPattern(
-        QStringLiteral("^v?([0-9]+)\\.([0-9]+)\\.([0-9]+)$"));
+        QStringLiteral("^v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"));
     const QRegularExpressionMatch match = versionPattern.match(label);
     if (!match.hasMatch()) return {};
 
@@ -61,6 +93,8 @@ ParsedVersion ParseReleaseVersion(const QString &label)
 
 int CompareReleaseVersions(const ParsedVersion &left, const ParsedVersion &right)
 {
+    Q_ASSERT_X(left.valid && right.valid, "CompareReleaseVersions",
+               "版本比较仅接受 valid=true 的输入");
     if (!left.valid || !right.valid) return 0;
     if (left.major != right.major) return left.major < right.major ? -1 : 1;
     if (left.minor != right.minor) return left.minor < right.minor ? -1 : 1;
@@ -87,9 +121,16 @@ UpdateReleaseInfo ParseGitHubRelease(const QByteArray &json, QString *error)
     const QString nameField = QStringLiteral("name");
     const QString notesField = QStringLiteral("body");
     const QString urlField = QStringLiteral("html_url");
-    if (!HasStringField(object, tagField) || !HasStringField(object, nameField)
-        || !HasStringField(object, notesField) || !HasStringField(object, urlField)) {
+    if (!HasStringField(object, tagField) || !HasStringField(object, urlField)) {
         SetError(error, QStringLiteral("Release 响应缺少有效的正式字段"));
+        return {};
+    }
+
+    QString name;
+    QString notes;
+    if (!ReadOptionalStringField(object, nameField, &name)
+        || !ReadOptionalStringField(object, notesField, &notes)) {
+        SetError(error, QStringLiteral("Release 可选文本字段类型无效"));
         return {};
     }
 
@@ -110,8 +151,8 @@ UpdateReleaseInfo ParseGitHubRelease(const QByteArray &json, QString *error)
         return {};
     }
 
-    const QUrl htmlUrl(htmlUrlText, QUrl::StrictMode);
-    if (!IsSafeGitHubReleaseUrl(htmlUrl, tagName)) {
+    const QUrl htmlUrl = QUrl::fromEncoded(htmlUrlText.toUtf8(), QUrl::StrictMode);
+    if (!IsSafeGitHubReleaseUrl(htmlUrl, htmlUrlText, tagName)) {
         SetError(error, QStringLiteral("Release 页面必须是安全的 GitHub Release 地址"));
         return {};
     }
@@ -120,8 +161,8 @@ UpdateReleaseInfo ParseGitHubRelease(const QByteArray &json, QString *error)
     result.valid = true;
     result.tagName = tagName;
     result.version = version;
-    result.name = object.value(nameField).toString().left(kUpdateReleaseMaxNameLength);
-    result.notes = object.value(notesField).toString().left(kUpdateReleaseMaxNotesLength);
+    result.name = TruncateUtf16Safe(name, kUpdateReleaseMaxNameLength);
+    result.notes = TruncateUtf16Safe(notes, kUpdateReleaseMaxNotesLength);
     result.htmlUrl = htmlUrl;
     if (error) error->clear();
     return result;
