@@ -48,6 +48,17 @@ if ($forceIndex -lt 0 -or $mediaIndex -lt 0 -or $audioIndex -lt 0 -or
     throw "IDLE_LISTS_CHECK_FAILED: foreground force blocklist must run before media and audio checks"
 }
 
+foreach ($text in @(
+    "bool forceBlocked = false",
+    "forceBlocked = true",
+    "forceBlocked || (watchingVideo && !m_videoAsIdle)",
+    "watchingVideo = false"
+)) {
+    if (-not $core.Contains($text)) {
+        throw "IDLE_LISTS_CHECK_FAILED: missing list priority contract [$text]"
+    }
+}
+
 foreach ($pattern in @(
     "idleForceBlocklist",
     "\u59cb\u7ec8\u5141\u8bb8\u89e6\u53d1",

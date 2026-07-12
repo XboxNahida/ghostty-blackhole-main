@@ -148,6 +148,8 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(QStringList idleWhitelist READ idleWhitelist WRITE setIdleWhitelist NOTIFY idleWhitelistChanged)
     Q_PROPERTY(QStringList idleBlacklist READ idleBlacklist WRITE setIdleBlacklist NOTIFY idleBlacklistChanged)
     Q_PROPERTY(QStringList idleForceBlocklist READ idleForceBlocklist WRITE setIdleForceBlocklist NOTIFY idleForceBlocklistChanged)
+    Q_PROPERTY(QString idleDetectionSummary READ idleDetectionSummary NOTIFY idleDetectionSummaryChanged)
+    Q_PROPERTY(bool idleDetectionBlocked READ idleDetectionBlocked NOTIFY idleDetectionBlockedChanged)
 
     // 定时显示
     Q_PROPERTY(bool scheduleEnabled READ scheduleEnabled WRITE setScheduleEnabled NOTIFY scheduleEnabledChanged)
@@ -270,6 +272,8 @@ public:
     void setIdleForceBlocklist(const QStringList &list);
     Q_INVOKABLE QVariantList runningApplications() const;
     Q_INVOKABLE QVariantMap chooseExecutable();
+    QString idleDetectionSummary() const;
+    bool idleDetectionBlocked() const;
 
     // 定时显示
     bool scheduleEnabled() const;
@@ -381,6 +385,8 @@ signals:
     void idleWhitelistChanged();
     void idleBlacklistChanged();
     void idleForceBlocklistChanged();
+    void idleDetectionSummaryChanged();
+    void idleDetectionBlockedChanged();
 
     // 定时显示信号
     void scheduleEnabledChanged();
@@ -425,6 +431,7 @@ private:
     void loadAdvancedConfig();
     void saveIdleListConfig();
     void loadIdleListConfig();
+    void setIdleDetectionState(const QString &summary, bool blocked);
     void saveScheduleConfig();
     void loadScheduleConfig();
     void saveSystemConfig();
@@ -488,6 +495,8 @@ private:
     QStringList m_idleWhitelist;
     QStringList m_idleBlacklist;
     QStringList m_idleForceBlocklist;
+    QString m_idleDetectionSummary = QStringLiteral("等待空闲检测");
+    bool m_idleDetectionBlocked = false;
 
     // 定时显示
     bool m_scheduleEnabled   = false;

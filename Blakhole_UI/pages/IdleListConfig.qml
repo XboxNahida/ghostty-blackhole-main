@@ -114,14 +114,54 @@ Item {
             Item { Layout.fillWidth: true }
         }
 
-        RowLayout {
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 44
+            radius: 6
+            color: theme.secondaryColor
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 10
+
+                Text {
+                    text: bhCore && bhCore.idleDetectionBlocked ? "\uf05e" : "\uf058"
+                    font.family: iconFont.name
+                    font.pixelSize: 14
+                    color: bhCore && bhCore.idleDetectionBlocked ? "#ff6b6b" : theme.focusColor
+                }
+
+                Text {
+                    text: bhCore ? bhCore.idleDetectionSummary : "等待空闲检测"
+                    font.pixelSize: 12
+                    color: theme.textColor
+                    elide: Text.ElideMiddle
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: bhCore && bhCore.idleDetectionBlocked ? "阻止触发" : "允许触发"
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: bhCore && bhCore.idleDetectionBlocked ? "#ff6b6b" : theme.focusColor
+                }
+            }
+        }
+
+        GridLayout {
+            id: listsGrid
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            columns: width >= 1250 ? 3 : 2
+            columnSpacing: 12
+            rowSpacing: 12
 
             Components.IdleListPanel {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumHeight: 260
                 title: "始终允许触发"
                 description: "前台命中时忽略媒体与游戏检测"
                 accentColor: theme.focusColor
@@ -135,6 +175,7 @@ Item {
             Components.IdleListPanel {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumHeight: 260
                 title: "媒体识别提示"
                 description: "仅在实际播放且检测到媒体信号时阻止"
                 accentColor: theme.focusColor
@@ -148,6 +189,8 @@ Item {
             Components.IdleListPanel {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumHeight: 260
+                Layout.columnSpan: listsGrid.columns === 2 ? 2 : 1
                 title: "前台强制不触发"
                 description: "前台命中时无条件阻止，切到后台后失效"
                 accentColor: "#ff6b6b"

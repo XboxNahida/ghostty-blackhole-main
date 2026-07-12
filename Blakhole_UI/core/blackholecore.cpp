@@ -1131,7 +1131,10 @@ static bool IdleListMatchesProcess(const QStringList &list, const char *processN
 void BlackHoleCore::checkIdle()
 {
 #ifdef Q_OS_WIN
-    if (m_displayMode != 1) return;
+    if (m_displayMode != 1) {
+        setIdleDetectionState(tr("空闲检测未启用"), false);
+        return;
+    }
 
     LASTINPUTINFO lii = { sizeof(LASTINPUTINFO) };
     if (!GetLastInputInfo(&lii)) return;
@@ -1142,11 +1145,18 @@ void BlackHoleCore::checkIdle()
 
     HWND fg = GetForegroundWindow();
     bool watchingVideo = false;
+    bool forceBlocked = false;
     bool uwpDetected = false;
+    QString foregroundProcess;
+    QString detectionReason = tr("未发现可靠媒体或游戏信号");
 
     if (fg) {
         // 第1层: 排除桌面、系统外壳和黑洞自己的渲染窗口。
-        if (Foreground_Classify(fg) != ForegroundKind::Application) {
+        const ForegroundKind foregroundKind = Foreground_Classify(fg);
+        if (foregroundKind != ForegroundKind::Application) {
+            detectionReason = foregroundKind == ForegroundKind::Desktop
+                ? tr("Windows 桌面，允许触发")
+                : tr("系统界面，允许触发");
             goto check_foreground_done;
         }
 
@@ -1163,6 +1173,7 @@ void BlackHoleCore::checkIdle()
                 if (SUCCEEDED(pfnQuns(&state)) &&
                     (state == QUNS_RUNNING_D3D_FULL_SCREEN || state == QUNS_PRESENTATION_MODE)) {
                     watchingVideo = true;
+                    detectionReason = tr("系统全屏或演示模式");
                 }
             }
         }
@@ -1170,6 +1181,7 @@ void BlackHoleCore::checkIdle()
         // 第3层: 当前显示器上的无边框全屏窗口。
         if (!watchingVideo && Foreground_IsBorderlessFullscreen(fg)) {
             watchingVideo = true;
+            detectionReason = tr("无边框全屏应用");
         }
 
         // 获取进程名 (使用 CreateToolhelp32Snapshot, 匹配原生)
@@ -1179,21 +1191,28 @@ void BlackHoleCore::checkIdle()
         char pname[260];
         GetProcName(pid, pname, sizeof(pname));
         if (!pname[0]) goto check_foreground_done;
+        foregroundProcess = QString::fromUtf8(pname);
 
         // 白名单检测 (新UI独有: 白名单进程不阻止黑洞触发)
         bool isWhitelisted = false;
         if (!m_idleWhitelist.isEmpty()) {
             isWhitelisted = IdleListMatchesProcess(m_idleWhitelist, pname);
-            if (isWhitelisted) goto check_foreground_done;
+            if (isWhitelisted) {
+                watchingVideo = false;
+                detectionReason = tr("命中始终允许触发名单");
+                goto check_foreground_done;
+            }
         }
 
         if (IdleListMatchesProcess(m_idleForceBlocklist, pname)) {
-            watchingVideo = true;
+            forceBlocked = true;
+            detectionReason = tr("命中前台强制不触发名单");
             goto check_foreground_done;
         }
 
         if (GameDetection_IsKnownGameProcess(pid)) {
             watchingVideo = true;
+            detectionReason = tr("Windows 或 Steam 游戏记录");
             goto check_foreground_done;
         }
 
@@ -1250,6 +1269,7 @@ void BlackHoleCore::checkIdle()
         if (mediaSession.state == MediaPlaybackState::Playing &&
             MediaSession_SourceMatchesProcess(mediaSession.sourceAppId, pname)) {
             watchingVideo = true;
+            detectionReason = tr("系统媒体会话正在播放");
             goto check_foreground_done;
         }
 
@@ -1307,13 +1327,23 @@ void BlackHoleCore::checkIdle()
             }
             se->Release(); mgr->Release();
             watchingVideo = hasAudio;
+            if (hasAudio) detectionReason = tr("媒体应用音频正在播放");
         }
+    } else {
+        detectionReason = tr("未检测到前台窗口");
     }
 
 check_foreground_done:
 
     // videoAsIdle: 视频播放时不阻止黑洞触发
-    bool blocked = watchingVideo && !m_videoAsIdle;
+    bool blocked = forceBlocked || (watchingVideo && !m_videoAsIdle);
+    if (watchingVideo && m_videoAsIdle && !forceBlocked) {
+        detectionReason += tr("，已按设置允许触发");
+    }
+    const QString detectionSummary = foregroundProcess.isEmpty()
+        ? detectionReason
+        : QStringLiteral("%1 · %2").arg(foregroundProcess, detectionReason);
+    setIdleDetectionState(detectionSummary, blocked);
 
     bool running = (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning);
 
@@ -1466,6 +1496,28 @@ QVariantMap BlackHoleCore::chooseExecutable()
         tr("可执行程序 (*.exe)"));
     if (path.isEmpty()) return {};
     return ApplicationEntryToMap(ApplicationCatalog_FromExecutable(path));
+}
+
+QString BlackHoleCore::idleDetectionSummary() const
+{
+    return m_idleDetectionSummary;
+}
+
+bool BlackHoleCore::idleDetectionBlocked() const
+{
+    return m_idleDetectionBlocked;
+}
+
+void BlackHoleCore::setIdleDetectionState(const QString &summary, bool blocked)
+{
+    if (m_idleDetectionSummary != summary) {
+        m_idleDetectionSummary = summary;
+        emit idleDetectionSummaryChanged();
+    }
+    if (m_idleDetectionBlocked != blocked) {
+        m_idleDetectionBlocked = blocked;
+        emit idleDetectionBlockedChanged();
+    }
 }
 
 // ====== 定时显示 getter/setter ======
