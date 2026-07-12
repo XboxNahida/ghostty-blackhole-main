@@ -28,6 +28,7 @@
 #include "game_detection.h"
 #include "media_session.h"
 #include "gui_config.h"
+#include "movement_settings.h"
 #include "win32_gl.h"
 #include "monitors.h"
 #ifdef BLACKHOLE_USE_D3D11
@@ -219,6 +220,19 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     if (header.empty() || body.empty()) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Shader file empty: header=%zu, body=%zu\n", header.size(), body.size()); fflush(debugLog); }
         return false;
+    }
+
+    const std::string timeUniform = "uniform float iTime;";
+    size_t timeUniformPos = header.find(timeUniform);
+    if (timeUniformPos != std::string::npos) {
+        header.insert(timeUniformPos + timeUniform.length(), "\nuniform float uMovementTime;");
+    }
+
+    const std::string realMovementTime = "float t = iTime * DRIFT_SPEED;";
+    size_t movementTimePos = body.find(realMovementTime);
+    if (movementTimePos != std::string::npos) {
+        body.replace(movementTimePos, realMovementTime.length(),
+                     "float t = uMovementTime * DRIFT_SPEED;");
     }
 
     // 检查是否还有 BOM
@@ -1227,6 +1241,7 @@ int main(int argc, char* argv[]) {
 
     GLint locRes   = gl_GetUniformLocation(program, "iResolution");
     GLint locTime  = gl_GetUniformLocation(program, "iTime");
+    GLint locMovementTime = gl_GetUniformLocation(program, "uMovementTime");
     GLint locDate  = gl_GetUniformLocation(program, "iDate");
     GLint locCh0   = gl_GetUniformLocation(program, "iChannel0");
     GLint loc_uHR  = gl_GetUniformLocation(program, "uHoleRadius");
@@ -1279,16 +1294,18 @@ int main(int argc, char* argv[]) {
     float randPhase = 6.2831853f * (float)rand() / (float)RAND_MAX;
     // 随机预设偏移：0 ~ 60秒（覆盖多个预设周期）
     float randPresetOff = 60.0f * (float)rand() / (float)RAND_MAX;
-    float homeX = cfg.randomPath ? randHomeX : 0.96f;
-    float homeY = cfg.randomPath ? randHomeY : 0.04f;
+    MovementSpawn spawn = ResolveMovementSpawn(
+        cfg.spawnPosition, randHomeX, randHomeY, randPhase, randPresetOff);
+    float homeX = spawn.x;
+    float homeY = spawn.y;
     float cursorHomeX = homeX;
     float cursorHomeY = homeY;
     float mouseVelX = 0.0f;
     float mouseVelY = 0.0f;
-    float phaseOffset = cfg.randomPath ? randPhase : 0.0f;
-    float presetOffset = cfg.randomPath ? randPresetOff : 0.0f;
-    if (debugLog) { fprintf(debugLog, "[Init] Spawn: randomPath=%d home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
-                            cfg.randomPath ? 1 : 0, homeX, homeY, phaseOffset, presetOffset, seed, screenIdx); fflush(debugLog); }
+    float phaseOffset = spawn.phaseOffset;
+    float presetOffset = spawn.presetOffset;
+    if (debugLog) { fprintf(debugLog, "[Init] Spawn: spawnPosition=%d movementSpeed=%.2f home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
+                            cfg.spawnPosition, cfg.movementSpeed, homeX, homeY, phaseOffset, presetOffset, seed, screenIdx); fflush(debugLog); }
 
     gl_UseProgram(0);
 
@@ -1372,6 +1389,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locCh0,0);
         gl_Uniform3f(locRes,(float)fbW,(float)fbH,0);
         gl_Uniform1f(locTime,0);
+        gl_Uniform1f(locMovementTime,0);
         gl_Uniform4f(locDate,0,0,0,(float)time(nullptr));
         gl_Uniform1f(loc_uHR,cfg.holeRadius); gl_Uniform1f(loc_uDG,cfg.diskGain);
         gl_Uniform1f(loc_uDT,cfg.diskTemp); gl_Uniform1f(loc_uEX,cfg.exposure);
@@ -1685,6 +1703,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locCh0, 0);
         gl_Uniform3f(locRes, (float)fbW, (float)fbH, 0.0f);
         gl_Uniform1f(locTime, t);
+        gl_Uniform1f(locMovementTime, t * cfg.movementSpeed);
         gl_Uniform4f(locDate, 0,0,0,ep);
 
         gl_Uniform1f(loc_uHR, cfg.holeRadius);

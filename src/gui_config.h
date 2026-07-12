@@ -42,7 +42,8 @@ struct BlackholeConfig {
     bool  followMouse     = false; // 是否让黑洞中心跟随鼠标
     float mouseInertia    = 0.30f;  // 鼠标跟随惯性（0=贴住鼠标, 1=最大惯性/游走）
     bool  limitMouseOvershoot = true; // 是否把过冲限制在鼠标半径内
-    bool  randomPath      = true;  // 是否随机出生位置/轨迹/预设偏移
+    int   spawnPosition   = 0;     // 0=随机, 1~4=四角固定出生位置
+    float movementSpeed   = 1.0f;  // 自由移动速度倍率（0.1~3.0）
     bool  lightingEffect  = false; // 吸积盘分层光影与 Bloom
     float distortion      = 1.0f;  // 引力透镜扭曲强度
     bool  allowRecordingCapture = false; // 允许截图/录屏捕获黑洞窗口
