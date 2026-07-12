@@ -169,6 +169,8 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool closeHotkeyEnabled READ closeHotkeyEnabled WRITE setCloseHotkeyEnabled NOTIFY closeHotkeyEnabledChanged)
     Q_PROPERTY(QString closeHotkeySequence READ closeHotkeySequence WRITE setCloseHotkeySequence NOTIFY closeHotkeySequenceChanged)
     Q_PROPERTY(QString closeHotkeyStatus READ closeHotkeyStatus NOTIFY closeHotkeyStatusChanged)
+    Q_PROPERTY(QString customAvatarUrl READ customAvatarUrl NOTIFY customAvatarUrlChanged)
+    Q_PROPERTY(QString avatarStatus READ avatarStatus NOTIFY avatarStatusChanged)
 
 
     // 渲染器覆盖参数 (默认 -1.0 = 不覆盖，使用预设值)
@@ -303,6 +305,9 @@ public:
     QString closeHotkeySequence() const;
     void setCloseHotkeySequence(const QString &v);
     QString closeHotkeyStatus() const;
+    QString customAvatarUrl() const;
+    QString avatarStatus() const;
+    Q_INVOKABLE void chooseCustomAvatar();
 
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
@@ -404,6 +409,8 @@ signals:
     void closeHotkeyEnabledChanged();
     void closeHotkeySequenceChanged();
     void closeHotkeyStatusChanged();
+    void customAvatarUrlChanged();
+    void avatarStatusChanged();
 
     // 渲染器覆盖信号
     void overrideHoleRadiusChanged();
@@ -517,6 +524,8 @@ private:
     QString m_closeHotkeySequence = QStringLiteral("Ctrl+Alt+B");
     QString m_closeHotkeyStatus;
     bool    m_closeHotkeyRegistered = false;
+    QString m_customAvatarPath;
+    QString m_avatarStatus;
 
     // 渲染器覆盖参数
     float   m_overrideHoleRadius = -1.0f;

@@ -1,6 +1,7 @@
 // blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
 #include "application_catalog.h"
+#include "avatar_storage.h"
 #include "autostart_registry.h"
 #include "foreground_window.h"
 #include "game_detection.h"
@@ -1744,6 +1745,7 @@ void BlackHoleCore::saveSystemConfig()
     out << "defaultCloseAction=" << m_defaultCloseAction << "\n";
     out << "closeHotkeyEnabled=" << (m_closeHotkeyEnabled ? 1 : 0) << "\n";
     out << "closeHotkeySequence=" << m_closeHotkeySequence << "\n";
+    out << "customAvatarPath=" << QDir::toNativeSeparators(m_customAvatarPath) << "\n";
     file.close();
     qDebug() << "BlackHoleCore: saved system config";
 }
@@ -1773,8 +1775,15 @@ void BlackHoleCore::loadSystemConfig()
         else if (key == "defaultCloseAction") m_defaultCloseAction = val.toInt();
         else if (key == "closeHotkeyEnabled") m_closeHotkeyEnabled = (val.toInt() != 0);
         else if (key == "closeHotkeySequence") m_closeHotkeySequence = normalizedHotkeySequence(val);
+        else if (key == "customAvatarPath") m_customAvatarPath = QDir::fromNativeSeparators(val);
     }
     file.close();
+    if (!AvatarStorage_FileUrl(m_customAvatarPath).isEmpty()) {
+        m_avatarStatus.clear();
+    } else if (!m_customAvatarPath.isEmpty()) {
+        m_customAvatarPath.clear();
+        m_avatarStatus = tr("自定义头像文件不存在，已恢复默认头像");
+    }
     updateCloseHotkeyRegistration();
     qDebug() << "BlackHoleCore: loaded system config";
 }
@@ -1955,6 +1964,43 @@ void BlackHoleCore::setCloseHotkeySequence(const QString &v)
 }
 
 QString BlackHoleCore::closeHotkeyStatus() const { return m_closeHotkeyStatus; }
+
+QString BlackHoleCore::customAvatarUrl() const
+{
+    const QString customUrl = AvatarStorage_FileUrl(m_customAvatarPath);
+    return customUrl.isEmpty()
+        ? QStringLiteral("qrc:/new/prefix1/fonts/pic/avatar.png")
+        : customUrl;
+}
+
+QString BlackHoleCore::avatarStatus() const
+{
+    return m_avatarStatus;
+}
+
+void BlackHoleCore::chooseCustomAvatar()
+{
+    const QString sourcePath = QFileDialog::getOpenFileName(
+        nullptr, tr("选择头像"), QString(),
+        tr("图片文件 (*.png *.jpg *.jpeg *.webp)"));
+    if (sourcePath.isEmpty()) return;
+
+    const QString avatarDirectory = QStandardPaths::writableLocation(
+        QStandardPaths::AppDataLocation) + QStringLiteral("/avatar");
+    QString savedPath;
+    QString error;
+    if (!AvatarStorage_Save(sourcePath, avatarDirectory, &savedPath, &error)) {
+        m_avatarStatus = error;
+        emit avatarStatusChanged();
+        return;
+    }
+
+    m_customAvatarPath = savedPath;
+    m_avatarStatus = tr("头像已更新");
+    saveSystemConfig();
+    emit customAvatarUrlChanged();
+    emit avatarStatusChanged();
+}
 
 bool BlackHoleCore::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result)
 {
