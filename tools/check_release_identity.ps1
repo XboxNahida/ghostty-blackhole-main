@@ -1,6 +1,18 @@
+param(
+    [string]$RendererPath,
+    [string]$UiPath
+)
+
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
+
+if ([string]::IsNullOrWhiteSpace($RendererPath)) {
+    $RendererPath = Join-Path $root "build\blackhole.exe"
+}
+if ([string]::IsNullOrWhiteSpace($UiPath)) {
+    $UiPath = Join-Path $root "Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release\appBlakholeUI.exe"
+}
 
 function Fail-IdentityCheck {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -51,14 +63,14 @@ Require-FileText "Blakhole_UI\main.cpp" @(
 $rendererDescription = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("Qmxha2hvbGUg5pys5Zyw5riy5p+T5Zmo"))
 $uiDescription = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("6buR5rSe5Y+v6KeG5YyW6YWN572u5bel5YW3"))
 $builtFiles = @(
-    @{ Path = (Join-Path $root "build\blackhole.exe"); Description = $rendererDescription },
-    @{ Path = (Join-Path $root "Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release\appBlakholeUI.exe"); Description = $uiDescription }
+    @{ Path = $RendererPath; Description = $rendererDescription },
+    @{ Path = $UiPath; Description = $uiDescription }
 )
 
 foreach ($builtFile in $builtFiles) {
     $path = $builtFile.Path
     if (-not (Test-Path -LiteralPath $path)) {
-        continue
+        Fail-IdentityCheck "missing build output $path"
     }
 
     $version = (Get-Item -LiteralPath $path).VersionInfo
@@ -67,8 +79,11 @@ foreach ($builtFile in $builtFiles) {
             Fail-IdentityCheck "$(Split-Path -Leaf $path) has empty $property"
         }
     }
-    if ($version.ProductVersion -notlike "1.2.0*") {
+    if ($version.ProductVersion -cne "1.2.0") {
         Fail-IdentityCheck "$(Split-Path -Leaf $path) ProductVersion is $($version.ProductVersion), expected 1.2.0"
+    }
+    if ($version.FileVersion -cne "1.2.0.0") {
+        Fail-IdentityCheck "$(Split-Path -Leaf $path) FileVersion is $($version.FileVersion), expected 1.2.0.0"
     }
     if ($version.FileDescription -cne $builtFile.Description) {
         Fail-IdentityCheck "$(Split-Path -Leaf $path) FileDescription has an encoding mismatch"
