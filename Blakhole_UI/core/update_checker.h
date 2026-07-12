@@ -19,6 +19,7 @@ public:
     void reset();
     const QByteArray &payload() const { return m_payload; }
     bool overflowed() const { return m_overflowed; }
+    qsizetype remainingCapacity() const { return m_maxBytes - m_payload.size(); }
 
 private:
     qsizetype m_maxBytes;

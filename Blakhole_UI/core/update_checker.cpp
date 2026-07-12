@@ -95,7 +95,15 @@ void UpdateChecker::startRequest(bool manual)
 
 void UpdateChecker::onReplyReadyRead()
 {
-    if (m_reply && !m_payload.append(m_reply->readAll())) m_reply->abort();
+    if (!m_reply) return;
+    const qsizetype remaining = m_payload.remainingCapacity();
+    if (remaining <= 0) {
+        m_payload.append(QByteArrayLiteral("x"));
+        m_reply->abort();
+        return;
+    }
+    const QByteArray chunk = m_reply->read(remaining + 1);
+    if (!m_payload.append(chunk)) m_reply->abort();
 }
 
 void UpdateChecker::onReplyMetadataChanged()
@@ -110,7 +118,6 @@ void UpdateChecker::onReplyFinished()
 {
     m_timeout.stop();
     QNetworkReply *reply = m_reply;
-    onReplyReadyRead();
     m_reply = nullptr;
     const bool manual = m_manualRequest;
     m_manualRequest = false;

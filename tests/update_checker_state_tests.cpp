@@ -54,8 +54,10 @@ int main(int argc, char **argv)
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDir.path());
 
     BoundedPayloadAccumulator payload(8);
+    Require(payload.remainingCapacity() == 8, "bounded payload reports initial capacity");
     Require(payload.append(QByteArrayLiteral("1234")), "bounded payload accepts first chunk");
     Require(payload.append(QByteArrayLiteral("5678")), "bounded payload accepts exact limit");
+    Require(payload.remainingCapacity() == 0, "bounded payload reports no capacity at exact limit");
     Require(!payload.append(QByteArrayLiteral("9")), "bounded payload rejects overflow immediately");
     Require(payload.overflowed(), "bounded payload records overflow");
 
