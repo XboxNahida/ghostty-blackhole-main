@@ -14,18 +14,24 @@ Item {
     property var bhCore: null
 
     property var whitelist: {
-        if (bhCore && bhCore.idleWhitelist && bhCore.idleWhitelist.length > 0)
+        if (bhCore)
             return bhCore.idleWhitelist
         return []
     }
     property var blacklist: {
-        if (bhCore && bhCore.idleBlacklist && bhCore.idleBlacklist.length > 0)
+        if (bhCore)
             return bhCore.idleBlacklist
         return ["vlc", "mpv", "potplayer", "mpc", "wmplayer", "bilibili", "iqiyi", "youku", "芒果TV", "腾讯视频"]
+    }
+    property var forceBlocklist: {
+        if (bhCore)
+            return bhCore.idleForceBlocklist
+        return []
     }
 
     ListModel { id: whiteModel }
     ListModel { id: blackModel }
+    ListModel { id: forceModel }
 
     Component.onCompleted: {
         refreshModels()
@@ -33,6 +39,7 @@ Item {
         if (bhCore) {
             bhCore.idleWhitelist = listPage.whitelist
             bhCore.idleBlacklist = listPage.blacklist
+            bhCore.idleForceBlocklist = listPage.forceBlocklist
         }
     }
 
@@ -45,6 +52,19 @@ Item {
         for (var j = 0; j < listPage.blacklist.length; j++) {
             blackModel.append({ name: listPage.blacklist[j] })
         }
+        forceModel.clear()
+        for (var k = 0; k < listPage.forceBlocklist.length; k++) {
+            forceModel.append({ name: listPage.forceBlocklist[k] })
+        }
+    }
+
+    function containsIgnoreCase(values, candidate) {
+        var lowerCandidate = candidate.toLowerCase()
+        for (var i = 0; i < values.length; i++) {
+            if (String(values[i]).toLowerCase() === lowerCandidate)
+                return true
+        }
+        return false
     }
 
     ColumnLayout {
@@ -69,28 +89,33 @@ Item {
             Item { Layout.fillWidth: true }
         }
 
-        // === 白名单 ===
-        Rectangle {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
+            spacing: 12
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 8
+            // === 始终允许触发 ===
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: 8
+                color: theme.secondaryColor
+                opacity: 0.85
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 8
 
                 Text {
-                    text: "\uf058  白名单 (视频空闲检测)"
+                    text: "\uf058  始终允许触发"
                     font.family: iconFont.name
                     font.pixelSize: 14
                     color: theme.focusColor
                     font.bold: true
                 }
                 Text {
-                    text: "检测到以下应用时视为空闲，不阻止黑洞显示"
+                    text: "前台命中时忽略媒体与游戏检测"
                     font.pixelSize: 11
                     color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
                     wrapMode: Text.WordWrap
@@ -136,7 +161,7 @@ Item {
                         implicitHeight: 34
                         onClicked: {
                             var t = whiteInput.text.trim()
-                            if (t !== "" && listPage.whitelist.indexOf(t) < 0) {
+                            if (t !== "" && !containsIgnoreCase(listPage.whitelist, t)) {
                                 listPage.whitelist.push(t)
                                 refreshModels()
                                 whiteInput.text = ""
@@ -165,12 +190,16 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.leftMargin: 10
+                            anchors.right: removeWhiteButton.left
+                            anchors.rightMargin: 4
                             text: model.name
+                            elide: Text.ElideMiddle
                             font.pixelSize: 13
                             color: theme.textColor
                         }
 
                         Components.EButton {
+                            id: removeWhiteButton
                             anchors.right: parent.right
                             anchors.rightMargin: 4
                             anchors.verticalCenter: parent.verticalCenter
@@ -208,28 +237,28 @@ Item {
             }
         }
 
-        // === 黑名单 ===
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
+            // === 媒体识别提示 ===
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: 8
+                color: theme.secondaryColor
+                opacity: 0.85
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 8
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 8
 
                 Text {
-                    text: "\uf057  黑名单 (始终阻止)"
+                    text: "\uf144  媒体识别提示"
                     font.family: iconFont.name
                     font.pixelSize: 14
-                    color: "#ff6b6b"
+                    color: theme.focusColor
                     font.bold: true
                 }
                 Text {
-                    text: "检测到以下应用时始终阻止黑洞显示"
+                    text: "仅在实际播放且检测到媒体信号时阻止"
                     font.pixelSize: 11
                     color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
                     wrapMode: Text.WordWrap
@@ -275,7 +304,7 @@ Item {
                         implicitHeight: 34
                         onClicked: {
                             var t = blackInput.text.trim()
-                            if (t !== "" && listPage.blacklist.indexOf(t) < 0) {
+                            if (t !== "" && !containsIgnoreCase(listPage.blacklist, t)) {
                                 listPage.blacklist.push(t)
                                 refreshModels()
                                 blackInput.text = ""
@@ -304,12 +333,16 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.leftMargin: 10
+                            anchors.right: removeMediaButton.left
+                            anchors.rightMargin: 4
                             text: model.name
+                            elide: Text.ElideMiddle
                             font.pixelSize: 13
                             color: theme.textColor
                         }
 
                         Components.EButton {
+                            id: removeMediaButton
                             anchors.right: parent.right
                             anchors.rightMargin: 4
                             anchors.verticalCenter: parent.verticalCenter
@@ -343,6 +376,148 @@ Item {
                     font.pixelSize: 11
                     color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.35)
                     Layout.alignment: Qt.AlignRight
+                }
+            }
+        }
+
+            // === 前台强制不触发 ===
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: 8
+                color: theme.secondaryColor
+                opacity: 0.85
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 8
+
+                    Text {
+                        text: "\uf05e  前台强制不触发"
+                        font.family: iconFont.name
+                        font.pixelSize: 14
+                        color: "#ff6b6b"
+                        font.bold: true
+                    }
+                    Text {
+                        text: "前台命中时无条件阻止，切到后台后失效"
+                        font.pixelSize: 11
+                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 34
+                            radius: 8
+                            color: theme.primaryColor
+                            border.color: theme.borderColor
+                            border.width: 1
+
+                            TextInput {
+                                id: forceInput
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                color: theme.textColor
+                                font.pixelSize: 13
+                                verticalAlignment: Text.AlignVCenter
+                                Text {
+                                    anchors.fill: parent
+                                    text: "输入进程名..."
+                                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.30)
+                                    font.pixelSize: 13
+                                    verticalAlignment: Text.AlignVCenter
+                                    visible: !forceInput.activeFocus && forceInput.text === ""
+                                }
+                            }
+                        }
+
+                        Components.EButton {
+                            text: "添加"
+                            size: "xs"
+                            iconCharacter: "\uf067"
+                            radius: 8
+                            implicitHeight: 34
+                            onClicked: {
+                                var t = forceInput.text.trim()
+                                if (t !== "" && !containsIgnoreCase(listPage.forceBlocklist, t)) {
+                                    listPage.forceBlocklist.push(t)
+                                    refreshModels()
+                                    forceInput.text = ""
+                                    if (bhCore) bhCore.idleForceBlocklist = listPage.forceBlocklist
+                                }
+                            }
+                        }
+                    }
+
+                    ListView {
+                        id: forceListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: forceModel
+                        clip: true
+                        spacing: 2
+
+                        delegate: Rectangle {
+                            width: forceListView.width
+                            height: 32
+                            radius: 6
+                            color: itemMouse3.containsMouse ? Qt.darker(theme.secondaryColor, 1.15) : "transparent"
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                anchors.right: removeForceButton.left
+                                anchors.rightMargin: 4
+                                text: model.name
+                                elide: Text.ElideMiddle
+                                font.pixelSize: 13
+                                color: theme.textColor
+                            }
+
+                            Components.EButton {
+                                id: removeForceButton
+                                anchors.right: parent.right
+                                anchors.rightMargin: 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                size: "xs"
+                                text: ""
+                                iconCharacter: "\uf00d"
+                                radius: 6
+                                implicitHeight: 26
+                                containerColor: "transparent"
+                                textColor: "#ff5555"
+                                iconColor: "#ff5555"
+                                onClicked: {
+                                    var idx = listPage.forceBlocklist.indexOf(model.name)
+                                    if (idx >= 0) listPage.forceBlocklist.splice(idx, 1)
+                                    refreshModels()
+                                    if (bhCore) bhCore.idleForceBlocklist = listPage.forceBlocklist
+                                }
+                            }
+
+                            MouseArea {
+                                id: itemMouse3
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                acceptedButtons: Qt.NoButton
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: forceModel.count + " 条"
+                        font.pixelSize: 11
+                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.35)
+                        Layout.alignment: Qt.AlignRight
+                    }
                 }
             }
         }

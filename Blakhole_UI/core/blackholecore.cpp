@@ -662,6 +662,7 @@ void BlackHoleCore::resetDefaults()
     emit initialSizeChanged();
     emit idleWhitelistChanged();
     emit idleBlacklistChanged();
+    emit idleForceBlocklistChanged();
     emit scheduleEnabledChanged();
     emit startHourChanged(); emit startMinuteChanged();
     emit endHourChanged(); emit endMinuteChanged();
@@ -1116,6 +1117,15 @@ static void GetProcName(DWORD pid, char* out, int maxLen) {
     CloseHandle(snap);
 }
 
+static bool IdleListMatchesProcess(const QStringList &list, const char *processName)
+{
+    const QString process = QString::fromUtf8(processName);
+    for (const QString &entry : list) {
+        if (process.contains(entry, Qt::CaseInsensitive)) return true;
+    }
+    return false;
+}
+
 void BlackHoleCore::checkIdle()
 {
 #ifdef Q_OS_WIN
@@ -1171,14 +1181,13 @@ void BlackHoleCore::checkIdle()
         // 白名单检测 (新UI独有: 白名单进程不阻止黑洞触发)
         bool isWhitelisted = false;
         if (!m_idleWhitelist.isEmpty()) {
-            for (const QString &w : m_idleWhitelist) {
-                QByteArray wLower = w.toLower().toUtf8();
-                if (strstr(pname, wLower.constData())) {
-                    isWhitelisted = true;
-                    break;
-                }
-            }
+            isWhitelisted = IdleListMatchesProcess(m_idleWhitelist, pname);
             if (isWhitelisted) goto check_foreground_done;
+        }
+
+        if (IdleListMatchesProcess(m_idleForceBlocklist, pname)) {
+            watchingVideo = true;
+            goto check_foreground_done;
         }
 
         if (GameDetection_IsKnownGameProcess(pid)) {
@@ -1190,13 +1199,7 @@ void BlackHoleCore::checkIdle()
 
         // 专用视频播放器黑名单匹配
         bool isDedicatedVideoPlayer = false;
-        for (const QString &b : m_idleBlacklist) {
-            QByteArray bLower = b.toLower().toUtf8();
-            if (strstr(pname, bLower.constData())) {
-                isDedicatedVideoPlayer = true;
-                break;
-            }
-        }
+        isDedicatedVideoPlayer = IdleListMatchesProcess(m_idleBlacklist, pname);
 
         // 浏览器
         bool isBrowser = (strstr(pname, "chrome") || strstr(pname, "msedge") ||
@@ -1381,11 +1384,50 @@ void BlackHoleCore::setInitialSize(float v) { if (qFuzzyCompare(m_initialSize, v
 
 // ====== 空闲名单 getter/setter ======
 
+static QStringList NormalizeIdleList(const QStringList &list)
+{
+    QStringList normalized;
+    for (const QString &entry : list) {
+        const QString value = entry.trimmed();
+        if (value.isEmpty()) continue;
+        bool duplicate = false;
+        for (const QString &existing : normalized) {
+            if (existing.compare(value, Qt::CaseInsensitive) == 0) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (!duplicate) normalized.append(value);
+    }
+    return normalized;
+}
+
 QStringList BlackHoleCore::idleWhitelist() const { return m_idleWhitelist; }
-void BlackHoleCore::setIdleWhitelist(const QStringList &list) { m_idleWhitelist = list; emit idleWhitelistChanged(); }
+void BlackHoleCore::setIdleWhitelist(const QStringList &list)
+{
+    const QStringList normalized = NormalizeIdleList(list);
+    if (m_idleWhitelist == normalized) return;
+    m_idleWhitelist = normalized;
+    emit idleWhitelistChanged();
+}
 
 QStringList BlackHoleCore::idleBlacklist() const { return m_idleBlacklist; }
-void BlackHoleCore::setIdleBlacklist(const QStringList &list) { m_idleBlacklist = list; emit idleBlacklistChanged(); }
+void BlackHoleCore::setIdleBlacklist(const QStringList &list)
+{
+    const QStringList normalized = NormalizeIdleList(list);
+    if (m_idleBlacklist == normalized) return;
+    m_idleBlacklist = normalized;
+    emit idleBlacklistChanged();
+}
+
+QStringList BlackHoleCore::idleForceBlocklist() const { return m_idleForceBlocklist; }
+void BlackHoleCore::setIdleForceBlocklist(const QStringList &list)
+{
+    const QStringList normalized = NormalizeIdleList(list);
+    if (m_idleForceBlocklist == normalized) return;
+    m_idleForceBlocklist = normalized;
+    emit idleForceBlocklistChanged();
+}
 
 // ====== 定时显示 getter/setter ======
 
@@ -1497,13 +1539,16 @@ void BlackHoleCore::saveIdleListConfig()
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
     QTextStream out(&file);
-    out << "# Blackhole Idle Lists v1\n";
+    out << "# Blackhole Idle Lists v2\n";
     out << "[whitelist]\n";
     for (const QString &s : m_idleWhitelist) out << s << "\n";
     out << "[/whitelist]\n";
-    out << "[blacklist]\n";
+    out << "[mediaHints]\n";
     for (const QString &s : m_idleBlacklist) out << s << "\n";
-    out << "[/blacklist]\n";
+    out << "[/mediaHints]\n";
+    out << "[forceBlocklist]\n";
+    for (const QString &s : m_idleForceBlocklist) out << s << "\n";
+    out << "[/forceBlocklist]\n";
     file.close();
 }
 
@@ -1518,16 +1563,24 @@ void BlackHoleCore::loadIdleListConfig()
     QTextStream in(&file);
     m_idleWhitelist.clear();
     m_idleBlacklist.clear();
+    m_idleForceBlocklist.clear();
     QStringList *currentList = nullptr;
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
         if (line == "[whitelist]") { currentList = &m_idleWhitelist; continue; }
         if (line == "[/whitelist]") { currentList = nullptr; continue; }
+        if (line == "[mediaHints]") { currentList = &m_idleBlacklist; continue; }
+        if (line == "[/mediaHints]") { currentList = nullptr; continue; }
         if (line == "[blacklist]") { currentList = &m_idleBlacklist; continue; }
         if (line == "[/blacklist]") { currentList = nullptr; continue; }
+        if (line == "[forceBlocklist]") { currentList = &m_idleForceBlocklist; continue; }
+        if (line == "[/forceBlocklist]") { currentList = nullptr; continue; }
         if (currentList) currentList->append(line);
     }
+    m_idleWhitelist = NormalizeIdleList(m_idleWhitelist);
+    m_idleBlacklist = NormalizeIdleList(m_idleBlacklist);
+    m_idleForceBlocklist = NormalizeIdleList(m_idleForceBlocklist);
     file.close();
     qDebug() << "BlackHoleCore: loaded idle lists";
 }

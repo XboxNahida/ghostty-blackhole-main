@@ -145,6 +145,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     // 空闲名单
     Q_PROPERTY(QStringList idleWhitelist READ idleWhitelist WRITE setIdleWhitelist NOTIFY idleWhitelistChanged)
     Q_PROPERTY(QStringList idleBlacklist READ idleBlacklist WRITE setIdleBlacklist NOTIFY idleBlacklistChanged)
+    Q_PROPERTY(QStringList idleForceBlocklist READ idleForceBlocklist WRITE setIdleForceBlocklist NOTIFY idleForceBlocklistChanged)
 
     // 定时显示
     Q_PROPERTY(bool scheduleEnabled READ scheduleEnabled WRITE setScheduleEnabled NOTIFY scheduleEnabledChanged)
@@ -263,6 +264,8 @@ public:
     void setIdleWhitelist(const QStringList &list);
     QStringList idleBlacklist() const;
     void setIdleBlacklist(const QStringList &list);
+    QStringList idleForceBlocklist() const;
+    void setIdleForceBlocklist(const QStringList &list);
 
     // 定时显示
     bool scheduleEnabled() const;
@@ -373,6 +376,7 @@ signals:
     // 空闲名单信号
     void idleWhitelistChanged();
     void idleBlacklistChanged();
+    void idleForceBlocklistChanged();
 
     // 定时显示信号
     void scheduleEnabledChanged();
@@ -479,6 +483,7 @@ private:
     // 空闲名单
     QStringList m_idleWhitelist;
     QStringList m_idleBlacklist;
+    QStringList m_idleForceBlocklist;
 
     // 定时显示
     bool m_scheduleEnabled   = false;
