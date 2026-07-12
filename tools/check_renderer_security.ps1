@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $mainPath = Join-Path $root "src\main.cpp"
 $guiConfigPath = Join-Path $root "src\gui_config.cpp"
+$win32GlPath = Join-Path $root "src\win32_gl.cpp"
 
 function Fail-RendererSecurityCheck {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -56,13 +57,15 @@ function Require-Pattern {
 
 $main = Read-Source $mainPath
 $guiConfig = Read-Source $guiConfigPath
-$rendererSources = $main + "`n" + $guiConfig
+$win32Gl = Read-Source $win32GlPath
+$rendererSources = $main + "`n" + $guiConfig + "`n" + $win32Gl
 
 $forbiddenPatterns = @(
     @{ Pattern = '\bRegSetValueExA\s*\('; Message = "renderer still writes the Registry Run key" },
     @{ Pattern = '\bRegDeleteValueA\s*\('; Message = "renderer still deletes the Registry Run value" },
     @{ Pattern = '\bOpenProcess\s*\(\s*PROCESS_TERMINATE'; Message = "renderer still opens arbitrary processes for termination" },
     @{ Pattern = '\bTerminateProcess\s*\('; Message = "renderer still terminates processes directly" },
+    @{ Pattern = '\bGetAsyncKeyState\s*\('; Message = "renderer still polls global keyboard state" },
     @{ Pattern = 'stricmp\s*\([^\r\n]*blackhole\.exe'; Message = "renderer still enumerates blackhole.exe by process name at startup" }
 )
 
@@ -107,5 +110,11 @@ Require-Text -Content $main -Text 'strcmp(argv[2], "--screen") == 0' `
     -Message "multi-display renderer no longer parses the --screen argument"
 Require-Pattern -Content $main -Pattern '#endif\s+(?://[^\r\n]*\s+)*KillChildRenderers\(\);\s+return 0;' `
     -Message "multi-display child cleanup is not shared by both renderer backends"
+Require-Text -Content $main -Text 'RegisterHotKey(' `
+    -Message "primary renderer does not register Ctrl+Alt+R with the system hotkey API"
+Require-Text -Content $rendererSources -Text 'WM_HOTKEY' `
+    -Message "renderer does not handle WM_HOTKEY messages"
+Require-Text -Content $main -Text 'UnregisterHotKey(' `
+    -Message "renderer does not unregister its recording capture hotkey"
 
 Write-Output "RENDERER_SECURITY_OK"

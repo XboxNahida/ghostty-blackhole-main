@@ -42,6 +42,7 @@ typedef BOOL (WINAPI *PFN_wglSwapIntervalEXT)(int);
 // ---- 窗口状态 ----
 struct Win32GLState {
     bool shouldClose;
+    bool recordingHotkeyPressed;
     int  newWidth;
     int  newHeight;
 };
@@ -57,6 +58,12 @@ static LRESULT CALLBACK WGLWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_CLOSE:        if (state) state->shouldClose = true; return 0;
     case WM_KEYDOWN:      if (wp == VK_ESCAPE && state) state->shouldClose = true; return 0;
+    case WM_HOTKEY:
+        if (wp == WIN32GL_RECORDING_HOTKEY_ID && state) {
+            state->recordingHotkeyPressed = true;
+            return 0;
+        }
+        break;
     case WM_SIZE:         if (state) { state->newWidth = LOWORD(lp); state->newHeight = HIWORD(lp); } return 0;
     case WM_NCHITTEST:    return HTTRANSPARENT;
     case WM_NCACTIVATE:   return FALSE;
@@ -225,6 +232,7 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int 
     // 11. 窗口状态结构
     Win32GLState* state = new Win32GLState();
     state->shouldClose = false;
+    state->recordingHotkeyPressed = false;
     state->newWidth    = width;
     state->newHeight   = height;
     SetWindowLongPtrW(wgl.hwnd, GWLP_USERDATA, (LONG_PTR)state);
@@ -330,6 +338,13 @@ void Win32GL_DrainMessages(Win32GL& wgl) {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
+}
+
+bool Win32GL_TakeRecordingHotkey(Win32GL& wgl) {
+    Win32GLState* state = (Win32GLState*)GetWindowLongPtrW(wgl.hwnd, GWLP_USERDATA);
+    if (!state || !state->recordingHotkeyPressed) return false;
+    state->recordingHotkeyPressed = false;
+    return true;
 }
 
 void Win32GL_Show(Win32GL& wgl) {

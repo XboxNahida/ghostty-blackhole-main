@@ -675,16 +675,6 @@ static bool isIdle(DWORD ms) {
     return GetLastInputInfo(&lii) && (GetTickCount() - lii.dwTime) >= ms;
 }
 
-static bool ToggleRecordingCaptureHotkeyPressed() {
-    static bool wasDown = false;
-    bool down = ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) &&
-                ((GetAsyncKeyState(VK_MENU) & 0x8000) != 0) &&
-                ((GetAsyncKeyState(VK_R) & 0x8000) != 0);
-    bool pressed = down && !wasDown;
-    wasDown = down;
-    return pressed;
-}
-
 // ---- Renderer process management (monitor mode) ----
 static PROCESS_INFORMATION g_pi = {};
 static bool g_sessionLocked = false;  // 跟踪当前会话是否被锁屏
@@ -1420,6 +1410,16 @@ int main(int argc, char* argv[]) {
 
     // 启用分层模式（鼠标穿透）
     Win32GL_EnableLayered(wgl);
+    bool recordingHotkeyRegistered = false;
+    if (screenIdx < 0) {
+        recordingHotkeyRegistered = RegisterHotKey(
+            wgl.hwnd, WIN32GL_RECORDING_HOTKEY_ID,
+            MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'R') != FALSE;
+        if (!recordingHotkeyRegistered && debugLog) {
+            fprintf(debugLog, "[RecordingCapture] RegisterHotKey failed: %lu\n", GetLastError());
+            fflush(debugLog);
+        }
+    }
     // 不再隐藏系统光标 — WGC 已通过 IsCursorCaptureEnabled=false 禁用光标捕获，
     // 捕获的纹理不含光标，不会出现双重光标，系统光标始终保持正常可用
 
@@ -1460,7 +1460,7 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, fbW, fbH);
 
         double now = Win32GL_GetTime();
-        if (ToggleRecordingCaptureHotkeyPressed()) {
+        if (!exiting && Win32GL_TakeRecordingHotkey(wgl)) {
             recordingCaptureRuntimeAllowed = !recordingCaptureRuntimeAllowed;
             recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
             Win32GL_SetCaptureExcluded(wgl, !recordingCaptureRuntimeAllowed);
@@ -1761,6 +1761,9 @@ int main(int argc, char* argv[]) {
     gl_DeleteProgram(program);
     gl_DeleteVertexArrays(1, &vao);
     gl_DeleteBuffers(1, &vbo);
+    if (recordingHotkeyRegistered) {
+        UnregisterHotKey(wgl.hwnd, WIN32GL_RECORDING_HOTKEY_ID);
+    }
     Win32GL_Shutdown(wgl);
 
 #else
