@@ -1,5 +1,6 @@
 // blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
+#include "application_catalog.h"
 #include "autostart_registry.h"
 #include "foreground_window.h"
 #include "game_detection.h"
@@ -9,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFileDialog>
 #include <QTextStream>
 #include <QStandardPaths>
 #include <QDebug>
@@ -1402,6 +1404,17 @@ static QStringList NormalizeIdleList(const QStringList &list)
     return normalized;
 }
 
+static QVariantMap ApplicationEntryToMap(const ApplicationCatalogEntry &entry)
+{
+    if (entry.processName.isEmpty() || entry.executablePath.isEmpty()) return {};
+    return {
+        {QStringLiteral("displayName"), entry.displayName},
+        {QStringLiteral("processName"), entry.processName},
+        {QStringLiteral("executablePath"), entry.executablePath},
+        {QStringLiteral("iconDataUrl"), entry.iconDataUrl}
+    };
+}
+
 QStringList BlackHoleCore::idleWhitelist() const { return m_idleWhitelist; }
 void BlackHoleCore::setIdleWhitelist(const QStringList &list)
 {
@@ -1427,6 +1440,32 @@ void BlackHoleCore::setIdleForceBlocklist(const QStringList &list)
     if (m_idleForceBlocklist == normalized) return;
     m_idleForceBlocklist = normalized;
     emit idleForceBlocklistChanged();
+}
+
+QVariantList BlackHoleCore::runningApplications() const
+{
+    QVariantList applications;
+#ifdef Q_OS_WIN
+    const QVector<ApplicationCatalogEntry> entries =
+        ApplicationCatalog_EnumerateRunning(GetCurrentProcessId());
+    applications.reserve(entries.size());
+    for (const ApplicationCatalogEntry &entry : entries) {
+        const QVariantMap application = ApplicationEntryToMap(entry);
+        if (!application.isEmpty()) applications.append(application);
+    }
+#endif
+    return applications;
+}
+
+QVariantMap BlackHoleCore::chooseExecutable()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        nullptr,
+        tr("选择程序"),
+        QString(),
+        tr("可执行程序 (*.exe)"));
+    if (path.isEmpty()) return {};
+    return ApplicationEntryToMap(ApplicationCatalog_FromExecutable(path));
 }
 
 // ====== 定时显示 getter/setter ======

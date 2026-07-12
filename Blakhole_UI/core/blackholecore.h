@@ -9,6 +9,8 @@
 #include <QVector>
 #include <QString>
 #include <QColor>
+#include <QVariantList>
+#include <QVariantMap>
 
 class QFile;
 
@@ -266,6 +268,8 @@ public:
     void setIdleBlacklist(const QStringList &list);
     QStringList idleForceBlocklist() const;
     void setIdleForceBlocklist(const QStringList &list);
+    Q_INVOKABLE QVariantList runningApplications() const;
+    Q_INVOKABLE QVariantMap chooseExecutable();
 
     // 定时显示
     bool scheduleEnabled() const;
