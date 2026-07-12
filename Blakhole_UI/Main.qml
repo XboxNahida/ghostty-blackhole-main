@@ -518,14 +518,14 @@ ApplicationWindow {
                         }
 
                         Components.EButton {
-                            width: 86
-                            height: 32
                             size: "xs"
                             radius: 8
                             backgroundVisible: true
                             enabled: !updateChecker.checking
                             opacity: enabled ? 1.0 : 0.55
                             text: updateChecker.checking ? "检查中" : "检查"
+                            Layout.preferredWidth: 86
+                            Layout.preferredHeight: 32
                             iconCharacter: "\uf021"
                             onClicked: updateChecker.checkManually()
                         }

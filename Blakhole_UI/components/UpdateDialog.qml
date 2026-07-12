@@ -53,6 +53,17 @@ Item {
         Behavior on opacity { NumberAnimation { duration: 180 } }
         Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
+        MouseArea {
+            id: cardInputBlocker
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            hoverEnabled: true
+            onPressed: function(mouse) { mouse.accepted = true }
+            onReleased: function(mouse) { mouse.accepted = true }
+            onClicked: function(mouse) { mouse.accepted = true }
+            onWheel: function(wheel) { wheel.accepted = true }
+        }
+
         ColumnLayout {
             id: contentLayout
             anchors.fill: parent
@@ -130,9 +141,10 @@ Item {
                 ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                 Text {
+                    id: releaseNotesText
                     width: parent.width
                     text: checker && checker.latestNotes.length > 0 ? checker.latestNotes : "暂无更新说明。"
-                    wrapMode: Text.WordWrap
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     font.pixelSize: 13
                     lineHeight: 1.25
                     color: dialogRoot.theme ? Qt.rgba(dialogRoot.theme.textColor.r, dialogRoot.theme.textColor.g, dialogRoot.theme.textColor.b, 0.78) : "#d0d0d0"

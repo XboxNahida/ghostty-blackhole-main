@@ -59,5 +59,8 @@ Require-Text -Content $dialog -Text "checker.openDownloadPage()" -Message "downl
 Require-Text -Content $dialog -Text "checker.ignoreCurrentRelease()" -Message "ignore button must suppress the current release"
 Require-Match -Content $dialog -Pattern 'checker\.ignoreCurrentRelease\s*\(\s*\)[\s\S]*?dialogRoot\.close\s*\(\s*\)' -Message "ignore action must close the dialog"
 Require-Text -Content $dialog -Text "wrapMode: Text.WordWrap" -Message "dialog text must wrap instead of overflowing"
+Require-Match -Content $dialog -Pattern 'id\s*:\s*releaseNotesText[\s\S]*?text\s*:\s*checker\s*&&\s*checker\.latestNotes\.length[\s\S]*?wrapMode\s*:\s*Text\.(WrapAtWordBoundaryOrAnywhere|WrapAnywhere)' -Message "release notes must wrap long unbroken text"
+Require-Match -Content $dialog -Pattern 'id\s*:\s*cardInputBlocker[\s\S]*?anchors\.fill\s*:\s*parent[\s\S]*?acceptedButtons\s*:\s*Qt\.AllButtons[\s\S]*?onWheel\s*:' -Message "dialog card must consume clicks and wheel events before the overlay"
+Require-Match -Content $main -Pattern 'text\s*:\s*updateChecker\.checking\s*\?\s*"[^\"]+"\s*:\s*"[^\"]+"[\s\S]*?Layout\.preferredWidth\s*:\s*86[\s\S]*?Layout\.preferredHeight\s*:\s*32[\s\S]*?onClicked\s*:\s*updateChecker\.checkManually\s*\(\s*\)' -Message "manual check button must reserve stable RowLayout dimensions"
 
 "UPDATE_UI_OK"
