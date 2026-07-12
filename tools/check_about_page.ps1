@@ -28,8 +28,9 @@ if ($main -match 'Components\.AboutWindow\s*\{') {
     Fail-AboutPageCheck "Main.qml must not instantiate AboutWindow"
 }
 Require-Match $main 'readonly\s+property\s+int\s+aboutPageIndex\s*:\s*4' "Main.qml must define the about page index"
-Require-Match $main 'id\s*:\s*avatar[\s\S]*?onClicked\s*:\s*\{[^}]*root\.currentPageIndex\s*=\s*root\.aboutPageIndex[^}]*\}' "avatar entry must navigate to AboutPage"
-Require-Match $main 'text\s*:\s*"(?:\\u5173\\u4e8e|关于)\s+Blakhole UI"[\s\S]*?MouseArea\s*\{[\s\S]*?onClicked\s*:\s*\{[\s\S]*?settingsDrawer\.close\(\)[\s\S]*?root\.currentPageIndex\s*=\s*root\.aboutPageIndex' "settings entry must close the drawer and navigate to AboutPage"
+Require-Match $main 'function\s+navigateToAbout\s*\(\s*\)\s*\{[\s\S]*?(?:root\.)?currentPageIndex\s*===\s*(?:root\.)?aboutPageIndex[\s\S]*?return[\s\S]*?(?:root\.)?previousPageIndex\s*=\s*(?:root\.)?currentPageIndex[\s\S]*?(?:root\.)?currentPageIndex\s*=\s*(?:root\.)?aboutPageIndex' "about navigation must preserve the previous page on repeated entry"
+Require-Match $main 'id\s*:\s*avatar[\s\S]*?onClicked\s*:\s*root\.navigateToAbout\(\)' "avatar entry must navigate to AboutPage"
+Require-Match $main 'text\s*:\s*"(?:\\u5173\\u4e8e|关于)\s+Blakhole UI"[\s\S]*?MouseArea\s*\{[\s\S]*?onClicked\s*:\s*\{[\s\S]*?settingsDrawer\.close\(\)[\s\S]*?root\.navigateToAbout\(\)' "settings entry must close the drawer and navigate to AboutPage"
 Require-Match $main 'Pages\.AboutPage\s*\{[\s\S]*?visible\s*:\s*root\.currentPageIndex\s*===\s*root\.aboutPageIndex' "content area must display AboutPage"
 Require-Match $main 'Pages\.AboutPage\s*\{[\s\S]*?onBackRequested\s*:\s*root\.currentPageIndex\s*=\s*previousPageIndex' "AboutPage back action must restore the previous page"
 

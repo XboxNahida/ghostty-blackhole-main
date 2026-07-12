@@ -83,6 +83,12 @@ ApplicationWindow {
     property string closeHotkeyStatus: blackHoleCore ? blackHoleCore.closeHotkeyStatus : ""
     property bool recordingHotkey: false
 
+    function navigateToAbout() {
+        if (root.currentPageIndex === root.aboutPageIndex) return
+        root.previousPageIndex = root.currentPageIndex
+        root.currentPageIndex = root.aboutPageIndex
+    }
+
     function hotkeyKeyName(key) {
         if (key >= Qt.Key_A && key <= Qt.Key_Z) return String.fromCharCode("A".charCodeAt(0) + key - Qt.Key_A)
         if (key >= Qt.Key_0 && key <= Qt.Key_9) return String.fromCharCode("0".charCodeAt(0) + key - Qt.Key_0)
@@ -305,10 +311,7 @@ ApplicationWindow {
                 anchors.leftMargin: 50
                 clickable: true
                 avatarSource: blackHoleCore ? blackHoleCore.customAvatarUrl : "qrc:/new/prefix1/fonts/pic/avatar.png"
-                onClicked: {
-                    root.previousPageIndex = root.currentPageIndex
-                    root.currentPageIndex = root.aboutPageIndex
-                }
+                onClicked: root.navigateToAbout()
             }
 
             // 时间
@@ -921,8 +924,7 @@ ApplicationWindow {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             settingsDrawer.close()
-                            root.previousPageIndex = root.currentPageIndex
-                            root.currentPageIndex = root.aboutPageIndex
+                            root.navigateToAbout()
                         }
                     }
                 }
