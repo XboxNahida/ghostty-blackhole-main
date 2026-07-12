@@ -72,8 +72,8 @@ if (-not (Test-Path -LiteralPath $ReleaseDir -PathType Container)) {
 
 $objdump = Resolve-Objdump
 $executables = @(
-    @{ Name = "blackhole.exe"; ProductName = "Blakhole Renderer" },
-    @{ Name = "appBlakholeUI.exe"; ProductName = "Blakhole UI" }
+    @{ Name = "blackhole.exe"; ProductName = "Blakhole Renderer"; OriginalFilename = "blackhole.exe" },
+    @{ Name = "appBlakholeUI.exe"; ProductName = "Blakhole UI"; OriginalFilename = "appBlakholeUI.exe" }
 )
 
 foreach ($executable in $executables) {
@@ -84,7 +84,7 @@ foreach ($executable in $executables) {
     }
 
     $version = (Get-Item -LiteralPath $path).VersionInfo
-    foreach ($property in @("FileDescription", "ProductName", "CompanyName", "FileVersion", "ProductVersion")) {
+    foreach ($property in @("FileDescription", "ProductName", "CompanyName", "FileVersion", "ProductVersion", "OriginalFilename")) {
         if ([string]::IsNullOrWhiteSpace([string]$version.$property)) {
             Add-Failure "$($executable.Name) has empty VERSIONINFO $property"
         }
@@ -94,6 +94,15 @@ foreach ($executable in $executables) {
     }
     if ($version.ProductVersion -cne "1.2.0") {
         Add-Failure "$($executable.Name) ProductVersion is [$($version.ProductVersion)]"
+    }
+    if ($version.FileVersion -cne "1.2.0.0") {
+        Add-Failure "$($executable.Name) FileVersion is [$($version.FileVersion)]"
+    }
+    if ($version.CompanyName -cne "XboxNahida") {
+        Add-Failure "$($executable.Name) CompanyName is [$($version.CompanyName)]"
+    }
+    if ($version.OriginalFilename -cne $executable.OriginalFilename) {
+        Add-Failure "$($executable.Name) OriginalFilename is [$($version.OriginalFilename)]"
     }
     $signature = Get-AuthenticodeSignature -LiteralPath $path
     if ([string]$signature.Status -cne "NotSigned") {
@@ -119,7 +128,7 @@ foreach ($executable in $executables) {
         $forbiddenImports = @(
             @{ Pattern = '(?im)^\s*DLL Name:\s*(?:WS2_32|WINHTTP|WININET|URLMON)\.dll\s*$'; Name = "network library" },
             @{ Pattern = '(?im)\b(?:WSAStartup|socket|connect|send|recv|WinHttp\w*|InternetOpen\w*|URLDownloadToFile\w*)\b'; Name = "network API" },
-            @{ Pattern = '(?im)\b(?:WriteProcessMemory|CreateRemoteThread|VirtualAllocEx|NtWriteVirtualMemory|SetThreadContext|QueueUserAPC)\b'; Name = "process injection API" },
+            @{ Pattern = '(?im)\b(?:WriteProcessMemory|NtWriteVirtualMemory|ZwWriteVirtualMemory|CreateRemoteThread|CreateRemoteThreadEx|NtCreateThreadEx|RtlCreateUserThread|VirtualAllocEx|VirtualProtectEx|SetThreadContext|QueueUserAPC|NtQueueApcThread|MapViewOfFile2)\b'; Name = "common process injection API" },
             @{ Pattern = '(?im)\b(?:RegSetValue\w*|RegCreateKey\w*|RegDeleteValue\w*|RegDeleteKey\w*)\b'; Name = "Registry write API" },
             @{ Pattern = '(?im)\bGetAsyncKeyState\b'; Name = "GetAsyncKeyState" }
         )
@@ -128,6 +137,21 @@ foreach ($executable in $executables) {
                 Add-Failure "blackhole.exe imports $($forbidden.Name)"
             }
         }
+    }
+}
+
+$packageScriptPath = Join-Path $root "package_release.ps1"
+$packageScript = Get-Content -Raw -Encoding UTF8 -LiteralPath $packageScriptPath
+foreach ($contract in @(
+    @{ Pattern = 'git\s+-C\s+\$ProjectRoot\s+diff\s+--quiet'; Message = "package script does not reject tracked working-tree changes" },
+    @{ Pattern = 'git\s+-C\s+\$ProjectRoot\s+diff\s+--cached\s+--quiet'; Message = "package script does not reject staged changes" },
+    @{ Pattern = '(?s)cmake.+--build.+\$CoreBuildDir.+--clean-first'; Message = "package script does not clean-build the renderer by default" },
+    @{ Pattern = '(?s)cmake.+--build.+\$UiBuildDir.+--clean-first'; Message = "package script does not clean-build the Qt UI by default" },
+    @{ Pattern = 'verify_release_checksums\.ps1'; Message = "package script does not include the standalone checksum verifier" },
+    @{ Pattern = '--version'; Message = "package script does not validate strip.exe identity" }
+)) {
+    if ($packageScript -notmatch $contract.Pattern) {
+        Add-Failure $contract.Message
     }
 }
 
@@ -178,21 +202,6 @@ foreach ($artifact in $buildArtifacts) {
 }
 
 $checksumPath = Join-Path $ReleaseDir "release_checksums.sha256"
-$requiredChecksums = @(
-    "appblakholeui.exe",
-    "blackhole.exe",
-    "blackhole.glsl",
-    "blackhole_advanced.txt",
-    "blackhole_presets.txt",
-    "license",
-    "release_info.txt",
-    "security.md",
-    "platforms/qwindows.dll",
-    "shaders/vert.glsl",
-    "shaders/frag_desktop_header.glsl",
-    "shaders/frag_preview_header.glsl"
-)
-
 if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) {
     Add-Failure "missing release_checksums.sha256"
 }
@@ -233,11 +242,35 @@ else {
         }
     }
 
-    foreach ($requiredName in $requiredChecksums) {
-        if (-not $manifestEntries.ContainsKey($requiredName)) {
-            Add-Failure "release_checksums.sha256 is missing $requiredName"
+    $releaseRoot = (Resolve-Path -LiteralPath $ReleaseDir).Path.TrimEnd('\') + '\'
+    $actualEntries = @{}
+    foreach ($file in Get-ChildItem -LiteralPath $ReleaseDir -Recurse -File) {
+        $relativeName = $file.FullName.Substring($releaseRoot.Length).Replace('\', '/').ToLowerInvariant()
+        if ($relativeName -ceq "release_checksums.sha256") {
+            continue
+        }
+        if ($actualEntries.ContainsKey($relativeName)) {
+            Add-Failure "release contains case-colliding paths: $relativeName"
+            continue
+        }
+        $actualEntries[$relativeName] = $true
+    }
+
+    foreach ($actualName in $actualEntries.Keys) {
+        if (-not $manifestEntries.ContainsKey($actualName)) {
+            Add-Failure "release_checksums.sha256 is missing release file: $actualName"
         }
     }
+    foreach ($manifestName in $manifestEntries.Keys) {
+        if (-not $actualEntries.ContainsKey($manifestName)) {
+            Add-Failure "release_checksums.sha256 has an extra entry: $manifestName"
+        }
+    }
+}
+
+$verifierPath = Join-Path $ReleaseDir "verify_release_checksums.ps1"
+if (-not (Test-Path -LiteralPath $verifierPath -PathType Leaf)) {
+    Add-Failure "missing standalone verify_release_checksums.ps1"
 }
 
 if ($failures.Count -gt 0) {

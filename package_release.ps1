@@ -1,3 +1,7 @@
+param(
+    [switch]$NoBuild
+)
+
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
@@ -38,28 +42,52 @@ function Copy-FileIfExists {
     }
 }
 
-function Get-CMakeToolPath {
+function Assert-CleanGitState {
+    & git -C $ProjectRoot diff --quiet --ignore-submodules --
+    if ($LASTEXITCODE -ne 0) {
+        throw "Tracked working tree is dirty. Commit or restore tracked changes before packaging."
+    }
+    & git -C $ProjectRoot diff --cached --quiet --ignore-submodules --
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git index has staged changes. Commit or unstage them before packaging."
+    }
+}
+
+function Test-GnuStrip {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ((Split-Path -Leaf $Path) -ine "strip.exe") {
+        return $false
+    }
+    $versionOutput = & $Path --version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+    return (($versionOutput -join "`n") -match '(?i)GNU strip|GNU Binutils|MinGW')
+}
+
+function Get-MingwStripPath {
     param(
         [Parameter(Mandatory = $true)][string]$BuildDir,
-        [Parameter(Mandatory = $true)][string]$CacheVariable,
         [Parameter(Mandatory = $true)][string]$FileName
     )
 
     $cachePath = Join-Path $BuildDir "CMakeCache.txt"
     if (Test-Path -LiteralPath $cachePath -PathType Leaf) {
         $line = Get-Content -Encoding UTF8 -LiteralPath $cachePath |
-            Where-Object { $_ -match "^${CacheVariable}:.*=(.+)$" } |
+            Where-Object { $_ -match '^CMAKE_STRIP:.*=(.+)$' } |
             Select-Object -First 1
-        if ($line -match "^${CacheVariable}:.*=(.+)$") {
+        if ($line -match '^CMAKE_STRIP:.*=(.+)$') {
             $candidate = $Matches[1]
-            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            if ((Test-Path -LiteralPath $candidate -PathType Leaf) -and (Test-GnuStrip -Path $candidate)) {
                 return (Resolve-Path -LiteralPath $candidate).Path
             }
+            throw "CMAKE_STRIP is not a GNU/MinGW strip.exe: $candidate"
         }
     }
 
     $command = Get-Command $FileName -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
+    if ($null -ne $command -and (Test-GnuStrip -Path $command.Source)) {
         return $command.Source
     }
 
@@ -96,6 +124,25 @@ function Write-Utf8NoBom {
     [IO.File]::WriteAllText($Path, $Content, $Utf8NoBom)
 }
 
+Assert-CleanGitState
+$commit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
+    throw "Unable to determine the clean Git commit for RELEASE_INFO.txt"
+}
+
+if (-not $NoBuild) {
+    Write-Host "[1/9] Clean-building renderer and Qt UI from commit $commit..."
+    & cmake --build $CoreBuildDir --config Release --clean-first
+    if ($LASTEXITCODE -ne 0) {
+        throw "Renderer clean build failed with exit code $LASTEXITCODE"
+    }
+    & cmake --build $UiBuildDir --config Release --clean-first
+    if ($LASTEXITCODE -ne 0) {
+        throw "Qt UI clean build failed with exit code $LASTEXITCODE"
+    }
+    Assert-CleanGitState
+}
+
 if (-not (Test-Path -LiteralPath $RendererSource)) {
     throw "Missing build\blackhole.exe. Run: cmake --build build --config Release"
 }
@@ -107,15 +154,15 @@ if (-not (Test-Path -LiteralPath $UiSource)) {
 $rendererBuildHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $RendererSource).Hash.ToLowerInvariant()
 $uiBuildHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $UiSource).Hash.ToLowerInvariant()
 
-Write-Host "[1/7] Preparing release directory..."
+Write-Host "[2/9] Preparing release directory..."
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 
-Write-Host "[2/7] Copying renderer..."
+Write-Host "[3/9] Copying renderer..."
 Copy-Item -LiteralPath $RendererSource -Destination $RendererRelease -Force
 Get-ChildItem -LiteralPath $CoreBuildDir -Filter "*.dll" -File -ErrorAction SilentlyContinue |
     Copy-Item -Destination $ReleaseDir -Force
 
-Write-Host "[3/7] Copying Qt UI and deployed runtime..."
+Write-Host "[4/9] Copying Qt UI and deployed runtime..."
 Copy-Item -LiteralPath $UiSource -Destination $UiRelease -Force
 Get-ChildItem -LiteralPath $UiBuildDir -Filter "*.dll" -File -ErrorAction SilentlyContinue |
     Copy-Item -Destination $ReleaseDir -Force
@@ -139,7 +186,7 @@ foreach ($dir in @(
         -Destination (Join-Path $ReleaseDir $dir)
 }
 
-Write-Host "[4/7] Copying shaders, icons, default configs, and release documents..."
+Write-Host "[5/9] Copying shaders, icons, default configs, and release documents..."
 Copy-DirectoryIfExists -Source (Join-Path $ProjectRoot "shaders") -Destination (Join-Path $ReleaseDir "shaders")
 
 foreach ($file in @(
@@ -160,17 +207,14 @@ foreach ($file in @(
 foreach ($file in @("LICENSE", "SECURITY.md")) {
     Copy-FileIfExists -Source (Join-Path $ProjectRoot $file) -Destination $ReleaseDir
 }
+Copy-Item -LiteralPath (Join-Path $ProjectRoot "tools\verify_release_checksums.ps1") `
+    -Destination (Join-Path $ReleaseDir "verify_release_checksums.ps1") -Force
 
-Write-Host "[5/7] Removing debug sections from release copies only..."
-$rendererStrip = Get-CMakeToolPath -BuildDir $CoreBuildDir -CacheVariable "CMAKE_STRIP" -FileName "strip.exe"
-$uiStrip = Get-CMakeToolPath -BuildDir $UiBuildDir -CacheVariable "CMAKE_STRIP" -FileName "strip.exe"
+Write-Host "[6/9] Removing debug sections from release copies only..."
+$rendererStrip = Get-MingwStripPath -BuildDir $CoreBuildDir -FileName "strip.exe"
+$uiStrip = Get-MingwStripPath -BuildDir $UiBuildDir -FileName "strip.exe"
 Remove-ReleaseDebugSections -StripPath $rendererStrip -ReleaseExecutable $RendererRelease
 Remove-ReleaseDebugSections -StripPath $uiStrip -ReleaseExecutable $UiRelease
-
-$commit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
-if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
-    throw "Unable to determine the Git commit for RELEASE_INFO.txt"
-}
 
 $buildTime = [DateTimeOffset]::Now
 $releaseInfo = @(
@@ -185,7 +229,7 @@ $releaseInfo = @(
 ) -join "`n"
 Write-Utf8NoBom -Path (Join-Path $ReleaseDir "RELEASE_INFO.txt") -Content ($releaseInfo + "`n")
 
-Write-Host "[6/7] Verifying release package..."
+Write-Host "[7/9] Verifying release package..."
 $requiredFiles = @(
     "appBlakholeUI.exe",
     "blackhole.exe",
@@ -195,6 +239,7 @@ $requiredFiles = @(
     "LICENSE",
     "SECURITY.md",
     "RELEASE_INFO.txt",
+    "verify_release_checksums.ps1",
     "platforms\qwindows.dll",
     "shaders\vert.glsl",
     "shaders\frag_desktop_header.glsl",
@@ -212,30 +257,25 @@ if ($missing.Count -gt 0) {
     throw "Release package is missing: $($missing -join ', ')"
 }
 
-$checksumFiles = @(
-    "appBlakholeUI.exe",
-    "blackhole.exe",
-    "blackhole.glsl",
-    "blackhole_advanced.txt",
-    "blackhole_presets.txt",
-    "LICENSE",
-    "RELEASE_INFO.txt",
-    "SECURITY.md",
-    "platforms\qwindows.dll",
-    "shaders\vert.glsl",
-    "shaders\frag_desktop_header.glsl",
-    "shaders\frag_preview_header.glsl"
-)
-$checksumLines = foreach ($relativePath in $checksumFiles) {
-    $path = Join-Path $ReleaseDir $relativePath
-    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
-    $manifestName = $relativePath.Replace('\', '/').ToLowerInvariant()
+$releaseRoot = (Resolve-Path -LiteralPath $ReleaseDir).Path.TrimEnd('\') + '\'
+$checksumLines = foreach ($file in Get-ChildItem -LiteralPath $ReleaseDir -Recurse -File) {
+    $manifestName = $file.FullName.Substring($releaseRoot.Length).Replace('\', '/').ToLowerInvariant()
+    if ($manifestName -ceq "release_checksums.sha256") {
+        continue
+    }
+    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash.ToLowerInvariant()
     "$hash  $manifestName"
 }
 $checksumContent = (($checksumLines | Sort-Object) -join "`n") + "`n"
 Write-Utf8NoBom -Path (Join-Path $ReleaseDir "release_checksums.sha256") -Content $checksumContent
 
-Write-Host "[7/7] Confirming build artifacts were not modified..."
+Write-Host "[8/9] Verifying complete checksum manifest..."
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ReleaseDir "verify_release_checksums.ps1")
+if ($LASTEXITCODE -ne 0) {
+    throw "Release checksum verification failed with exit code $LASTEXITCODE"
+}
+
+Write-Host "[9/9] Confirming build artifacts were not modified..."
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $RendererSource).Hash.ToLowerInvariant() -cne $rendererBuildHash) {
     throw "Packaging modified build\blackhole.exe"
 }
