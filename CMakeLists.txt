@@ -15,6 +15,7 @@ find_package(OpenGL REQUIRED)
 add_executable(blackhole
     src/main.cpp
     src/foreground_window.cpp
+    src/game_detection.cpp
     src/media_session.cpp
     src/capture_wgc.cpp
     src/capture_dxgi.cpp

@@ -24,6 +24,7 @@
 #include "gl_texture.h"
 #include "bloom_renderer.h"
 #include "foreground_window.h"
+#include "game_detection.h"
 #include "media_session.h"
 #include "gui_config.h"
 #include "win32_gl.h"
@@ -551,7 +552,9 @@ static bool isWatchingVideo() {
     char pname[260]; GetProcessName(pid, pname, sizeof(pname));
     if (!pname[0]) return false;
 
-    // Check if process is a known video player, game launcher, or browser
+    if (GameDetection_IsKnownGameProcess(pid)) return true;
+
+    // Check if process is a known video player or browser
     bool isDedicatedVideoPlayer = (strstr(pname, "vlc") || strstr(pname, "mpv") || strstr(pname, "potplayer") ||
                     strstr(pname, "mpc") || strstr(pname, "wmplayer") || strstr(pname, "bilibili") ||
                     strstr(pname, "哔哩哔哩") || strstr(pname, "bili") ||
@@ -564,12 +567,6 @@ static bool isWatchingVideo() {
                     strstr(pname, "nvidia"));
     bool isBrowser = (strstr(pname, "chrome") || strstr(pname, "msedge") || strstr(pname, "firefox") ||
                       strstr(pname, "opera") || strstr(pname, "brave"));
-    // Common game launchers (Steam overlay, EOS, Ubisoft Connect, etc.)
-    // These indicate user is likely in-game even if game exe name isn't matched
-    bool isGameLauncher = (strstr(pname, "steam") || strstr(pname, "epic") || strstr(pname, "ubisoft") ||
-                          strstr(pname, "ubiconnect") || strstr(pname, "eaapp") || strstr(pname, "origin") ||
-                          strstr(pname, "battlenet") || strstr(pname, "riot") || strstr(pname, "gog") ||
-                          strstr(pname, "xbox") || strstr(pname, "gamebar"));
     bool uwpDetected = false;
     // UWP apps run under ApplicationFrameHost.exe  check window title for media players
     bool isUWPVideo = false;
@@ -585,8 +582,6 @@ static bool isWatchingVideo() {
             }
         }
     }
-    // Game launcher in foreground = user is gaming, skip audio check
-    if (isGameLauncher) return true;
     // Not a known video app or browser  no need for audio check
     if (!isDedicatedVideoPlayer && !isBrowser && !isUWPVideo) return false;
 

@@ -15,6 +15,7 @@ qt_add_executable(appBlakholeUI
     main.cpp
     ../src/autostart_registry.cpp
     ../src/foreground_window.cpp
+    ../src/game_detection.cpp
     ../src/media_session.cpp
     core/systemtray.h
     core/systemtray.cpp
@@ -53,7 +54,7 @@ set_target_properties(appBlakholeUI PROPERTIES
 )
 
 target_link_libraries(appBlakholeUI
-    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL dwmapi ole32 runtimeobject
+    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL advapi32 dwmapi ole32 runtimeobject
 )
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)

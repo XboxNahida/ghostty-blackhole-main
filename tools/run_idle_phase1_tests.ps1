@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("All", "AutoStart", "Foreground", "MediaSession")]
+    [ValidateSet("All", "AutoStart", "Foreground", "MediaSession", "GameDetection")]
     [string]$Only = "All"
 )
 
@@ -53,6 +53,12 @@ try {
         Build-And-Run -Name "media_session_tests" `
             -Sources @("tests/media_session_tests.cpp", "src/media_session.cpp") `
             -Libraries @("-lruntimeobject", "-lole32")
+    }
+
+    if ($Only -eq "All" -or $Only -eq "GameDetection") {
+        Build-And-Run -Name "game_detection_tests" `
+            -Sources @("tests/game_detection_tests.cpp", "src/game_detection.cpp") `
+            -Libraries @("-ladvapi32")
     }
 } finally {
     Pop-Location

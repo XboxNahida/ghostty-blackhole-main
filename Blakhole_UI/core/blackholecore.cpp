@@ -2,6 +2,7 @@
 #include "blackholecore.h"
 #include "autostart_registry.h"
 #include "foreground_window.h"
+#include "game_detection.h"
 #include "media_session.h"
 
 #include <QCoreApplication>
@@ -1180,6 +1181,11 @@ void BlackHoleCore::checkIdle()
             if (isWhitelisted) goto check_foreground_done;
         }
 
+        if (GameDetection_IsKnownGameProcess(pid)) {
+            watchingVideo = true;
+            goto check_foreground_done;
+        }
+
         // 第4层: 进程名分类检测
 
         // 专用视频播放器黑名单匹配
@@ -1196,15 +1202,6 @@ void BlackHoleCore::checkIdle()
         bool isBrowser = (strstr(pname, "chrome") || strstr(pname, "msedge") ||
                           strstr(pname, "firefox") || strstr(pname, "opera") ||
                           strstr(pname, "brave"));
-
-        // 游戏启动器 -> 立即返回 true (匹配原生: 用户在游戏中)
-        if (strstr(pname, "steam") || strstr(pname, "epic") || strstr(pname, "ubisoft") ||
-            strstr(pname, "ubiconnect") || strstr(pname, "eaapp") || strstr(pname, "origin") ||
-            strstr(pname, "battlenet") || strstr(pname, "riot") || strstr(pname, "gog") ||
-            strstr(pname, "xbox") || strstr(pname, "gamebar")) {
-            watchingVideo = true;
-            goto check_foreground_done;
-        }
 
         // 第5层: UWP 窗口标题检测
         bool isUWPVideo = false;
