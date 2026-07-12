@@ -9,6 +9,8 @@ Item {
     height: 80
 
     property url avatarSource: "qrc:/new/prefix1/fonts/pic/avatar.png"
+    property bool clickable: false
+    signal clicked()
 
     Image {
         id: sourceItem
@@ -43,4 +45,17 @@ Item {
             color: "black"
         }
     }
+
+    HoverHandler { id: avatarHover }
+
+    MouseArea {
+        anchors.fill: parent
+        visible: root.clickable
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.clicked()
+    }
+
+    ToolTip.visible: root.clickable && avatarHover.hovered
+    ToolTip.text: "点击更换头像"
 }

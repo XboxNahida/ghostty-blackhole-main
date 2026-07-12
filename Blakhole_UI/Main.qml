@@ -26,6 +26,12 @@ ApplicationWindow {
         id: theme
     }
 
+    Components.AboutWindow {
+        id: aboutWindow
+        theme: theme
+        bhCore: blackHoleCore
+    }
+
     SystemTray {
         id: systemTray
         Component.onCompleted: systemTray.visible = false
@@ -287,7 +293,9 @@ ApplicationWindow {
                 anchors.left: parent.left
                 anchors.topMargin: 40
                 anchors.leftMargin: 50
-                avatarSource: "qrc:/new/prefix1/fonts/pic/avatar.png"
+                clickable: true
+                avatarSource: blackHoleCore ? blackHoleCore.customAvatarUrl : "qrc:/new/prefix1/fonts/pic/avatar.png"
+                onClicked: aboutWindow.openAndActivate()
             }
 
             // 时间
@@ -518,6 +526,7 @@ ApplicationWindow {
                             }
                         }
                     }
+
                 }
 
                 Rectangle {
@@ -801,9 +810,18 @@ ApplicationWindow {
                         }
 
                         Text {
-                            text: "v1.0.0"
+                            text: "v" + Qt.application.version
                             font.pixelSize: 13
                             color: theme.borderColor
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            settingsDrawer.close()
+                            aboutWindow.openAndActivate()
                         }
                     }
                 }
