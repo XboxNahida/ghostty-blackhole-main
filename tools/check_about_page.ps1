@@ -48,9 +48,11 @@ Require-Match $page 'customAvatarUrl' "AboutPage must display the persisted avat
 Require-Match $page 'chooseCustomAvatar\s*\(\s*\)' "AboutPage avatar must open the custom avatar picker"
 Require-Match $page 'github\.com/XboxNahida/ghostty-blackhole-main' "GitHub URL is missing"
 Require-Match $page ([regex]::Escape($pendingFeature)) "pending black-hole swallowing effect explanation is missing"
-Require-Match $page 'QR_payment\.jpg' "Alipay QR resource is missing"
-Require-Match $page 'WeChat_QR\.png' "WeChat QR resource is missing"
-Require-Match $qrc 'fonts/pic/QR_payment\.jpg' "Alipay QR is not embedded in Qt resources"
-Require-Match $qrc 'fonts/pic/WeChat_QR\.png' "WeChat QR is not embedded in Qt resources"
+if ($page -match 'QR_payment|WeChat_QR') {
+    Fail-AboutPageCheck "public AboutPage must not contain payment QR content"
+}
+if ($qrc -match 'QR_payment|WeChat_QR') {
+    Fail-AboutPageCheck "public Qt resources must not embed payment QR files"
+}
 
 "ABOUT_PAGE_OK"

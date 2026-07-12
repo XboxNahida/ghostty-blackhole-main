@@ -141,64 +141,6 @@ Item {
                 onLinkActivated: function(link) { Qt.openUrlExternally(link) }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: root.theme.borderColor
-                opacity: 0.35
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: "支持作者"
-                font.pixelSize: 20
-                font.bold: true
-                color: root.theme.textColor
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: width >= 620 ? 2 : 1
-                columnSpacing: 18
-                rowSpacing: 18
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "支付宝"
-                        font.pixelSize: 14
-                        color: "#2d8cff"
-                    }
-                    Image {
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(300, root.width - 80)
-                        Layout.preferredHeight: 360
-                        source: "qrc:/new/prefix1/fonts/pic/QR_payment.jpg"
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "微信支付"
-                        font.pixelSize: 14
-                        color: "#10b96b"
-                    }
-                    Image {
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(300, root.width - 80)
-                        Layout.preferredHeight: 360
-                        source: "qrc:/new/prefix1/fonts/pic/WeChat_QR.png"
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                    }
-                }
-            }
-
             Text {
                 Layout.fillWidth: true
                 text: root.bhCore ? root.bhCore.avatarStatus : ""
