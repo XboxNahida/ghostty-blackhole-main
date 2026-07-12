@@ -1,0 +1,30 @@
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION @BLACKHOLE_VERSION_MAJOR@,@BLACKHOLE_VERSION_MINOR@,@BLACKHOLE_VERSION_PATCH@,0
+ PRODUCTVERSION @BLACKHOLE_VERSION_MAJOR@,@BLACKHOLE_VERSION_MINOR@,@BLACKHOLE_VERSION_PATCH@,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "XboxNahida"
+            VALUE "FileDescription", "黑洞可视化配置工具"
+            VALUE "FileVersion", "@BLACKHOLE_VERSION@.0"
+            VALUE "InternalName", "appBlakholeUI"
+            VALUE "LegalCopyright", "Copyright (C) 2026 XboxNahida"
+            VALUE "OriginalFilename", "appBlakholeUI.exe"
+            VALUE "ProductName", "Blakhole UI"
+            VALUE "ProductVersion", "@BLACKHOLE_VERSION@"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0804, 1200
+    END
+END

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(BlakholeUI VERSION 1.0 LANGUAGES CXX)
+include(../cmake/AppVersion.cmake)
+project(BlakholeUI VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -10,8 +11,13 @@ include(CTest)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
+set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${BLACKHOLE_GENERATED_DIR}")
+configure_file(../cmake/app_version.h.in "${BLACKHOLE_GENERATED_DIR}/app_version.h" @ONLY)
+configure_file(app_version.rc.in "${BLACKHOLE_GENERATED_DIR}/app_version.rc" @ONLY)
+
 # Fix windres popen issue on Windows (MinGW)
-set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
+set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file --codepage=65001")
 
 qt_add_executable(appBlakholeUI
     main.cpp
@@ -27,9 +33,10 @@ qt_add_executable(appBlakholeUI
     core/blackholepreviewfbo.h
     core/blackholepreviewfbo.cpp
     app.rc
+    "${BLACKHOLE_GENERATED_DIR}/app_version.rc"
 )
 
-target_include_directories(appBlakholeUI PRIVATE ../src)
+target_include_directories(appBlakholeUI PRIVATE ../src "${BLACKHOLE_GENERATED_DIR}")
 
 file(GLOB QML_COMPONENTS CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "components/*.qml")
 file(GLOB QML_PAGES CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "pages/*.qml")

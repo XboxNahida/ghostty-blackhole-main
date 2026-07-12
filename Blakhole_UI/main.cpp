@@ -5,6 +5,7 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
+#include "app_version.h"
 #include "core/systemtray.h"
 #include "core/blackholecore.h"
 #include "core/blackholepreviewfbo.h"
@@ -26,6 +27,10 @@ int main(int argc, char *argv[])
     fmt.setProfile(QSurfaceFormat::CoreProfile);
     QSurfaceFormat::setDefaultFormat(fmt);
     QApplication app(argc, argv);
+
+    QCoreApplication::setApplicationName(QStringLiteral("Blakhole UI"));
+    QCoreApplication::setOrganizationName(QStringLiteral("XboxNahida"));
+    QCoreApplication::setApplicationVersion(QStringLiteral(APP_VERSION_STRING));
 
     app.setWindowIcon(QIcon(":/new/prefix1/fonts/icon.ico"));
 
