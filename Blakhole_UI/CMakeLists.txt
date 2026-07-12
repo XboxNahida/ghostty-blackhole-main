@@ -27,6 +27,7 @@ qt_add_executable(appBlakholeUI
     ../src/media_session.cpp
     core/application_catalog.cpp
     core/avatar_storage.cpp
+    core/update_release.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h
@@ -84,6 +85,14 @@ if(BUILD_TESTING)
     target_include_directories(avatar_storage_tests PRIVATE core)
     target_link_libraries(avatar_storage_tests PRIVATE Qt6::Core Qt6::Gui)
     add_test(NAME avatar_storage_tests COMMAND avatar_storage_tests)
+
+    add_executable(update_release_tests EXCLUDE_FROM_ALL
+        ../tests/update_release_tests.cpp
+        core/update_release.cpp
+    )
+    target_include_directories(update_release_tests PRIVATE core)
+    target_link_libraries(update_release_tests PRIVATE Qt6::Core)
+    add_test(NAME update_release_tests COMMAND update_release_tests)
 endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)
