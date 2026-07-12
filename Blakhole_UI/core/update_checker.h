@@ -9,6 +9,25 @@
 
 class QNetworkReply;
 
+class BoundedPayloadAccumulator
+{
+public:
+    explicit BoundedPayloadAccumulator(qsizetype maxBytes = kUpdateReleaseMaxJsonBytes)
+        : m_maxBytes(maxBytes) {}
+
+    bool append(const QByteArray &chunk);
+    void reset();
+    const QByteArray &payload() const { return m_payload; }
+    bool overflowed() const { return m_overflowed; }
+
+private:
+    qsizetype m_maxBytes;
+    QByteArray m_payload;
+    bool m_overflowed = false;
+};
+
+UpdateReleaseInfo ParseOfficialGitHubRelease(const QByteArray &json, QString *error);
+
 class UpdateChecker final : public QObject
 {
     Q_OBJECT
@@ -37,7 +56,10 @@ public:
     // 纯状态注入入口，供不依赖实时网络的单元测试使用。
     void applyReleaseForTesting(const UpdateReleaseInfo &release, bool manual);
     void clearStateForTesting();
-    void openDownloadPageForTesting();
+    bool openDownloadPageForTesting();
+    void beginRequestForTesting(bool manual);
+    bool requestIsManualForTesting() const { return m_manualRequest; }
+    void finishRequestForTesting();
 
 signals:
     void checkingChanged();
@@ -49,6 +71,8 @@ signals:
     void manualResultReady();
 
 private slots:
+    void onReplyReadyRead();
+    void onReplyMetadataChanged();
     void onReplyFinished();
 
 private:
@@ -68,7 +92,9 @@ private:
     QString m_latestVersion;
     QString m_latestName;
     QString m_latestNotes;
+    QUrl m_latestUrl;
     QNetworkAccessManager m_network;
     QPointer<QNetworkReply> m_reply;
     QTimer m_timeout;
+    BoundedPayloadAccumulator m_payload;
 };
