@@ -2,6 +2,7 @@
 #include "blackholecore.h"
 #include "autostart_registry.h"
 #include "foreground_window.h"
+#include "media_session.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -1241,6 +1242,13 @@ void BlackHoleCore::checkIdle()
                                     wcsstr(wtitle, L"\u7535\u5f71") || wcsstr(wtitle, L"Movie") ||
                                     wcsstr(wtitle, L"\u76f4\u64ad") || wcsstr(wtitle, L"Live"));
             if (!hasVideoKeyword) goto check_foreground_done;
+        }
+
+        const MediaSessionSnapshot mediaSession = MediaSession_QueryCurrent();
+        if (mediaSession.state == MediaPlaybackState::Playing &&
+            MediaSession_SourceMatchesProcess(mediaSession.sourceAppId, pname)) {
+            watchingVideo = true;
+            goto check_foreground_done;
         }
 
         // 第6层: 音频检测 (匹配原生 IAudioSessionManager2 + IAudioMeterInformation2)

@@ -24,6 +24,7 @@
 #include "gl_texture.h"
 #include "bloom_renderer.h"
 #include "foreground_window.h"
+#include "media_session.h"
 #include "gui_config.h"
 #include "win32_gl.h"
 #include "monitors.h"
@@ -604,6 +605,12 @@ static bool isWatchingVideo() {
                                 wcsstr(wtitle, L"直播") || wcsstr(wtitle, L"Live"));
         // 浏览器没有视频关键词标题，不阻止触发
         if (!hasVideoKeyword) return false;
+    }
+
+    const MediaSessionSnapshot mediaSession = MediaSession_QueryCurrent();
+    if (mediaSession.state == MediaPlaybackState::Playing &&
+        MediaSession_SourceMatchesProcess(mediaSession.sourceAppId, pname)) {
+        return true;
     }
 
     // Method 3: check if this app has audio

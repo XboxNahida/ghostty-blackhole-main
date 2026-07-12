@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("All", "AutoStart", "Foreground")]
+    [ValidateSet("All", "AutoStart", "Foreground", "MediaSession")]
     [string]$Only = "All"
 )
 
@@ -47,6 +47,12 @@ try {
         Build-And-Run -Name "foreground_window_tests" `
             -Sources @("tests/foreground_window_tests.cpp", "src/foreground_window.cpp") `
             -Libraries @("-luser32")
+    }
+
+    if ($Only -eq "All" -or $Only -eq "MediaSession") {
+        Build-And-Run -Name "media_session_tests" `
+            -Sources @("tests/media_session_tests.cpp", "src/media_session.cpp") `
+            -Libraries @("-lruntimeobject", "-lole32")
     }
 } finally {
     Pop-Location
