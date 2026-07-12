@@ -6,6 +6,7 @@
 #include "foreground_window.h"
 #include "game_detection.h"
 #include "media_session.h"
+#include "movement_settings.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -15,6 +16,7 @@
 #include <QTextStream>
 #include <QStandardPaths>
 #include <QDebug>
+#include <QUrl>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -639,6 +641,8 @@ void BlackHoleCore::resetDefaults()
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
     m_limitMouseOvershoot = true;
+    m_spawnPosition = 0;
+    m_movementSpeed = 1.0f;
     m_lightingEffect = false;
 
     emit displayModeChanged();
@@ -656,7 +660,8 @@ void BlackHoleCore::resetDefaults()
     emit followMouseChanged();
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
-    emit randomPathChanged();
+    emit spawnPositionChanged();
+    emit movementSpeedChanged();
     emit animationSpeedChanged();
     emit lightingEffectChanged();
     emit distortionChanged();
@@ -1386,8 +1391,23 @@ void BlackHoleCore::setLimitMouseOvershoot(bool v)
     emit limitMouseOvershootChanged();
 }
 
-bool BlackHoleCore::randomPath() const { return m_randomPath; }
-void BlackHoleCore::setRandomPath(bool v) { if (m_randomPath == v) return; m_randomPath = v; emit randomPathChanged(); }
+int BlackHoleCore::spawnPosition() const { return m_spawnPosition; }
+void BlackHoleCore::setSpawnPosition(int v)
+{
+    const int normalized = NormalizeSpawnPosition(v);
+    if (m_spawnPosition == normalized) return;
+    m_spawnPosition = normalized;
+    emit spawnPositionChanged();
+}
+
+float BlackHoleCore::movementSpeed() const { return m_movementSpeed; }
+void BlackHoleCore::setMovementSpeed(float v)
+{
+    const float clamped = ClampMovementSpeed(v);
+    if (qFuzzyCompare(m_movementSpeed, clamped)) return;
+    m_movementSpeed = clamped;
+    emit movementSpeedChanged();
+}
 
 int BlackHoleCore::animationSpeed() const { return m_animationSpeed; }
 void BlackHoleCore::setAnimationSpeed(int v) { if (m_animationSpeed == v) return; m_animationSpeed = v; emit animationSpeedChanged(); }
@@ -1558,7 +1578,8 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "mouseInertia="  << QString::number(m_mouseInertia, 'f', 2) << "\n";
     out << "limitMouseOvershoot=" << (m_limitMouseOvershoot ? 1 : 0) << "\n";
     out << "videoAsIdle="   << (m_videoAsIdle ? 1 : 0) << "\n";
-    out << "randomPath="    << (m_randomPath ? 1 : 0) << "\n";
+    out << "spawnPosition=" << m_spawnPosition << "\n";
+    out << "movementSpeed=" << QString::number(m_movementSpeed, 'f', 1) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
     out << "lightingEffect=" << (m_lightingEffect ? 1 : 0) << "\n";
     out << "distortion="    << QString::number(m_distortion, 'f', 2) << "\n";
@@ -1585,6 +1606,8 @@ void BlackHoleCore::loadAdvancedConfig()
 
     QTextStream in(&file);
     bool hasLightingEffect = false;
+    bool hasSpawnPosition = false;
+    int legacyRandomPath = -1;
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
         if (line.isEmpty() || line.startsWith('#')) continue;
@@ -1596,7 +1619,9 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "mouseInertia") setMouseInertia(val.toFloat());
         else if (key == "limitMouseOvershoot") setLimitMouseOvershoot(val.toInt() != 0);
         else if (key == "videoAsIdle")   m_videoAsIdle    = (val.toInt() != 0);
-        else if (key == "randomPath")     m_randomPath     = (val.toInt() != 0);
+        else if (key == "spawnPosition") { m_spawnPosition = NormalizeSpawnPosition(val.toInt()); hasSpawnPosition = true; }
+        else if (key == "movementSpeed") m_movementSpeed = ClampMovementSpeed(val.toFloat());
+        else if (key == "randomPath") legacyRandomPath = val.toInt();
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
         else if (key == "lightingEffect") { m_lightingEffect = (val.toInt() != 0); hasLightingEffect = true; }
         else if (key == "screenSwallow" && !hasLightingEffect) m_lightingEffect = (val.toInt() != 0);
@@ -1614,9 +1639,13 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "starGain")   m_overrideStarGain   = val.toFloat();
         else if (key == "diskIncl")   m_overrideDiskIncl   = val.toFloat();
     }
+    if (!hasSpawnPosition && legacyRandomPath >= 0)
+        m_spawnPosition = legacyRandomPath ? 0 : 2;
     file.close();
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
+    emit spawnPositionChanged();
+    emit movementSpeedChanged();
     emit lightingEffectChanged();
     emit allowRecordingCaptureChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
@@ -1976,6 +2005,29 @@ QString BlackHoleCore::customAvatarUrl() const
 QString BlackHoleCore::avatarStatus() const
 {
     return m_avatarStatus;
+}
+
+QString BlackHoleCore::paymentQrPrimaryUrl() const
+{
+    if (!paymentQrAvailable()) return {};
+    const QString path = QDir(QCoreApplication::applicationDirPath())
+                             .filePath(QStringLiteral("fonts/pic/QR_payment.jpg"));
+    return QUrl::fromLocalFile(path).toString();
+}
+
+QString BlackHoleCore::paymentQrSecondaryUrl() const
+{
+    if (!paymentQrAvailable()) return {};
+    const QString path = QDir(QCoreApplication::applicationDirPath())
+                             .filePath(QStringLiteral("fonts/pic/WeChat_QR.png"));
+    return QUrl::fromLocalFile(path).toString();
+}
+
+bool BlackHoleCore::paymentQrAvailable() const
+{
+    const QDir applicationDir(QCoreApplication::applicationDirPath());
+    return QFileInfo::exists(applicationDir.filePath(QStringLiteral("fonts/pic/QR_payment.jpg")))
+        && QFileInfo::exists(applicationDir.filePath(QStringLiteral("fonts/pic/WeChat_QR.png")));
 }
 
 void BlackHoleCore::chooseCustomAvatar()

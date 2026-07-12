@@ -1,5 +1,6 @@
 // gui_config.cpp  ImGui config panel with preset editing
 #include "gui_config.h"
+#include "movement_settings.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -381,7 +382,8 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "followMouse=%d\n",  cfg.followMouse ? 1 : 0);
     fprintf(f, "mouseInertia=%.3f\n", cfg.mouseInertia);
     fprintf(f, "limitMouseOvershoot=%d\n", cfg.limitMouseOvershoot ? 1 : 0);
-    fprintf(f, "randomPath=%d\n",   cfg.randomPath ? 1 : 0);
+    fprintf(f, "spawnPosition=%d\n", cfg.spawnPosition);
+    fprintf(f, "movementSpeed=%.3f\n", cfg.movementSpeed);
     fprintf(f, "lightingEffect=%d\n", cfg.lightingEffect ? 1 : 0);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
     fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
@@ -395,6 +397,8 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
     if (!f) return;  // file not found, keep defaults (-1.0)
     char line[256];
     bool hasLightingEffect = false;
+    bool hasSpawnPosition = false;
+    bool legacyRandomPath = true;
     while (fgets(line, sizeof(line), f)) {
         // skip comments and empty lines
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
@@ -417,7 +421,12 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
                 cfg.mouseInertia = val;
             }
             else if (strcmp(key, "limitMouseOvershoot") == 0) cfg.limitMouseOvershoot = (val != 0.0f);
-            else if (strcmp(key, "randomPath") == 0) cfg.randomPath = (val != 0.0f);
+            else if (strcmp(key, "spawnPosition") == 0) {
+                cfg.spawnPosition = NormalizeSpawnPosition((int)val);
+                hasSpawnPosition = true;
+            }
+            else if (strcmp(key, "movementSpeed") == 0) cfg.movementSpeed = ClampMovementSpeed(val);
+            else if (strcmp(key, "randomPath") == 0) legacyRandomPath = (val != 0.0f);
             else if (strcmp(key, "lightingEffect") == 0) { cfg.lightingEffect = (val != 0.0f); hasLightingEffect = true; }
             else if (strcmp(key, "screenSwallow") == 0 && !hasLightingEffect) cfg.lightingEffect = (val != 0.0f);
             else if (strcmp(key, "swallowStrength") == 0) { /* 旧配置兼容：强度参数已废弃。 */ }
@@ -435,4 +444,9 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
         }
     }
     fclose(f);
+    if (!hasSpawnPosition) {
+        cfg.spawnPosition = legacyRandomPath
+            ? static_cast<int>(SpawnPosition::Random)
+            : static_cast<int>(SpawnPosition::RightTop);
+    }
 }

@@ -203,6 +203,15 @@ if (-not (Test-Path -LiteralPath $previewBackgroundSource -PathType Leaf)) {
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $previewBackgroundDestination) | Out-Null
 Copy-Item -LiteralPath $previewBackgroundSource -Destination $previewBackgroundDestination -Force
 
+foreach ($paymentQrName in @("QR_payment.jpg", "WeChat_QR.png")) {
+    $paymentQrSource = Join-Path $ProjectRoot "Blakhole_UI\fonts\pic\$paymentQrName"
+    if (-not (Test-Path -LiteralPath $paymentQrSource -PathType Leaf)) {
+        throw "Missing local payment QR file: $paymentQrSource"
+    }
+    Copy-Item -LiteralPath $paymentQrSource `
+        -Destination (Join-Path $ReleaseDir "fonts\pic\$paymentQrName") -Force
+}
+
 foreach ($file in @(
     "blackhole.glsl",
     "blackhole_preview.glsl",
@@ -250,6 +259,8 @@ $requiredFiles = @(
     "blackhole.glsl",
     "blackhole_preview.glsl",
     "fonts\pic\Starry_sky_background.png",
+    "fonts\pic\QR_payment.jpg",
+    "fonts\pic\WeChat_QR.png",
     "blackhole_presets.txt",
     "blackhole_advanced.txt",
     "LICENSE",

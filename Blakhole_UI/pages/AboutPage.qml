@@ -143,6 +143,41 @@ Item {
 
             Text {
                 Layout.fillWidth: true
+                visible: root.bhCore && root.bhCore.paymentQrAvailable
+                text: "请作者喝咖啡"
+                font.pixelSize: 18
+                font.bold: true
+                color: root.theme.textColor
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: root.bhCore && root.bhCore.paymentQrAvailable
+                spacing: 18
+
+                Image {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.maximumWidth: 280
+                    Layout.preferredHeight: 320
+                    source: root.bhCore ? root.bhCore.paymentQrPrimaryUrl : ""
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                }
+
+                Image {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.maximumWidth: 280
+                    Layout.preferredHeight: 320
+                    source: root.bhCore ? root.bhCore.paymentQrSecondaryUrl : ""
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
                 text: root.bhCore ? root.bhCore.avatarStatus : ""
                 visible: text.length > 0
                 wrapMode: Text.WordWrap

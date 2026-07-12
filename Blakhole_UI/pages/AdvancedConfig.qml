@@ -17,8 +17,8 @@ Item {
     property bool followMouse: bhCore ? bhCore.followMouse : false
     property real mouseInertia: bhCore ? bhCore.mouseInertia : 0.30
     property bool limitMouseOvershoot: bhCore ? bhCore.limitMouseOvershoot : true
-    property bool randomPath: bhCore ? bhCore.randomPath : true
-    property int animationSpeed: bhCore ? bhCore.animationSpeed : 1
+    property int spawnPosition: bhCore ? bhCore.spawnPosition : 0
+    property real movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
     property bool lightingEffect: bhCore ? bhCore.lightingEffect : false
     property real distortion: bhCore ? bhCore.distortion : 1.0
     property bool allowRecordingCapture: bhCore ? bhCore.allowRecordingCapture : false
@@ -30,9 +30,17 @@ Item {
     property bool fixedSize: bhCore ? bhCore.fixedSize : false
     property real fixedLevel: bhCore ? bhCore.fixedLevel : 1.0   // 0.01~1.0
 
-    ColumnLayout {
+    Flickable {
         anchors.fill: parent
-        spacing: 16
+        contentWidth: width
+        contentHeight: settingsColumn.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+        ColumnLayout {
+            id: settingsColumn
+            width: parent.width
+            spacing: 16
 
         // === 标题 ===
         RowLayout {
@@ -501,53 +509,34 @@ Item {
                     opacity: 0.2
                 }
 
-                // 路径随机化
+                // 黑洞出现位置
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
 
                     Text {
-                        text: "路径随机化"
+                        text: "黑洞出现位置"
                         font.pixelSize: 14
                         color: theme.textColor
                         Layout.fillWidth: true
                     }
-                    Text {
-                        text: "每次启动使用随机移动轨迹"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: pathCheck
-                        checked: advPage.randomPath
-                        onToggled: {
-                            advPage.randomPath = checked
-                            if (bhCore) bhCore.randomPath = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: pathCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: pathCheck.checked ? theme.focusColor : "transparent"
-                            border.color: pathCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: pathCheck.checked
-                            }
+                    Components.EDropDown {
+                        preferredWidth: 150
+                        model: ["随机", "左上", "右上", "左下", "右下"]
+                        currentIndex: advPage.spawnPosition
+                        onActivated: function(index) {
+                            advPage.spawnPosition = index
+                            if (bhCore) bhCore.spawnPosition = index
                         }
                     }
                 }
 
-                // 动画速度
+                // 黑洞移动速度
                 Components.ESlider {
-                    label: "动画速度"
-                    from: 1; to: 10; stepSize: 1; decimals: 0
-                    value: advPage.animationSpeed
-                    onValueChanged: { advPage.animationSpeed = value; if (bhCore) bhCore.animationSpeed = value }
+                    label: "黑洞移动速度"
+                    from: 0.1; to: 3.0; stepSize: 0.1; decimals: 1
+                    value: advPage.movementSpeed
+                    onValueChanged: { advPage.movementSpeed = value; if (bhCore) bhCore.movementSpeed = value }
                 }
 
 
@@ -615,6 +604,7 @@ Item {
             }
         }
 
-        Item { Layout.fillHeight: true }
+            Item { Layout.preferredHeight: 4 }
+        }
     }
 }

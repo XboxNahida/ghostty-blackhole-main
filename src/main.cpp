@@ -15,6 +15,7 @@
 #include <vector>
 #include <cstring>
 #include <algorithm>
+#include <utility>
 #include <windows.h>
 #include <d3d11.h>
 #include <dwmapi.h>
@@ -28,6 +29,7 @@
 #include "game_detection.h"
 #include "media_session.h"
 #include "gui_config.h"
+#include "movement_settings.h"
 #include "win32_gl.h"
 #include "monitors.h"
 #ifdef BLACKHOLE_USE_D3D11
@@ -219,6 +221,39 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     if (header.empty() || body.empty()) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Shader file empty: header=%zu, body=%zu\n", header.size(), body.size()); fflush(debugLog); }
         return false;
+    }
+
+    const std::string timeUniform = "uniform float iTime;";
+    size_t timeUniformPos = header.find(timeUniform);
+    if (timeUniformPos != std::string::npos) {
+        header.insert(timeUniformPos + timeUniform.length(), "\nuniform float uMovementTime;");
+    }
+
+    const std::string realMovementTime = "float t = iTime * DRIFT_SPEED;";
+    size_t movementTimePos = body.find(realMovementTime);
+    if (movementTimePos != std::string::npos) {
+        body.insert(movementTimePos + realMovementTime.length(),
+                    "\n    float moveT = uMovementTime * DRIFT_SPEED;");
+    }
+
+    const std::pair<const char*, const char*> movementTimeExpressions[] = {
+        {"sin(t * 0.21)", "sin(moveT * 0.21)"},
+        {"sin(t * 0.083)", "sin(moveT * 0.083)"},
+        {"sin(t * 0.157 + 2.0)", "sin(moveT * 0.157 + 2.0)"},
+        {"sin(t * 0.117)", "sin(moveT * 0.117)"},
+        {"sin(t * 0.83)", "sin(moveT * 0.83)"},
+        {"sin(t * 1.31)", "sin(moveT * 1.31)"},
+        {"sin(t * 1.03 + 1.0)", "sin(moveT * 1.03 + 1.0)"},
+        {"lissa(t * TOKEN_CALM)", "lissa(moveT * TOKEN_CALM)"},
+        {"lissa(t * TOKEN_RUSH)", "lissa(moveT * TOKEN_RUSH)"},
+        {"cos(t * 0.8)", "cos(moveT * 0.8)"},
+        {"sin(t * 1.0)", "sin(moveT * 1.0)"}
+    };
+    for (const auto& expression : movementTimeExpressions) {
+        size_t pos = body.find(expression.first);
+        if (pos != std::string::npos) {
+            body.replace(pos, strlen(expression.first), expression.second);
+        }
     }
 
     // 检查是否还有 BOM
@@ -413,14 +448,14 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
     // ---- Randomize trajectory: add uRandPhase to lissa calls ----
     {
         size_t p;
-        while ((p = body.find("lissa(t * TOKEN_CALM)")) != std::string::npos)
-            body.replace(p, 21, "lissa(t * TOKEN_CALM + uRandPhase)");
-        while ((p = body.find("lissa(t * TOKEN_RUSH)")) != std::string::npos)
-            body.replace(p, 21, "lissa(t * TOKEN_RUSH + uRandPhase)");
-        while ((p = body.find("cos(t * 0.8)")) != std::string::npos)
-            body.replace(p, 12, "cos((t + uRandPhase) * 0.8)");
-        while ((p = body.find("sin(t * 1.0)")) != std::string::npos)
-            body.replace(p, 12, "sin((t + uRandPhase) * 1.0)");
+        while ((p = body.find("lissa(moveT * TOKEN_CALM)")) != std::string::npos)
+            body.replace(p, 25, "lissa(moveT * TOKEN_CALM + uRandPhase)");
+        while ((p = body.find("lissa(moveT * TOKEN_RUSH)")) != std::string::npos)
+            body.replace(p, 25, "lissa(moveT * TOKEN_RUSH + uRandPhase)");
+        while ((p = body.find("cos(moveT * 0.8)")) != std::string::npos)
+            body.replace(p, 16, "cos((moveT + uRandPhase) * 0.8)");
+        while ((p = body.find("sin(moveT * 1.0)")) != std::string::npos)
+            body.replace(p, 16, "sin((moveT + uRandPhase) * 1.0)");
     }
 
     // ---- Runtime visual controls ----
@@ -1227,6 +1262,7 @@ int main(int argc, char* argv[]) {
 
     GLint locRes   = gl_GetUniformLocation(program, "iResolution");
     GLint locTime  = gl_GetUniformLocation(program, "iTime");
+    GLint locMovementTime = gl_GetUniformLocation(program, "uMovementTime");
     GLint locDate  = gl_GetUniformLocation(program, "iDate");
     GLint locCh0   = gl_GetUniformLocation(program, "iChannel0");
     GLint loc_uHR  = gl_GetUniformLocation(program, "uHoleRadius");
@@ -1279,16 +1315,18 @@ int main(int argc, char* argv[]) {
     float randPhase = 6.2831853f * (float)rand() / (float)RAND_MAX;
     // 随机预设偏移：0 ~ 60秒（覆盖多个预设周期）
     float randPresetOff = 60.0f * (float)rand() / (float)RAND_MAX;
-    float homeX = cfg.randomPath ? randHomeX : 0.96f;
-    float homeY = cfg.randomPath ? randHomeY : 0.04f;
+    MovementSpawn spawn = ResolveMovementSpawn(
+        cfg.spawnPosition, randHomeX, randHomeY, randPhase, randPresetOff);
+    float homeX = spawn.x;
+    float homeY = spawn.y;
     float cursorHomeX = homeX;
     float cursorHomeY = homeY;
     float mouseVelX = 0.0f;
     float mouseVelY = 0.0f;
-    float phaseOffset = cfg.randomPath ? randPhase : 0.0f;
-    float presetOffset = cfg.randomPath ? randPresetOff : 0.0f;
-    if (debugLog) { fprintf(debugLog, "[Init] Spawn: randomPath=%d home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
-                            cfg.randomPath ? 1 : 0, homeX, homeY, phaseOffset, presetOffset, seed, screenIdx); fflush(debugLog); }
+    float phaseOffset = spawn.phaseOffset;
+    float presetOffset = spawn.presetOffset;
+    if (debugLog) { fprintf(debugLog, "[Init] Spawn: spawnPosition=%d movementSpeed=%.2f home=(%.2f,%.2f) phase=%.2f presetOff=%.1f seed=%u (screenIdx=%d)\n",
+                            cfg.spawnPosition, cfg.movementSpeed, homeX, homeY, phaseOffset, presetOffset, seed, screenIdx); fflush(debugLog); }
 
     gl_UseProgram(0);
 
@@ -1372,6 +1410,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locCh0,0);
         gl_Uniform3f(locRes,(float)fbW,(float)fbH,0);
         gl_Uniform1f(locTime,0);
+        gl_Uniform1f(locMovementTime,0);
         gl_Uniform4f(locDate,0,0,0,(float)time(nullptr));
         gl_Uniform1f(loc_uHR,cfg.holeRadius); gl_Uniform1f(loc_uDG,cfg.diskGain);
         gl_Uniform1f(loc_uDT,cfg.diskTemp); gl_Uniform1f(loc_uEX,cfg.exposure);
@@ -1685,6 +1724,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locCh0, 0);
         gl_Uniform3f(locRes, (float)fbW, (float)fbH, 0.0f);
         gl_Uniform1f(locTime, t);
+        gl_Uniform1f(locMovementTime, t * cfg.movementSpeed);
         gl_Uniform4f(locDate, 0,0,0,ep);
 
         gl_Uniform1f(loc_uHR, cfg.holeRadius);
