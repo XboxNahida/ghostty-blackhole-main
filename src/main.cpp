@@ -23,6 +23,7 @@
 #include "capture_dxgi.h"
 #include "gl_texture.h"
 #include "bloom_renderer.h"
+#include "foreground_window.h"
 #include "gui_config.h"
 #include "win32_gl.h"
 #include "monitors.h"
@@ -520,16 +521,9 @@ static bool isWatchingVideo() {
     HWND fg = GetForegroundWindow();
     if (!fg) return false;
 
-    // 排除黑洞自己的渲染窗口（WS_EX_NOACTIVATE + WS_EX_TOPMOST + WS_EX_TRANSPARENT）
-    {
-        LONG_PTR ex = GetWindowLongPtrW(fg, GWL_EXSTYLE);
-        if ((ex & (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-            == (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-            return false;
-        // 也通过窗口类名排除
-        wchar_t cls[64] = {};
-        if (GetClassNameW(fg, cls, 64) && wcscmp(cls, L"BlackHoleWGL") == 0)
-            return false;
+    // 桌面、系统外壳和黑洞自身都不能进入全屏视频/游戏判断。
+    if (Foreground_Classify(fg) != ForegroundKind::Application) {
+        return false;
     }
 
     // Method 1: D3D exclusive fullscreen (catches most fullscreen games)
@@ -544,18 +538,9 @@ static bool isWatchingVideo() {
             return true;
     }
 
-    // Method 1b: any foreground window covering entire screen (borderless fullscreen games)
-    // 但排除最大化的普通窗口（只针对真正的全屏游戏）
-    {
-        RECT r;
-        if (GetWindowRect(fg, &r)) {
-            int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-            int ww = r.right - r.left, wh = r.bottom - r.top;
-            // 只有窗口完全覆盖屏幕且不是最大化窗口时才认为是全屏游戏
-            // 最大化窗口 (WS_MAXIMIZE) 不算全屏，避免误判编辑器/浏览器
-            LONG_PTR style = GetWindowLongPtrW(fg, GWL_STYLE);
-            if (ww >= sw && wh >= sh && !(style & WS_MAXIMIZE)) return true;
-        }
+    // Method 1b: 当前显示器上的无边框全屏游戏。
+    if (Foreground_IsBorderlessFullscreen(fg)) {
+        return true;
     }
 
     // Get foreground process name

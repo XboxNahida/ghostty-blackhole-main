@@ -14,6 +14,7 @@ set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file")
 qt_add_executable(appBlakholeUI
     main.cpp
     ../src/autostart_registry.cpp
+    ../src/foreground_window.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h

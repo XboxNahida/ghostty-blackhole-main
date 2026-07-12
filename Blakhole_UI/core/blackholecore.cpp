@@ -1,6 +1,7 @@
 // blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
 #include "autostart_registry.h"
+#include "foreground_window.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -1130,15 +1131,9 @@ void BlackHoleCore::checkIdle()
     bool uwpDetected = false;
 
     if (fg) {
-        // 第1层: 排除黑洞自己的渲染窗口
-        {
-            LONG_PTR ex = GetWindowLongPtrW(fg, GWL_EXSTYLE);
-            if ((ex & (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-                == (WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TRANSPARENT))
-                goto check_foreground_done;
-            wchar_t cls[64] = {};
-            if (GetClassNameW(fg, cls, 64) && wcscmp(cls, L"BlackHoleWGL") == 0)
-                goto check_foreground_done;
+        // 第1层: 排除桌面、系统外壳和黑洞自己的渲染窗口。
+        if (Foreground_Classify(fg) != ForegroundKind::Application) {
+            goto check_foreground_done;
         }
 
         // 第2层: D3D 独占全屏
@@ -1158,17 +1153,9 @@ void BlackHoleCore::checkIdle()
             }
         }
 
-        // 第3层: 无边框窗口覆盖全屏 (排除最大化窗口)
-        if (!watchingVideo) {
-            RECT r;
-            if (GetWindowRect(fg, &r)) {
-                int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-                int ww = r.right - r.left, wh = r.bottom - r.top;
-                LONG_PTR style = GetWindowLongPtrW(fg, GWL_STYLE);
-                if (ww >= sw && wh >= sh && !(style & WS_MAXIMIZE)) {
-                    watchingVideo = true;
-                }
-            }
+        // 第3层: 当前显示器上的无边框全屏窗口。
+        if (!watchingVideo && Foreground_IsBorderlessFullscreen(fg)) {
+            watchingVideo = true;
         }
 
         // 获取进程名 (使用 CreateToolhelp32Snapshot, 匹配原生)
