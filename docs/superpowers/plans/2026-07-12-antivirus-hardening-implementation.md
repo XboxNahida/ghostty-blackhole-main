@@ -158,29 +158,28 @@ Commit message: `改用系统热键降低按键轮询特征`
 **Interfaces:**
 - Produces: stripped Release copies, `release_checksums.sha256`, `RELEASE_INFO.txt`, and Chinese publishing guidance.
 
-- [ ] **Step 1: Write the failing release-security check**
+- [x] **Step 1: Write the failing release-security check**
 
 Check that packaged EXEs have VERSIONINFO, ASLR and NX, no `.debug_*` sections, no UPX section names, and that `blackhole.exe` has no network/injection/registry-write/`GetAsyncKeyState` imports.
 
-- [ ] **Step 2: Run against the current package and verify red**
+- [x] **Step 2: Run against the current package and verify red**
 
 Expected: failure because current Release EXEs contain DWARF debug sections and lack version information.
 
-- [ ] **Step 3: Harden packaging without stripping build artifacts**
+- [x] **Step 3: Harden packaging without stripping build artifacts**
 
 After copying EXEs, locate MinGW `strip.exe` and run `--strip-debug` only on Release copies. Generate SHA-256 lines with lowercase filenames and write version `1.2.0`, tag `v1.2.0`, commit hash, build timestamp and unsigned status to `RELEASE_INFO.txt`.
 
-- [ ] **Step 4: Write Chinese security and publishing docs**
+- [x] **Step 4: Write Chinese security and publishing docs**
 
 Explain local-only capture, sensitive permissions, hash verification, Draft/Tag/Pre-release/formal Release differences, attachment naming `BlakholeUI-v1.2.0-windows-x64.zip`, rollback, and false-positive submission evidence.
 
-- [ ] **Step 5: Package and verify green**
+- [x] **Step 5: Package and verify green**
 
 Run `package_release.ps1`, then `tools/check_release_security.ps1`.
 
 Expected: `RELEASE_SECURITY_OK version=1.2.0`; build artifacts remain unstripped.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Commit message: `增加可追溯安全发布流程`
-
