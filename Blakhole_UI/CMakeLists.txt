@@ -5,26 +5,28 @@ project(BlakholeUI VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network)
+find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network DBus)
 
 include(CTest)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-file(MAKE_DIRECTORY "${BLACKHOLE_GENERATED_DIR}")
-configure_file(../cmake/app_version.h.in "${BLACKHOLE_GENERATED_DIR}/app_version.h" @ONLY)
-configure_file(app_version.rc.in "${BLACKHOLE_GENERATED_DIR}/app_version.rc" @ONLY)
+# Allow standalone use or as subdirectory (root already sets BLACKHOLE_GENERATED_DIR)
+if(NOT BLACKHOLE_GENERATED_DIR)
+    set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    file(MAKE_DIRECTORY "${BLACKHOLE_GENERATED_DIR}")
+    configure_file(../cmake/app_version.h.in "${BLACKHOLE_GENERATED_DIR}/app_version.h" @ONLY)
+endif()
 
-# Fix windres popen issue on Windows (MinGW)
-set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file --codepage=65001")
+# Windows RC resources
+if(WIN32)
+    configure_file(app_version.rc.in "${BLACKHOLE_GENERATED_DIR}/app_version.rc" @ONLY)
+    set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} --use-temp-file --codepage=65001")
+endif()
 
-qt_add_executable(appBlakholeUI
+# Cross-platform sources
+set(APP_SOURCES
     main.cpp
-    ../src/autostart_registry.cpp
-    ../src/foreground_window.cpp
-    ../src/game_detection.cpp
-    ../src/media_session.cpp
     ../src/movement_settings.cpp
     core/application_catalog.cpp
     core/avatar_storage.cpp
@@ -38,9 +40,21 @@ qt_add_executable(appBlakholeUI
     core/blackholecore.cpp
     core/blackholepreviewfbo.h
     core/blackholepreviewfbo.cpp
-    app.rc
-    "${BLACKHOLE_GENERATED_DIR}/app_version.rc"
 )
+
+# Windows-only sources
+if(WIN32)
+    list(APPEND APP_SOURCES
+        app.rc
+        "${BLACKHOLE_GENERATED_DIR}/app_version.rc"
+        ../src/autostart_registry.cpp
+        ../src/foreground_window.cpp
+        ../src/game_detection.cpp
+        ../src/media_session.cpp
+    )
+endif()
+
+qt_add_executable(appBlakholeUI ${APP_SOURCES})
 
 target_include_directories(appBlakholeUI PRIVATE ../src "${BLACKHOLE_GENERATED_DIR}")
 
@@ -70,8 +84,18 @@ set_target_properties(appBlakholeUI PROPERTIES
 )
 
 target_link_libraries(appBlakholeUI
-    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL Qt6::Network advapi32 dwmapi ole32 runtimeobject version
+    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL Qt6::Network
 )
+
+if(WIN32)
+    target_link_libraries(appBlakholeUI
+        PRIVATE advapi32 dwmapi ole32 runtimeobject version
+    )
+else()
+    target_link_libraries(appBlakholeUI
+        PRIVATE Qt6::DBus
+    )
+endif()
 
 if(BUILD_TESTING)
     add_executable(renderer_startup_diagnostics_tests EXCLUDE_FROM_ALL
@@ -94,7 +118,10 @@ if(BUILD_TESTING)
         core/application_catalog.cpp
     )
     target_include_directories(application_catalog_tests PRIVATE core)
-    target_link_libraries(application_catalog_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets version)
+    target_link_libraries(application_catalog_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+    if(WIN32)
+        target_link_libraries(application_catalog_tests PRIVATE version)
+    endif()
     add_test(NAME application_catalog_tests COMMAND application_catalog_tests)
 
     add_executable(avatar_storage_tests EXCLUDE_FROM_ALL
