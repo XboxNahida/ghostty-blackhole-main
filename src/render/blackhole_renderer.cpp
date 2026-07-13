@@ -4,6 +4,7 @@
 #include "../gui_config.h"
 #include <cmath>
 #include <ctime>
+#include <algorithm>
 
 #ifndef BLACKHOLE_USE_D3D11
 
@@ -79,9 +80,16 @@ void BlackholeRenderer::drawAndBloom(int fbW, int fbH, const BlackholeConfig& cf
                                      float iTime, float moveTime,
                                      float homeX, float homeY,
                                      float phaseOffset, float presetOffset,
-                                     bool bloomActive, FILE* debugLog)
+                                     float bornProgress,
+                                     FILE* debugLog)
 {
-    const bool bloomRunning = Bloom_BeginScene((BloomRenderer*)bloom, fbW, fbH, cfg.lightingEffect);
+    // Clamp preset count to safe range before any uniform upload
+    int pc = cfg.presetCount;
+    if (pc < 0) pc = 0;
+    if (pc > 64) pc = 64;
+
+    const bool bloomActive = Bloom_BeginScene((BloomRenderer*)bloom, fbW, fbH, cfg.lightingEffect);
+    (void)bloomActive; // used by Bloom_BeginScene internally; keep for future bloom toggling
     gl_UseProgram(program);
     gl_ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, glTexID);
     gl_Uniform1i(locCh0, 0);
@@ -98,39 +106,39 @@ void BlackholeRenderer::drawAndBloom(int fbW, int fbH, const BlackholeConfig& cf
     gl_Uniform1f(loc_uDI, cfg.diskIncl);
     gl_Uniform1i(loc_uPM, cfg.playMode);
     gl_Uniform1f(loc_uSlot, cfg.slotSec);
-    gl_Uniform1i(loc_uPC, cfg.presetCount);
+    gl_Uniform1i(loc_uPC, pc);
     {
-        float buf[64];
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].temp;
-        gl_Uniform1fv(loc_uPT, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].incl;
-        gl_Uniform1fv(loc_uPI, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].roll;
-        gl_Uniform1fv(loc_uPR, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].inner;
-        gl_Uniform1fv(loc_uPN, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].outer;
-        gl_Uniform1fv(loc_uPO, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].opac;
-        gl_Uniform1fv(loc_uPP, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].dopp;
-        gl_Uniform1fv(loc_uPD, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].beam;
-        gl_Uniform1fv(loc_uPB, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].gain;
-        gl_Uniform1fv(loc_uPG, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].contr;
-        gl_Uniform1fv(loc_uPCo, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].wind;
-        gl_Uniform1fv(loc_uPW, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].spd;
-        gl_Uniform1fv(loc_uPS, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].expo;
-        gl_Uniform1fv(loc_uPE, cfg.presetCount, buf);
-        for (int i = 0; i < cfg.presetCount; i++) buf[i] = cfg.presets[i].star;
-        gl_Uniform1fv(loc_uPSt, cfg.presetCount, buf);
+        float buf[64] = {};
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].temp;
+        gl_Uniform1fv(loc_uPT, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].incl;
+        gl_Uniform1fv(loc_uPI, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].roll;
+        gl_Uniform1fv(loc_uPR, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].inner;
+        gl_Uniform1fv(loc_uPN, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].outer;
+        gl_Uniform1fv(loc_uPO, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].opac;
+        gl_Uniform1fv(loc_uPP, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].dopp;
+        gl_Uniform1fv(loc_uPD, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].beam;
+        gl_Uniform1fv(loc_uPB, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].gain;
+        gl_Uniform1fv(loc_uPG, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].contr;
+        gl_Uniform1fv(loc_uPCo, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].wind;
+        gl_Uniform1fv(loc_uPW, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].speed;
+        gl_Uniform1fv(loc_uPS, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].expo;
+        gl_Uniform1fv(loc_uPE, pc, buf);
+        for (int i = 0; i < pc; i++) buf[i] = cfg.presets[i].star;
+        gl_Uniform1fv(loc_uPSt, pc, buf);
     }
-    gl_Uniform1f(locBorn, cfg.bornProgress);
+    gl_Uniform1f(locBorn, bornProgress);
     gl_Uniform1f(locFixedSz, cfg.fixedSize);
     gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
     gl_Uniform1f(locGrowEnabled, cfg.growEnabled ? 1.0f : 0.0f);
@@ -147,11 +155,17 @@ void BlackholeRenderer::drawAndBloom(int fbW, int fbH, const BlackholeConfig& cf
     gl_DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     gl_BindVertexArray(0);
 
-    Bloom_EndScene((BloomRenderer*)bloom, fbW, fbH, bloomRunning);
+    Bloom_EndScene((BloomRenderer*)bloom, fbW, fbH, bloomActive);
+
+    if (debugLog) {
+        fprintf(debugLog, "[DEBUG] blackhole-renderer: fb=%dx%d, pc=%d\n", fbW, fbH, pc);
+    }
 }
 
 void BlackholeRenderer::destroy() {
-    Bloom_Destroy((BloomRenderer*)bloom);
+    // Bloom_Destroy requires lvalue reference; use a local variable
+    BloomRenderer* localBloom = (BloomRenderer*)bloom;
+    Bloom_Destroy(localBloom);
     bloom = nullptr;
     if (vao) { gl_DeleteVertexArrays(1, &vao); vao = 0; }
     if (vbo) { gl_DeleteBuffers(1, &vbo); vbo = 0; }

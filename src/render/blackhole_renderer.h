@@ -31,21 +31,23 @@ struct BlackholeRenderer {
     GLint locHomeX = -1, locHomeY = -1, locFollowMouse = -1;
     GLint locPhase = -1, locPresetOff = -1;
 
-    /// Initialize VAO, VBO, and Bloom. Must be called after program creation.
+    /// Initialize VAO, VBO, and Bloom.  Must be called after program creation.
     /// width/height are the framebuffer dimensions for Bloom.
-    bool init(GLuint prog, int width, int height, FILE* debugLog = nullptr);
+    bool init(GLuint prog, int width, int height, FILE* debugLog);
 
     /// Cache all uniform locations for the given program.
     void cacheUniforms(GLuint prog);
 
     /// Set all uniforms from config and draw the full-screen quad.
     /// Handles Bloom begin/end internally.
+    /// bornProgress: transient per-frame black hole birth/animation progress [0,1].
     void drawAndBloom(int fbW, int fbH, const BlackholeConfig& cfg,
                       unsigned int glTexID,
                       float iTime, float moveTime,
                       float homeX, float homeY,
                       float phaseOffset, float presetOffset,
-                      bool bloomActive, FILE* debugLog = nullptr);
+                      float bornProgress,
+                      FILE* debugLog);
 
     /// Destroy Bloom and delete GL resources.
     void destroy();

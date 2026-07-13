@@ -149,4 +149,15 @@ if(BUILD_TESTING)
     )
     target_include_directories(shader_source_tests PRIVATE src)
     add_test(NAME shader_source_tests COMMAND shader_source_tests)
+
+    # Compile-guard: verify render core headers compile on Linux
+    add_executable(render_core_compile_test EXCLUDE_FROM_ALL
+        tests/render_core_compile_test.cpp
+        src/render/gl_funcs_win32.cpp
+        src/render/shader_source.cpp
+        src/render/gl_program.cpp
+        src/render/blackhole_renderer.cpp
+    )
+    target_include_directories(render_core_compile_test PRIVATE src)
+    target_compile_definitions(render_core_compile_test PRIVATE BLACKHOLE_USE_D3D11)
 endif()
