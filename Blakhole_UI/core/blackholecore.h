@@ -470,6 +470,7 @@ private:
     void startRendererInternal(bool userInitiated);
     void pollRendererStartup();
     void publishRendererDiagnostic(const RendererDiagnostic &diagnostic);
+    void terminateRendererProcess();
 
     PresetModel *m_presetModel;
 

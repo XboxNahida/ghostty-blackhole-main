@@ -695,12 +695,20 @@ void BlackHoleCore::startRenderer()
 void BlackHoleCore::startRendererInternal(bool userInitiated)
 {
     if (!userInitiated && m_rendererFailureLatched) return;
-    if (userInitiated) m_rendererFailureLatched = false;
+
+    if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
+        if (userInitiated &&
+            m_rendererDiagnostics.state() == RendererStartupState::Failed) {
+            terminateRendererProcess();
+        }
+    }
 
     if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
         qDebug() << "BlackHoleCore: renderer already running";
         return;
     }
+
+    if (userInitiated) m_rendererFailureLatched = false;
 
     // 先保存配置到文件（blackhole.exe --render 从文件读取配置）
     saveConfig();
@@ -754,10 +762,9 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
         connect(m_rendererProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
             QString msg = m_rendererProcess->errorString();
             qWarning() << "BlackHoleCore: renderer error:" << msg;
-            if (err == QProcess::FailedToStart) {
+            if (err == QProcess::FailedToStart &&
+                m_rendererDiagnostics.state() == RendererStartupState::Starting) {
                 publishRendererDiagnostic(m_rendererDiagnostics.processFailedToStart(msg));
-            } else {
-                emit rendererError(msg);
             }
             emit rendererRunningChanged();
             emit systemActiveChanged();
@@ -811,6 +818,7 @@ void BlackHoleCore::publishRendererDiagnostic(const RendererDiagnostic &diagnost
     if (!diagnostic.valid) return;
     m_rendererFailureLatched = true;
     m_rendererStartupTimer->stop();
+    terminateRendererProcess();
     emit rendererStartupFailed(diagnostic.title,
                                diagnostic.summary,
                                diagnostic.details,
@@ -829,6 +837,11 @@ void BlackHoleCore::stopRenderer()
 {
     m_rendererDiagnostics.beginStopping();
     m_rendererStartupTimer->stop();
+    terminateRendererProcess();
+}
+
+void BlackHoleCore::terminateRendererProcess()
+{
     if (!m_rendererProcess)
         return;
 
