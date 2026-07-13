@@ -43,6 +43,7 @@ set(APP_SOURCES
     core/blackholecore.cpp
     core/blackholepreviewfbo.h
     core/blackholepreviewfbo.cpp
+    ../src/renderer_search_linux.cpp
 )
 
 # Windows-only sources
@@ -59,7 +60,7 @@ endif()
 
 qt_add_executable(appBlakholeUI ${APP_SOURCES})
 
-target_include_directories(appBlakholeUI PRIVATE ../src "${BLACKHOLE_GENERATED_DIR}")
+target_include_directories(appBlakholeUI PRIVATE ../src "${BLACKHOLE_GENERATED_DIR}" ../src)
 
 file(GLOB QML_COMPONENTS CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "components/*.qml")
 file(GLOB QML_PAGES CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "pages/*.qml")
@@ -154,7 +155,9 @@ if(BUILD_TESTING)
 
     add_executable(renderer_search_tests EXCLUDE_FROM_ALL
         ../tests/renderer_search_tests.cpp
+        ../src/renderer_search_linux.cpp
     )
+    target_include_directories(renderer_search_tests PRIVATE ../src)
     target_link_libraries(renderer_search_tests PRIVATE Qt6::Core)
     add_test(NAME renderer_search_tests COMMAND renderer_search_tests)
 endif()

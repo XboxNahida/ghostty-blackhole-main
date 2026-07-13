@@ -3,6 +3,7 @@
 #include "application_catalog.h"
 #include "avatar_storage.h"
 #include "movement_settings.h"
+#include "renderer_search_linux.h"
 
 #ifdef Q_OS_WIN
 #include "autostart_registry.h"
@@ -347,69 +348,14 @@ bool BlackHoleCore::openConfigForRead(QFile &file, const QString &fileName) cons
 
 QString BlackHoleCore::findRendererExe(QString *projectRootOut) const
 {
-    // 1) 显式注入路径
-    if (!m_rendererExeOverride.isEmpty()) {
-        if (QFileInfo::exists(m_rendererExeOverride)) {
-            if (projectRootOut) {
-                *projectRootOut = QFileInfo(m_rendererExeOverride).absolutePath();
-            }
-            return m_rendererExeOverride;
-        }
-        return QString();  // 显式路径不存在,不继续搜索
-    }
-
-    QString appDir = QCoreApplication::applicationDirPath();
-    QDir dir(appDir);
-
-    // 渲染器可执行文件名
 #ifdef Q_OS_WIN
     QStringList exeNames = {QStringLiteral("blackhole.exe")};
 #else
     QStringList exeNames = {QStringLiteral("blackhole-renderer")};
 #endif
-
-    // 2) UI 同级 + 上溯各级 + 兄弟 build 目录
-    QStringList searchPaths;
-    for (const QString &name : exeNames) {
-        searchPaths << dir.absoluteFilePath(name);                                          // 同级
-        searchPaths << dir.absoluteFilePath(QStringLiteral("../") + name);                 // 上溯1级
-        searchPaths << dir.absoluteFilePath(QStringLiteral("../../") + name);              // 上溯2级
-        searchPaths << dir.absoluteFilePath(QStringLiteral("../../build/") + name);         // 兄弟 build
-        searchPaths << dir.absoluteFilePath(QStringLiteral("../../../") + name);            // 上溯3级
-        searchPaths << dir.absoluteFilePath(QStringLiteral("../../../build/") + name);      // 上溯3级+build
-        searchPaths << dir.absoluteFilePath(QStringLiteral("../../../release/") + name);    // 上溯3级+release
-    }
-
-    for (const QString &p : searchPaths) {
-        if (QFileInfo::exists(p)) {
-            if (projectRootOut) {
-                QFileInfo fi(p);
-                QDir exeDir = fi.dir();
-                QString parent = exeDir.absolutePath();
-                if (exeDir.dirName().compare("build", Qt::CaseInsensitive) == 0
-                    || exeDir.dirName().compare("release", Qt::CaseInsensitive) == 0) {
-                    QDir root = exeDir;
-                    root.cdUp();
-                    parent = root.absolutePath();
-                }
-                *projectRootOut = parent;
-            }
-            return p;
-        }
-    }
-
-    // 3) QStandardPaths 回退
-    for (const QString &name : exeNames) {
-        QString found = QStandardPaths::findExecutable(name);
-        if (!found.isEmpty()) {
-            if (projectRootOut) {
-                *projectRootOut = QFileInfo(found).absolutePath();
-            }
-            return found;
-        }
-    }
-
-    return QString();
+    return ResolveRendererPath(m_rendererExeOverride, exeNames,
+                               QCoreApplication::applicationDirPath(),
+                               projectRootOut);
 }
 
 // ====== 配置读写 (v4 格式，与原始项目完全兼容) ======
@@ -854,7 +800,17 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
     m_rendererStartupElapsed.restart();
     m_rendererStdoutBuffer.clear();
     m_rendererStderrBuffer.clear();
-    m_rendererProcess->start(exePath, {QStringLiteral("--render")});
+
+    // 构建完整参数向量: Linux 渲染器需要 --render --background generated --config/--resources
+    QStringList rendererArgs = {QStringLiteral("--render")};
+#ifndef Q_OS_WIN
+    rendererArgs << QStringLiteral("--background") << QStringLiteral("generated")
+                 << QStringLiteral("--resources") << projectRoot
+                 << QStringLiteral("--config") << configFilePath()
+                 << QStringLiteral("--windowed")
+                 << QStringLiteral("--diagnostic");
+#endif
+    m_rendererProcess->start(exePath, rendererArgs);
     m_rendererStartupTimer->start(200);
 }
 
