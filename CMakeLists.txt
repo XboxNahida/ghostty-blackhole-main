@@ -120,15 +120,49 @@ if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
 
     add_executable(blackhole-renderer
         src/main_linux.cpp
+        src/render/gl_funcs_linux.cpp
+        src/render/shader_source.cpp
+        src/render/gl_program.cpp
+        src/gui_config.cpp
+        src/movement_settings.cpp
+        src/imgui/imgui.cpp
+        src/imgui/imgui_draw.cpp
+        src/imgui/imgui_widgets.cpp
+        src/imgui/imgui_tables.cpp
+        src/imgui/imgui_impl_glfw.cpp
+        src/imgui/imgui_impl_opengl3.cpp
     )
 
     target_include_directories(blackhole-renderer PRIVATE
+        src
         "${BLACKHOLE_GENERATED_DIR}"
     )
 
     target_link_libraries(blackhole-renderer PRIVATE
         glfw
         OpenGL::GL
+    )
+
+    # Copy shader files alongside the binary for runtime loading
+    add_custom_command(TARGET blackhole-renderer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:blackhole-renderer>/shaders"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/shaders/vert.glsl"
+            "$<TARGET_FILE_DIR:blackhole-renderer>/shaders/vert.glsl"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/shaders/frag_desktop_header.glsl"
+            "$<TARGET_FILE_DIR:blackhole-renderer>/shaders/frag_desktop_header.glsl"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/blackhole.glsl"
+            "$<TARGET_FILE_DIR:blackhole-renderer>/blackhole.glsl"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/blackhole_presets.txt"
+            "$<TARGET_FILE_DIR:blackhole-renderer>/blackhole_presets.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/blackhole_advanced.txt"
+            "$<TARGET_FILE_DIR:blackhole-renderer>/blackhole_advanced.txt"
+        COMMENT "Copying runtime resources for blackhole-renderer"
     )
 endif()
 

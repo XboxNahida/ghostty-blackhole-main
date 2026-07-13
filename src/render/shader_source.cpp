@@ -272,15 +272,32 @@ bool buildFragmentShaderFromSources(const std::string& header,
     if (!replaceConstFloatDecl(b, "WORK_AREA",   "const float WORK_AREA = 0.0;",
                                "WORK_AREA set to 0.0", true, debugLog))
         return false;
-    if (!replaceConstFloatDecl(b, "TOKEN_HOME_X", "float TOKEN_HOME_X = [redacted];",
-                               "TOKEN_HOME_X non-const", true, debugLog))
+    if (!replaceConstFloatDecl(b, "TOKEN_HOME_X", "float TOKEN_HOME_X = uHomeX;",
+                               "TOKEN_HOME_X -> uHomeX", true, debugLog))
         return false;
-    if (!replaceConstFloatDecl(b, "TOKEN_HOME_Y", "float TOKEN_HOME_Y = [redacted];",
-                               "TOKEN_HOME_Y non-const", true, debugLog))
+    if (!replaceConstFloatDecl(b, "TOKEN_HOME_Y", "float TOKEN_HOME_Y = uHomeY;",
+                               "TOKEN_HOME_Y -> uHomeY", true, debugLog))
         return false;
     if (!replaceConstFloatDecl(b, "DEMO_XFADE", "const float DEMO_XFADE = 0.65;",
                                "DEMO_XFADE=0.65", false, debugLog))
         return false;
+
+    // ---- CRITICAL: shield simplification (semicolon-aware) ----
+    {
+        const char* prefix = "float shield = vis * smoothstep(WORK_AREA";
+        size_t pp = b.find(prefix);
+        if (pp == std::string::npos) {
+            if (debugLog) { fprintf(debugLog, "[FAIL] Critical anchor 'shield simplification' not found\n"); fflush(debugLog); }
+            return false;
+        }
+        size_t ve = b.find(";", pp);
+        if (ve == std::string::npos) {
+            if (debugLog) { fprintf(debugLog, "[FAIL] Semicolon not found for shield simplification\n"); fflush(debugLog); }
+            return false;
+        }
+        b.replace(pp, ve - pp + 1, "float shield = vis;");
+        if (debugLog) { fprintf(debugLog, "[OK] shield simplification applied\n"); fflush(debugLog); }
+    }
 
     // ---- applyPatches for remaining exact-match patches ----
     // These use exact anchors (full line or unique expression), so no prefix issue.
@@ -346,8 +363,6 @@ bool buildFragmentShaderFromSources(const std::string& header,
          "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : min(iTime / DEMO_GROW_SEC, 1.0)))",
          "hole growth formula", true},
         // OPTIONAL: cosmetic / edge-case patches
-        {"float shield = vis * smoothstep(WORK_AREA",
-         "float shield = vis;", "shield simplification", false},
         {"vec2  fullLo = vec2(min(xPad, 0.5), marg);", "vec2  fullLo = vec2(xPad, marg);", "multimon fullLo", false},
         {"vec2  fullHi = vec2(max(0.5, 1.0 - xPad),", "vec2  fullHi = vec2(1.0 - xPad,", "multimon fullHi", false},
         {"float reach  = mix(0.06, max(TOKEN_REACH, 0.06), g);",
