@@ -5,7 +5,10 @@ project(BlakholeUI VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network DBus)
+find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network)
+if(NOT WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 
 include(CTest)
 

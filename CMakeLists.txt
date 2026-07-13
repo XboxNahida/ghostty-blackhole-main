@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BLACKHOLE_BUILD_UI "Build Qt/QML configuration UI" ON)
 option(BLACKHOLE_BUILD_RENDERER "Build the blackhole-renderer (glfw+OpenGL)" ON)
 option(BLACKHOLE_ENABLE_PORTAL_CAPTURE "Enable XDG Desktop Portal screen capture (Linux)" OFF)
-option(BUILD_TESTING "Build unit tests" ON)
+include(CTest)
 
 # ---- Generated version header (platform neutral) ----
 set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -25,7 +25,7 @@ configure_file(cmake/app_version.h.in "${BLACKHOLE_GENERATED_DIR}/app_version.h"
 # ══════════════════════════════════════════════════════════════
 # Windows renderer (blackhole)
 # ══════════════════════════════════════════════════════════════
-if(WIN32)
+if(WIN32 AND BLACKHOLE_BUILD_RENDERER)
     # MSYS2 UCRT64 prefix for GLFW
     list(APPEND CMAKE_PREFIX_PATH "C:/msys64/ucrt64")
 
