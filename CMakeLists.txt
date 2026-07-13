@@ -123,14 +123,7 @@ if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
         src/render/gl_funcs_linux.cpp
         src/render/shader_source.cpp
         src/render/gl_program.cpp
-        src/gui_config.cpp
-        src/movement_settings.cpp
-        src/imgui/imgui.cpp
-        src/imgui/imgui_draw.cpp
-        src/imgui/imgui_widgets.cpp
-        src/imgui/imgui_tables.cpp
-        src/imgui/imgui_impl_glfw.cpp
-        src/imgui/imgui_impl_opengl3.cpp
+        src/preset_config_linux.cpp
     )
 
     target_include_directories(blackhole-renderer PRIVATE

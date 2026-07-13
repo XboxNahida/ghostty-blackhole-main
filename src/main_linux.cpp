@@ -9,6 +9,8 @@
 #include <cmath>
 #include <ctime>
 #include <cstring>
+#include <cerrno>
+#include <climits>
 #include <string>
 #include <vector>
 #include <unistd.h>
@@ -33,6 +35,11 @@ static const char* flagValue(int argc, char* argv[], const char* name) {
 }
 
 // ── CLI validation ──
+static void printUsage(const char* program) {
+    fprintf(stderr, "Usage: %s --render [--windowed] --background generated\n", program);
+    fprintf(stderr, "       [--config <path>] [--resources <dir>] [--display <N>] [--diagnostic]\n");
+}
+
 static bool isValidArg(const char* arg) {
     static const char* known[] = {
         "--render", "--windowed", "--diagnostic", "--resources", "--background",
@@ -45,12 +52,31 @@ static bool isValidArg(const char* arg) {
 
 static int validateArgs(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-' && !isValidArg(argv[i])) {
+        const char* arg = argv[i];
+        if (!isValidArg(arg)) {
             fprintf(stderr, "ERROR: unknown argument: %s\n", argv[i]);
-            fprintf(stderr, "Usage: %s --render --windowed --background generated\n", argv[0]);
-            fprintf(stderr, "       [--config <path>] [--resources <dir>]\n");
-            fprintf(stderr, "       [--display <N>] [--diagnostic]\n");
+            printUsage(argv[0]);
             return 2;
+        }
+        const bool needsValue = strcmp(arg, "--resources") == 0 ||
+                                strcmp(arg, "--background") == 0 ||
+                                strcmp(arg, "--config") == 0 ||
+                                strcmp(arg, "--display") == 0;
+        if (needsValue) {
+            if (i + 1 >= argc || strncmp(argv[i + 1], "--", 2) == 0) {
+                fprintf(stderr, "ERROR: %s requires a value\n", arg);
+                return 2;
+            }
+            if (strcmp(arg, "--display") == 0) {
+                char* end = nullptr;
+                errno = 0;
+                long value = strtol(argv[i + 1], &end, 10);
+                if (errno || !end || *end != '\0' || value < 0 || value > INT_MAX) {
+                    fprintf(stderr, "ERROR: --display requires a non-negative integer\n");
+                    return 2;
+                }
+            }
+            ++i;
         }
     }
     return 0;
@@ -101,6 +127,10 @@ int main(int argc, char* argv[]) {
         int ret = validateArgs(argc, argv);
         if (ret != 0) return ret;
     }
+    if (hasFlag(argc, argv, "--help")) {
+        printUsage(argv[0]);
+        return 0;
+    }
 
     const char* resourcesDir = flagValue(argc, argv, "--resources");
     if (resourcesDir && resourcesDir[0]) {
@@ -141,11 +171,15 @@ int main(int argc, char* argv[]) {
     GLFWmonitor* monitor = nullptr;
     if (!windowed) {
         const char* dispStr = flagValue(argc, argv, "--display");
-        int dispIdx = dispStr ? atoi(dispStr) : 0;
+        int dispIdx = dispStr ? static_cast<int>(strtol(dispStr, nullptr, 10)) : 0;
         int count = 0;
         GLFWmonitor** monitors = glfwGetMonitors(&count);
         if (dispIdx >= 0 && dispIdx < count) {
             monitor = monitors[dispIdx];
+        } else if (dispStr) {
+            fprintf(stderr, "ERROR: --display index %d out of range (available: %d)\n", dispIdx, count);
+            glfwTerminate();
+            return 2;
         } else {
             monitor = glfwGetPrimaryMonitor();
         }
@@ -205,13 +239,16 @@ int main(int argc, char* argv[]) {
         const char* configPath = flagValue(argc, argv, "--config");
         char names[64][64];
         if (configPath) {
-            if (!LoadPresetsFromFile(cfg, names, configPath))
-                InitDefaultPresets(cfg);
+            if (!LoadPresetsFromFile(cfg, names, configPath)) {
+                fprintf(stderr, "FAILED: cannot load config %s\n", configPath);
+                glfwDestroyWindow(win);
+                glfwTerminate();
+                return EXIT_FAILURE;
+            }
         } else {
             if (!LoadPresetsFromFile(cfg, names))
                 InitDefaultPresets(cfg);
         }
-        LoadAdvancedConfig(cfg);
         cfg.mode = 0;
     }
 
@@ -270,6 +307,35 @@ int main(int argc, char* argv[]) {
     GLint locSpeed = gl_GetUniformLocation(program, "uSpeed");
     GLint locStar  = gl_GetUniformLocation(program, "uStarGain");
     GLint locIncl  = gl_GetUniformLocation(program, "uDiskIncl");
+    GLint locPresetCount = gl_GetUniformLocation(program, "uPresetCount");
+    GLint locSlotSec = gl_GetUniformLocation(program, "uSlotSec");
+    GLint locPlayMode = gl_GetUniformLocation(program, "uPlayMode");
+
+    struct PresetUniform { const char* name; float DiskPreset::*field; };
+    const PresetUniform presetUniforms[] = {
+        {"uPresetTemp", &DiskPreset::temp}, {"uPresetIncl", &DiskPreset::incl},
+        {"uPresetRoll", &DiskPreset::roll}, {"uPresetInner", &DiskPreset::inner},
+        {"uPresetOuter", &DiskPreset::outer}, {"uPresetOpac", &DiskPreset::opac},
+        {"uPresetDopp", &DiskPreset::dopp}, {"uPresetBeam", &DiskPreset::beam},
+        {"uPresetGain", &DiskPreset::gain}, {"uPresetContr", &DiskPreset::contr},
+        {"uPresetWind", &DiskPreset::wind}, {"uPresetSpd", &DiskPreset::speed},
+        {"uPresetExpo", &DiskPreset::expo}, {"uPresetStar", &DiskPreset::star},
+    };
+    gl_UseProgram(program);
+    const int presetCount = cfg.presetCount < 1 ? 1 : (cfg.presetCount > 64 ? 64 : cfg.presetCount);
+    gl_Uniform1i(locPresetCount, presetCount);
+    gl_Uniform1f(locSlotSec, cfg.slotSec);
+    gl_Uniform1i(locPlayMode, cfg.playMode);
+    for (const auto& uniform : presetUniforms) {
+        float values[64];
+        for (int i = 0; i < presetCount; ++i) values[i] = cfg.presets[i].*(uniform.field);
+        gl_Uniform1fv(gl_GetUniformLocation(program, uniform.name), presetCount, values);
+    }
+    gl_UseProgram(0);
+    if (log) {
+        fprintf(log, "[CONFIG] presets=%d slot=%.3f playMode=%d firstTemp=%.1f\n",
+                presetCount, cfg.slotSec, cfg.playMode, cfg.presets[0].temp);
+    }
 
     // ── Show window ──
     glfwSetKeyCallback(win, keyCallback);
