@@ -165,6 +165,14 @@ if(BUILD_TESTING)
     target_include_directories(renderer_search_tests PRIVATE ../src)
     target_link_libraries(renderer_search_tests PRIVATE Qt6::Core)
     add_test(NAME renderer_search_tests COMMAND renderer_search_tests)
+
+    add_executable(gnome_idle_monitor_tests EXCLUDE_FROM_ALL
+        ../tests/gnome_idle_monitor_tests.cpp
+        ../src/gnome_idle_monitor.cpp
+    )
+    target_include_directories(gnome_idle_monitor_tests PRIVATE ../src)
+    target_link_libraries(gnome_idle_monitor_tests PRIVATE Qt6::Core Qt6::DBus)
+    add_test(NAME gnome_idle_monitor_tests COMMAND gnome_idle_monitor_tests)
 endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)

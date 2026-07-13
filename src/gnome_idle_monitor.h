@@ -39,6 +39,9 @@ public:
     // For testing: inject a fake D-Bus backend
     void setDBusInterface(QDBusInterface *idleIface, QDBusInterface *ssIface);
 
+    // Called by BlackHoleCore when renderer starts/stops
+    void setRendererRunning(bool running);
+
 signals:
     void stateChanged(GnomeIdleMonitor::State newState);
     void idleEligible();       // policy may start renderer
@@ -47,8 +50,7 @@ signals:
     void unlockDetected();     // screen unlocked -> re-arm
 
 private slots:
-    void onIdleWatchFired(uint watchId);
-    void onActiveWatchFired(uint watchId);
+    void onWatchFired(uint watchId);
     void onScreenSaverActiveChanged(bool active);
     void onDBusServiceRegistered(const QString &service);
     void onDBusServiceUnregistered(const QString &service);

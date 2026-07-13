@@ -51,6 +51,17 @@ void GnomeIdleMonitor::setDBusInterface(QDBusInterface *idleIface, QDBusInterfac
     m_ownedInterfaces = false;
 }
 
+void GnomeIdleMonitor::setRendererRunning(bool running)
+{
+    if (running && m_state == IdleEligible) {
+        transitionTo(RendererRunning);
+    } else if (!running && m_state == RendererRunning) {
+        transitionTo(Active);
+        setIdleWatch();
+        setActiveWatch();
+    }
+}
+
 void GnomeIdleMonitor::start()
 {
     // Set up D-Bus interfaces if not injected
@@ -76,7 +87,13 @@ void GnomeIdleMonitor::start()
                 this, &GnomeIdleMonitor::onDBusServiceUnregistered);
     }
 
-    // Set up Screensaver signal
+    // Connect WatchFired signal to single dispatcher
+    QDBusConnection::sessionBus().connect(
+        kIdleService, kIdlePath, kIdleInterface,
+        QStringLiteral("WatchFired"),
+        this, SLOT(onWatchFired(uint)));
+
+    // Connect Screensaver signal
     if (m_ssIface && m_ssIface->isValid()) {
         QDBusConnection::sessionBus().connect(
             kSSService, kSSPath, kSSInterface,
@@ -84,16 +101,25 @@ void GnomeIdleMonitor::start()
             this, SLOT(onScreenSaverActiveChanged(bool)));
     }
 
-    // Initial state: Active
-    transitionTo(Active);
-    setIdleWatch();
-    setActiveWatch();
+    // Check initial lock state before arming watches
+    setScreenSaverWatch();
+
+    // Only arm watches if not locked
+    if (m_state != Locked) {
+        transitionTo(Active);
+        setIdleWatch();
+        setActiveWatch();
+    }
 }
 
 void GnomeIdleMonitor::stop()
 {
     removeIdleWatch();
     removeActiveWatch();
+    QDBusConnection::sessionBus().disconnect(
+        kIdleService, kIdlePath, kIdleInterface,
+        QStringLiteral("WatchFired"),
+        this, SLOT(onWatchFired(uint)));
     if (m_ownedInterfaces) {
         QDBusConnection::sessionBus().disconnect(
             kSSService, kSSPath, kSSInterface,
@@ -112,11 +138,6 @@ void GnomeIdleMonitor::setIdleWatch()
     reply.waitForFinished();
     if (reply.isValid()) {
         m_idleWatchId = reply.value();
-        // Connect the WatchFired signal
-        QDBusConnection::sessionBus().connect(
-            kIdleService, kIdlePath, kIdleInterface,
-            QStringLiteral("WatchFired"),
-            this, SLOT(onIdleWatchFired(uint)));
         qDebug() << "GnomeIdleMonitor: idle watch registered, id=" << m_idleWatchId;
     }
 }
@@ -127,10 +148,6 @@ void GnomeIdleMonitor::removeIdleWatch()
     if (m_idleIface && m_idleIface->isValid()) {
         m_idleIface->asyncCall(QStringLiteral("RemoveWatch"), m_idleWatchId);
     }
-    QDBusConnection::sessionBus().disconnect(
-        kIdleService, kIdlePath, kIdleInterface,
-        QStringLiteral("WatchFired"),
-        this, SLOT(onIdleWatchFired(uint)));
     m_idleWatchId = 0;
 }
 
@@ -167,26 +184,27 @@ void GnomeIdleMonitor::setScreenSaverWatch()
     }
 }
 
-void GnomeIdleMonitor::onIdleWatchFired(uint watchId)
+void GnomeIdleMonitor::onWatchFired(uint watchId)
 {
-    Q_UNUSED(watchId);
-    qDebug() << "GnomeIdleMonitor: idle watch fired";
-    if (m_state == Active) {
-        transitionTo(IdleEligible);
-        emit idleEligible();
+    qDebug() << "GnomeIdleMonitor: WatchFired id=" << watchId;
+    if (watchId == m_idleWatchId) {
+        // Idle watch fired: user has been idle long enough
+        m_idleWatchId = 0; // one-shot watch consumed
+        if (m_state == Active) {
+            transitionTo(IdleEligible);
+            emit idleEligible();
+        }
+    } else if (watchId == m_activeWatchId) {
+        // Active watch fired: user became active
+        m_activeWatchId = 0; // one-shot watch consumed
+        if (m_state == IdleEligible || m_state == RendererRunning) {
+            transitionTo(Active);
+            emit activityDetected();
+        }
+        // Re-arm idle watch
+        setIdleWatch();
+        setActiveWatch();
     }
-}
-
-void GnomeIdleMonitor::onActiveWatchFired(uint watchId)
-{
-    Q_UNUSED(watchId);
-    qDebug() << "GnomeIdleMonitor: active watch fired";
-    if (m_state == IdleEligible || m_state == RendererRunning) {
-        transitionTo(Active);
-        emit activityDetected();
-    }
-    // Re-arm idle watch
-    setIdleWatch();
 }
 
 void GnomeIdleMonitor::onScreenSaverActiveChanged(bool active)
@@ -194,6 +212,8 @@ void GnomeIdleMonitor::onScreenSaverActiveChanged(bool active)
     qDebug() << "GnomeIdleMonitor: screensaver active =" << active;
     if (active && m_state != Locked) {
         transitionTo(Locked);
+        removeIdleWatch();
+        removeActiveWatch();
         emit lockDetected();
     } else if (!active && m_state == Locked) {
         transitionTo(Active);

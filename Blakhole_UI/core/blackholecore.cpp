@@ -231,6 +231,12 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     connect(m_gnomeIdle, &GnomeIdleMonitor::lockDetected, this, [this]() {
         stopRenderer();
     });
+    connect(this, &BlackHoleCore::rendererStarted, this, [this]() {
+        m_gnomeIdle->setRendererRunning(true);
+    });
+    connect(this, &BlackHoleCore::rendererStopped, this, [this]() {
+        m_gnomeIdle->setRendererRunning(false);
+    });
 #endif
 
     // 空闲检测定时器
@@ -1578,7 +1584,19 @@ check_foreground_done:
         }
     }
 #else
-    Q_UNUSED(this);
+    // Linux: delegate to GnomeIdleMonitor
+    if (m_gnomeIdle) {
+        if (m_displayMode != 1) {
+            setIdleDetectionState(tr("空闲检测未启用"), false);
+            m_gnomeIdle->stop();
+            return;
+        }
+        m_gnomeIdle->setIdleSeconds(m_idleSeconds);
+        if (m_gnomeIdle->state() == GnomeIdleMonitor::Degraded) {
+            m_gnomeIdle->start();
+        }
+        setIdleDetectionState(tr("等待用户空闲 %1 秒").arg(m_idleSeconds), false);
+    }
 #endif
 }
 // ====== 高级设置 getter/setter ======
