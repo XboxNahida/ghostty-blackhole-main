@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
         // 应该找不到,但程序不应崩溃
     }
 
-    // 测试9: 非可执行文件不被接受
+    // 测试9: 搜索 — 非可执行文件不被接受
     {
         QTemporaryDir dir;
         QString exePath = dir.path() + QStringLiteral("/blackhole-renderer");
@@ -144,7 +144,27 @@ int main(int argc, char *argv[])
         f.close();
         // 不设置可执行权限
         QString found = ResolveRendererPath({}, exeNames, dir.path());
-        Require(found.isEmpty(), "non-executable file is rejected");
+        Require(found.isEmpty(), "non-executable search file is rejected");
+    }
+
+    // 测试10: 显式覆盖路径为目录 — 应返回空
+    {
+        QTemporaryDir dir;
+        QString found = ResolveRendererPath(dir.path(), exeNames, dir.path());
+        Require(found.isEmpty(), "directory as explicit override returns empty");
+    }
+
+    // 测试11: 显式覆盖路径为不可执行文件 — 应返回空
+    {
+        QTemporaryDir dir;
+        QString filePath = dir.path() + QStringLiteral("/renderer-file");
+        QFile f(filePath);
+        Require(f.open(QIODevice::WriteOnly), "create non-executable override file");
+        f.write("x");
+        f.close();
+        // 不设置可执行权限
+        QString found = ResolveRendererPath(filePath, exeNames, dir.path());
+        Require(found.isEmpty(), "non-executable file as explicit override returns empty");
     }
 
     std::cout << "RENDERER_SEARCH_TESTS_OK\n";

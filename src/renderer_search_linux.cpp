@@ -11,11 +11,12 @@ QString ResolveRendererPath(const QString &overridePath,
                             const QString &appDir,
                             QString *projectRootOut)
 {
-    // 1) 显式注入路径
+    // 1) 显式注入路径 (必须为可执行文件,不接受目录或不可执行文件)
     if (!overridePath.isEmpty()) {
-        if (QFileInfo::exists(overridePath)) {
+        QFileInfo fi(overridePath);
+        if (fi.exists() && fi.isFile() && fi.isExecutable()) {
             if (projectRootOut)
-                *projectRootOut = QFileInfo(overridePath).absolutePath();
+                *projectRootOut = fi.absolutePath();
             return overridePath;
         }
         return {};
