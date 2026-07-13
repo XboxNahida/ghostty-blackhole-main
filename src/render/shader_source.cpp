@@ -11,17 +11,14 @@ std::string readFile(const char* path) {
     std::stringstream ss; ss << f.rdbuf();
     std::string content = ss.str();
 
-    // Remove UTF-8 BOM
     if (content.size() >= 3) {
         unsigned char c0 = static_cast<unsigned char>(content[0]);
         unsigned char c1 = static_cast<unsigned char>(content[1]);
         unsigned char c2 = static_cast<unsigned char>(content[2]);
-        if (c0 == 0xEF && c1 == 0xBB && c2 == 0xBF) {
+        if (c0 == 0xEF && c1 == 0xBB && c2 == 0xBF)
             content = content.substr(3);
-        }
     }
 
-    // Normalize CRLF -> LF so runtime patches stay effective
     content.erase(std::remove(content.begin(), content.end(), '\r'), content.end());
     return content;
 }
@@ -40,7 +37,7 @@ bool applyPatches(std::string& body, const ShaderPatch* patches, int count,
             }
             if (p.critical) {
                 if (debugLog) {
-                    fprintf(debugLog, "[PATCH] %s: CRITICAL — returning failure\n", p.description);
+                    fprintf(debugLog, "[PATCH] %s: CRITICAL \u2014 returning failure\n", p.description);
                     fflush(debugLog);
                 }
                 allOk = false;
@@ -57,6 +54,37 @@ bool applyPatches(std::string& body, const ShaderPatch* patches, int count,
     return allOk;
 }
 
+/// Semicolon-aware replacement for `const float NAME = value;` declarations.
+/// Replaces the entire declaration from "const float NAME =" through ";".
+static bool replaceConstFloatDecl(std::string& body, const char* name,
+                                  const std::string& newDecl,
+                                  const char* desc, FILE* debugLog)
+{
+    std::string pattern = std::string("const float ") + name + " = ";
+    size_t pos = body.find(pattern);
+    if (pos == std::string::npos) {
+        if (debugLog) {
+            fprintf(debugLog, "[FAIL] Critical anchor '%s' not found\n", desc);
+            fflush(debugLog);
+        }
+        return false;
+    }
+    size_t ve = body.find(";", pos);
+    if (ve == std::string::npos) {
+        if (debugLog) {
+            fprintf(debugLog, "[FAIL] Semicolon not found for '%s'\n", desc);
+            fflush(debugLog);
+        }
+        return false;
+    }
+    body.replace(pos, ve - pos + 1, newDecl);
+    if (debugLog) {
+        fprintf(debugLog, "[OK] %s: replaced at %zu\n", desc, pos);
+        fflush(debugLog);
+    }
+    return true;
+}
+
 bool buildFragmentShaderFromSources(const std::string& header,
                                     const std::string& body,
                                     std::string& out,
@@ -70,10 +98,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
     std::string h = header;
     std::string b = body;
 
-    // ---- All patches, classified as critical or optional ----
-    // Each patch is: {anchor, replacement, description, critical}
-
-    // CRITICAL: uMovementTime uniform injection in header
+    // ---- CRITICAL: uMovementTime uniform injection in header ----
     {
         const std::string anchor = "uniform float iTime;";
         size_t pos = h.find(anchor);
@@ -85,7 +110,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
         if (debugLog) { fprintf(debugLog, "[OK] uMovementTime uniform injected\n"); fflush(debugLog); }
     }
 
-    // CRITICAL: moveT declaration
+    // ---- CRITICAL: moveT declaration ----
     {
         const std::string anchor = "float t = iTime * DRIFT_SPEED;";
         size_t pos = b.find(anchor);
@@ -97,7 +122,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
         if (debugLog) { fprintf(debugLog, "[OK] moveT declaration injected\n"); fflush(debugLog); }
     }
 
-    // OPTIONAL: movement time expression replacements
+    // ---- OPTIONAL: movement time expression replacements ----
     {
         const ShaderPatch patches[] = {
             {"sin(t * 0.21)", "sin(moveT * 0.21)", "move-time sin(t*0.21)", false},
@@ -127,21 +152,11 @@ bool buildFragmentShaderFromSources(const std::string& header,
         fflush(debugLog);
     }
 
-    // CRITICAL: make key constants overridable by uniforms
+    // ---- CRITICAL: make key constants overridable by uniforms ----
+    // Uses semicolon-aware replacement to consume the full declaration.
     {
-        const ShaderPatch patches[] = {
-            {"const float HOLE_RADIUS = ", "float HOLE_RADIUS = uHoleRadius > 0.0 ? uHoleRadius : ", "override HOLE_RADIUS", true},
-            {"const float DISK_GAIN = ", "float DISK_GAIN = uDiskGain > 0.0 ? uDiskGain : ", "override DISK_GAIN", true},
-            {"const float DISK_TEMP = ", "float DISK_TEMP = uDiskTemp > 0.0 ? uDiskTemp : ", "override DISK_TEMP", true},
-            {"const float EXPOSURE = ", "float EXPOSURE = uExposure > 0.0 ? uExposure : ", "override EXPOSURE", true},
-            {"const float DRIFT_SPEED = ", "float DRIFT_SPEED = uSpeed > 0.0 ? uSpeed : ", "override DRIFT_SPEED", true},
-            {"const float STAR_GAIN = ", "float STAR_GAIN = uStarGain > 0.0 ? uStarGain : ", "override STAR_GAIN", true},
-            {"const float DISK_INCL = ", "float DISK_INCL = uDiskIncl > 0.0 ? uDiskIncl : ", "override DISK_INCL", true},
-        };
-        // These use a prefix search: the anchor is the "const float NAME = " prefix.
-        // applyPatches does exact match; the actual value after "=" varies.
-        // We handle these with the original find/replace logic below.
-        for (auto& o : std::initializer_list<std::pair<const char*, const char*>>{
+        struct Override { const char* name; const char* uniform; };
+        const Override ov[] = {
             {"HOLE_RADIUS", "uHoleRadius > 0.0 ? uHoleRadius :"},
             {"DISK_GAIN",   "uDiskGain > 0.0 ? uDiskGain :"},
             {"DISK_TEMP",   "uDiskTemp > 0.0 ? uDiskTemp :"},
@@ -149,8 +164,9 @@ bool buildFragmentShaderFromSources(const std::string& header,
             {"DRIFT_SPEED", "uSpeed > 0.0 ? uSpeed :"},
             {"STAR_GAIN",   "uStarGain > 0.0 ? uStarGain :"},
             {"DISK_INCL",   "uDiskIncl > 0.0 ? uDiskIncl :"},
-        }) {
-            std::string pattern = std::string("const float ") + o.first + " = ";
+        };
+        for (const auto& o : ov) {
+            std::string pattern = std::string("const float ") + o.name + " = ";
             size_t pos = b.find(pattern);
             if (pos == std::string::npos) {
                 if (debugLog) { fprintf(debugLog, "[FAIL] Critical anchor '%s' not found\n", pattern.c_str()); fflush(debugLog); }
@@ -158,19 +174,19 @@ bool buildFragmentShaderFromSources(const std::string& header,
             }
             size_t ve = b.find(";", pos);
             if (ve == std::string::npos) {
-                if (debugLog) { fprintf(debugLog, "[FAIL] Semi-colon not found after '%s'\n", pattern.c_str()); fflush(debugLog); }
+                if (debugLog) { fprintf(debugLog, "[FAIL] Semicolon not found after '%s'\n", pattern.c_str()); fflush(debugLog); }
                 return false;
             }
             std::string val = b.substr(pos + pattern.length(), ve - pos - pattern.length());
-            b.replace(pos, ve - pos + 1,
-                std::string("float ") + o.first + " = " + o.second + " " + val + ";");
+            std::string replacement = std::string("float ") + o.name + " = " + o.uniform + " " + val + ";";
+            b.replace(pos, ve - pos + 1, replacement);
         }
     }
 
-    // CRITICAL: demoLook injection
+    // ---- CRITICAL: demoLook injection ----
     {
-        const std::string dlo_anchor = "DiskLook demoLook()";
-        size_t dlo = b.find(dlo_anchor);
+        const std::string anchor = "DiskLook demoLook()";
+        size_t dlo = b.find(anchor);
         if (dlo == std::string::npos) {
             if (debugLog) { fprintf(debugLog, "[FAIL] Critical anchor 'DiskLook demoLook()' not found\n"); fflush(debugLog); }
             return false;
@@ -230,16 +246,27 @@ bool buildFragmentShaderFromSources(const std::string& header,
         if (debugLog) { fprintf(debugLog, "[OK] demoLook() injected\n"); fflush(debugLog); }
     }
 
-    // Use applyPatches for the remaining exact-match patches (critical and optional).
-    // Each entry: {anchor, replacement, description, critical}
+    // ---- Semicolon-aware const float replacements (critical) ----
+    // These must consume the entire "const float NAME = value;" declaration,
+    // not just the prefix, to avoid leaving a stale suffix that breaks GLSL.
+    if (!replaceConstFloatDecl(b, "WORK_AREA",   "const float WORK_AREA = 0.0;",
+                               "WORK_AREA set to 0.0", debugLog))
+        return false;
+    if (!replaceConstFloatDecl(b, "TOKEN_HOME_X", "float TOKEN_HOME_X = [redacted];",
+                               "TOKEN_HOME_X non-const", debugLog))
+        return false;
+    if (!replaceConstFloatDecl(b, "TOKEN_HOME_Y", "float TOKEN_HOME_Y = [redacted];",
+                               "TOKEN_HOME_Y non-const", debugLog))
+        return false;
+
+    // ---- applyPatches for remaining exact-match patches ----
+    // These use exact anchors (full line or unique expression), so no prefix issue.
     const ShaderPatch remainingPatches[] = {
-        // CRITICAL: size / birth / fullscreen / position / visuals
+        // CRITICAL: size, birth, fullscreen, trajectory, visuals
         {"#define SIZE_MODE MODE_TOKENS", "#define SIZE_MODE MODE_DEMO", "SIZE_MODE -> MODE_DEMO", true},
-        {"const float WORK_AREA",         "const float WORK_AREA = 0.0;", "WORK_AREA set to 0.0", true},
-        {"float rh = HOLE_RADIUS * sz;",  "    sz *= uBornProgress;\n    float rh = HOLE_RADIUS * sz;", "bornProgress injection", true},
-        {"const float TOKEN_HOME_X",      "float TOKEN_HOME_X = [redacted];", "TOKEN_HOME_X non-const", true},
-        {"const float TOKEN_HOME_Y",      "float TOKEN_HOME_Y = [redacted];", "TOKEN_HOME_Y non-const", true},
-        // CRITICAL: mouse-follow mode
+        {"float rh = HOLE_RADIUS * sz;",  "    sz *= uBornProgress;\n    float rh = HOLE_RADIUS * sz;",
+         "bornProgress injection", true},
+        // CRITICAL: mouse-follow mode (multi-line exact match)
         {"center = (lo + hi) * 0.5 + wander * ampEff\n"
          "               + wobAmp * vec2(cos(moveT * 0.8), sin(moveT * 1.0));",
          "center = (uFollowMouse > 0)\n"
@@ -247,7 +274,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
          "               : ((lo + hi) * 0.5 + wander * ampEff\n"
          "                  + wobAmp * vec2(cos(moveT * 0.8), sin(moveT * 1.0)));",
          "mouse-follow center", true},
-        // CRITICAL: distortion/lighting visual controls
+        // CRITICAL: lighting-effect final color injection (full-statement anchor)
         {"    fragColor = vec4(col, 1.0);",
          "    if (uLightingEffect > 0) {\n"
          "        vec3 diskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
@@ -289,11 +316,13 @@ bool buildFragmentShaderFromSources(const std::string& header,
         // CRITICAL: trajectory randomization
         {"lissa(moveT * TOKEN_CALM)", "lissa(moveT * TOKEN_CALM + uRandPhase)", "trajectory: calm", true},
         {"lissa(moveT * TOKEN_RUSH)", "lissa(moveT * TOKEN_RUSH + uRandPhase)", "trajectory: rush", true},
-        // OPTIONAL: cosmetic / edge-case patches
-        {"* window * shield;",             "* window * shield * max(uDistortion, 0.0);", "distortion multiplier", false},
+        // CRITICAL (reclassified from optional): established runtime controls
+        {"* window * shield;",
+         "* window * shield * max(uDistortion, 0.0);", "distortion multiplier", true},
         {"mod(iTime, DEMO_SEC) / DEMO_GROW_SEC",
          "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : min(iTime / DEMO_GROW_SEC, 1.0)))",
-         "hole growth formula", false},
+         "hole growth formula", true},
+        // OPTIONAL: cosmetic / edge-case patches
         {"float shield = vis * smoothstep(WORK_AREA",
          "float shield = vis;", "shield simplification", false},
         {"vec2  fullLo = vec2(min(xPad, 0.5), marg);", "vec2  fullLo = vec2(xPad, marg);", "multimon fullLo", false},
@@ -302,7 +331,8 @@ bool buildFragmentShaderFromSources(const std::string& header,
          "float reach  = mix(0.30, max(TOKEN_REACH, 1.0), g);", "multimon reach", false},
         {"cos(moveT * 0.8)", "cos((moveT + uRandPhase) * 0.8)", "trajectory: cos", false},
         {"sin(moveT * 1.0)", "sin((moveT + uRandPhase) * 1.0)", "trajectory: sin", false},
-        {"const float DEMO_XFADE",         "const float DEMO_XFADE = 0.65;", "DEMO_XFADE=0.65", false},
+        {"const float DEMO_XFADE",
+         "const float DEMO_XFADE = 0.65;", "DEMO_XFADE=0.65", false},
     };
     if (!applyPatches(b, remainingPatches,
                       sizeof(remainingPatches)/sizeof(remainingPatches[0]),

@@ -193,14 +193,20 @@ static const char* MIN_BODY =
     "               + wobAmp * vec2(cos(moveT * 0.8), sin(moveT * 1.0));\n"
     "lissa(moveT * TOKEN_CALM)\n"
     "lissa(moveT * TOKEN_RUSH)\n"
-    "    fragColor = vec4(col, 1.0);\n";
+    "    fragColor = vec4(col, 1.0);\n"
+    "* window * shield;\n"
+    "mod(iTime, DEMO_SEC) / DEMO_GROW_SEC\n";
 
 void test_fromSources_valid() {
     std::string out;
-    bool ok = buildFragmentShaderFromSources(MIN_HEADER, MIN_BODY, out, nullptr);
+    char logbuf[8192] = {};
+    FILE* log = fmemopen(logbuf, sizeof(logbuf), "w");
+    bool ok = buildFragmentShaderFromSources(MIN_HEADER, MIN_BODY, out, log);
+    if (log) fclose(log);
     TEST("fromSources: valid fixture returns true", ok);
     TEST("fromSources: output is non-empty", !out.empty());
     if (ok) {
+        // Verify key replacements exist
         TEST("fromSources: output contains uMovementTime",
              out.find("uMovementTime") != std::string::npos);
         TEST("fromSources: output contains moveT",
@@ -217,11 +223,25 @@ void test_fromSources_valid() {
              out.find("uLightingEffect") != std::string::npos);
         TEST("fromSources: output contains gl_FragCoord",
              out.find("gl_FragCoord") != std::string::npos);
+        // Verify semicolon consumption for const float replacements
+        // WORK_AREA should be "const float WORK_AREA = 0.0;" without trailing decl
+        size_t wa = out.find("WORK_AREA");
+        if (wa != std::string::npos) {
+            // There should be exactly one occurrence of WORK_AREA = 0.0
+            bool noDanglingSuffix = (out.find("WORK_AREA = 0.0;") != std::string::npos);
+            TEST("fromSources: WORK_AREA has clean declaration", noDanglingSuffix);
+            // No double-semicolon from leftover suffix
+            bool noDoubleSemi = (out.find("0.0;;") == std::string::npos);
+            TEST("fromSources: WORK_AREA no double semicolon", noDoubleSemi);
+        }
+        // Verify diagnostic log is non-empty
+        bool hasDiagnostics = (strlen(logbuf) > 0);
+        TEST("fromSources: diagnostic log produced", hasDiagnostics);
     }
 }
 
 void test_fromSources_missing_critical_anchor() {
-    // Remove the moveT anchor — this should fail immediately.
+    // Remove the moveT anchor; assert false + diagnostic names the patch.
     std::string badBody = MIN_BODY;
     size_t pos = badBody.find("float t = iTime * DRIFT_SPEED;");
     if (pos != std::string::npos) {
@@ -229,17 +249,27 @@ void test_fromSources_missing_critical_anchor() {
                         "float t = iTime * OTHER_CONST; /* moved */");
     }
     std::string out;
-    bool ok = buildFragmentShaderFromSources(MIN_HEADER, badBody, out, nullptr);
+    // Capture diagnostic output
+    char logbuf[4096] = {};
+    FILE* log = fmemopen(logbuf, sizeof(logbuf), "w");
+    bool ok = buildFragmentShaderFromSources(MIN_HEADER, badBody, out, log);
+    if (log) fclose(log);
     TEST("fromSources: missing moveT anchor returns false", !ok);
+    TEST("fromSources: missing moveT diagnostic names the anchor",
+         strstr(logbuf, "float t = iTime * DRIFT_SPEED") != nullptr);
 }
 
 void test_fromSources_missing_iTime() {
-    // Remove the iTime anchor from header.
     std::string badHeader = "uniform float iNotTime;\n";
     badHeader += "#define MAX_PRESETS 64\n";
     std::string out;
-    bool ok = buildFragmentShaderFromSources(badHeader, MIN_BODY, out, nullptr);
+    char logbuf[4096] = {};
+    FILE* log = fmemopen(logbuf, sizeof(logbuf), "w");
+    bool ok = buildFragmentShaderFromSources(badHeader, MIN_BODY, out, log);
+    if (log) fclose(log);
     TEST("fromSources: missing iTime anchor returns false", !ok);
+    TEST("fromSources: missing iTime diagnostic names the anchor",
+         strstr(logbuf, "uniform float iTime") != nullptr);
 }
 
 void test_fromSources_empty() {
