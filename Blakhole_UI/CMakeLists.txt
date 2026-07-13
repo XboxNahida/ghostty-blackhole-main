@@ -30,6 +30,8 @@ qt_add_executable(appBlakholeUI
     core/avatar_storage.cpp
     core/update_release.cpp
     core/update_checker.cpp
+    core/renderer_startup_diagnostics.h
+    core/renderer_startup_diagnostics.cpp
     core/systemtray.h
     core/systemtray.cpp
     core/blackholecore.h
@@ -72,6 +74,14 @@ target_link_libraries(appBlakholeUI
 )
 
 if(BUILD_TESTING)
+    add_executable(renderer_startup_diagnostics_tests EXCLUDE_FROM_ALL
+        ../tests/renderer_startup_diagnostics_tests.cpp
+        core/renderer_startup_diagnostics.cpp
+    )
+    target_include_directories(renderer_startup_diagnostics_tests PRIVATE core)
+    target_link_libraries(renderer_startup_diagnostics_tests PRIVATE Qt6::Core)
+    add_test(NAME renderer_startup_diagnostics_tests COMMAND renderer_startup_diagnostics_tests)
+
     add_executable(movement_settings_tests EXCLUDE_FROM_ALL
         ../tests/movement_settings_tests.cpp
         ../src/movement_settings.cpp
