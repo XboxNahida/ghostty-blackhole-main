@@ -446,11 +446,12 @@ private:
     QString configPath(const QString &fileName) const;
     QString legacyConfigPath(const QString &fileName) const;
     bool openConfigForRead(QFile &file, const QString &fileName) const;
-    // 查找 blackhole.exe (与 main.cpp --render 子进程对应). 若 projectRootOut 非空, 输出
-    // 该 exe 的"项目根目录" (exe 在 <root>/build/ 下时取其父目录, 否则取 exe 同级目录).
-    // Qt UI 与 blackhole.exe --render 必须读写同一份 blackhole_presets.txt + shaders/, 这要求
-    // 两者工作目录一致 — Qt UI 用此函数定位项目根, 让 configFilePath() 与 startRenderer() 都对齐.
+    // 查找 blackhole-renderer (Linux) / blackhole.exe (Windows).
+    // 搜索顺序: 1) 显式注入路径 2) UI 同级 3) 上溯各级+兄弟 build 4) QStandardPaths.
     QString findRendererExe(QString *projectRootOut = nullptr) const;
+    // 注入显式渲染器路径（用于测试或用户指定）
+    void setRendererExePath(const QString &path) { m_rendererExeOverride = path; }
+    QString rendererExePath() const { return m_rendererExeOverride.isEmpty() ? findRendererExe() : m_rendererExeOverride; }
     void refreshCurrentPresetProps();
     void saveAdvancedConfig();
     void loadAdvancedConfig();
@@ -510,6 +511,11 @@ private:
     QString m_rendererLogPath;
     QByteArray m_rendererLogBoundaryProbe;
     bool m_rendererFailureLatched = false;
+    QString m_rendererExeOverride;
+    QByteArray m_rendererStdoutBuffer;
+    QByteArray m_rendererStderrBuffer;
+    static constexpr qsizetype kMaxStdoutBufferBytes = 65536;
+    static constexpr qsizetype kMaxStderrBufferBytes = 65536;
 
     // 空闲检测
     QTimer *m_idleTimer = nullptr;

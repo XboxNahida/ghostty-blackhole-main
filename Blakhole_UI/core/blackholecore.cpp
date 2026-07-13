@@ -347,26 +347,47 @@ bool BlackHoleCore::openConfigForRead(QFile &file, const QString &fileName) cons
 
 QString BlackHoleCore::findRendererExe(QString *projectRootOut) const
 {
+    // 1) 显式注入路径
+    if (!m_rendererExeOverride.isEmpty()) {
+        if (QFileInfo::exists(m_rendererExeOverride)) {
+            if (projectRootOut) {
+                *projectRootOut = QFileInfo(m_rendererExeOverride).absolutePath();
+            }
+            return m_rendererExeOverride;
+        }
+        return QString();  // 显式路径不存在,不继续搜索
+    }
+
     QString appDir = QCoreApplication::applicationDirPath();
-    QStringList searchPaths;
     QDir dir(appDir);
-    // 顺序: 同级 → 上溯各级 → 兄弟 build 目录
-    searchPaths << dir.absoluteFilePath("blackhole.exe");
-    searchPaths << dir.absoluteFilePath("../blackhole.exe");
-    searchPaths << dir.absoluteFilePath("../../blackhole.exe");
-    searchPaths << dir.absoluteFilePath("../../build/blackhole.exe");       // Qt UI 默认: Blakhole_UI/build_qt → 项目根/build/
-    searchPaths << dir.absoluteFilePath("../../../blackhole.exe");
-    searchPaths << dir.absoluteFilePath("../../../build/blackhole.exe");
-    searchPaths << dir.absoluteFilePath("../../../release/blackhole.exe");
+
+    // 渲染器可执行文件名
+#ifdef Q_OS_WIN
+    QStringList exeNames = {QStringLiteral("blackhole.exe")};
+#else
+    QStringList exeNames = {QStringLiteral("blackhole-renderer")};
+#endif
+
+    // 2) UI 同级 + 上溯各级 + 兄弟 build 目录
+    QStringList searchPaths;
+    for (const QString &name : exeNames) {
+        searchPaths << dir.absoluteFilePath(name);                                          // 同级
+        searchPaths << dir.absoluteFilePath(QStringLiteral("../") + name);                 // 上溯1级
+        searchPaths << dir.absoluteFilePath(QStringLiteral("../../") + name);              // 上溯2级
+        searchPaths << dir.absoluteFilePath(QStringLiteral("../../build/") + name);         // 兄弟 build
+        searchPaths << dir.absoluteFilePath(QStringLiteral("../../../") + name);            // 上溯3级
+        searchPaths << dir.absoluteFilePath(QStringLiteral("../../../build/") + name);      // 上溯3级+build
+        searchPaths << dir.absoluteFilePath(QStringLiteral("../../../release/") + name);    // 上溯3级+release
+    }
 
     for (const QString &p : searchPaths) {
         if (QFileInfo::exists(p)) {
             if (projectRootOut) {
                 QFileInfo fi(p);
                 QDir exeDir = fi.dir();
-                // blackhole.exe main.cpp 假设 exe 在 <root>/build/, 项目根 = build 的父目录
                 QString parent = exeDir.absolutePath();
-                if (exeDir.dirName() == "build" || exeDir.dirName() == "Build") {
+                if (exeDir.dirName().compare("build", Qt::CaseInsensitive) == 0
+                    || exeDir.dirName().compare("release", Qt::CaseInsensitive) == 0) {
                     QDir root = exeDir;
                     root.cdUp();
                     parent = root.absolutePath();
@@ -376,6 +397,18 @@ QString BlackHoleCore::findRendererExe(QString *projectRootOut) const
             return p;
         }
     }
+
+    // 3) QStandardPaths 回退
+    for (const QString &name : exeNames) {
+        QString found = QStandardPaths::findExecutable(name);
+        if (!found.isEmpty()) {
+            if (projectRootOut) {
+                *projectRootOut = QFileInfo(found).absolutePath();
+            }
+            return found;
+        }
+    }
+
     return QString();
 }
 
@@ -785,6 +818,20 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
             emit systemActiveChanged();
         });
 
+        connect(m_rendererProcess, &QProcess::readyReadStandardOutput, this, [this]() {
+            const QByteArray data = m_rendererProcess->readAllStandardOutput();
+            m_rendererStdoutBuffer.append(data);
+            if (m_rendererStdoutBuffer.size() > kMaxStdoutBufferBytes)
+                m_rendererStdoutBuffer.remove(0, m_rendererStdoutBuffer.size() - kMaxStdoutBufferBytes);
+        });
+
+        connect(m_rendererProcess, &QProcess::readyReadStandardError, this, [this]() {
+            const QByteArray data = m_rendererProcess->readAllStandardError();
+            m_rendererStderrBuffer.append(data);
+            if (m_rendererStderrBuffer.size() > kMaxStderrBufferBytes)
+                m_rendererStderrBuffer.remove(0, m_rendererStderrBuffer.size() - kMaxStderrBufferBytes);
+        });
+
         connect(m_rendererProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
             QString msg = m_rendererProcess->errorString();
             qWarning() << "BlackHoleCore: renderer error:" << msg;
@@ -805,6 +852,8 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
 
     qDebug() << "BlackHoleCore: starting" << exePath << "--render" << "cwd:" << projectRoot;
     m_rendererStartupElapsed.restart();
+    m_rendererStdoutBuffer.clear();
+    m_rendererStderrBuffer.clear();
     m_rendererProcess->start(exePath, {QStringLiteral("--render")});
     m_rendererStartupTimer->start(200);
 }

@@ -151,6 +151,12 @@ if(BUILD_TESTING)
     target_include_directories(update_checker_state_tests PRIVATE core)
     target_link_libraries(update_checker_state_tests PRIVATE Qt6::Core Qt6::Network Qt6::Gui)
     add_test(NAME update_checker_state_tests COMMAND update_checker_state_tests)
+
+    add_executable(renderer_search_tests EXCLUDE_FROM_ALL
+        ../tests/renderer_search_tests.cpp
+    )
+    target_link_libraries(renderer_search_tests PRIVATE Qt6::Core)
+    add_test(NAME renderer_search_tests COMMAND renderer_search_tests)
 endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)
