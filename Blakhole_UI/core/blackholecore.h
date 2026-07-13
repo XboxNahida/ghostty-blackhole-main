@@ -11,6 +11,9 @@
 #include <QColor>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QElapsedTimer>
+
+#include "renderer_startup_diagnostics.h"
 
 class QFile;
 
@@ -317,6 +320,7 @@ public:
     QString paymentQrSecondaryUrl() const;
     bool paymentQrAvailable() const;
     Q_INVOKABLE void chooseCustomAvatar();
+    Q_INVOKABLE void openRendererLogDirectory() const;
 
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
@@ -380,6 +384,10 @@ signals:
     void rendererStarted();
     void rendererStopped();
     void rendererError(const QString &msg);
+    void rendererStartupFailed(const QString &title,
+                               const QString &summary,
+                               const QString &details,
+                               const QString &logPath);
     void currentListChanged();
 
     // 高级设置信号
@@ -459,6 +467,11 @@ private:
     void unregisterCloseHotkey();
     bool parseHotkeySequence(const QString &sequence, quint32 *modifiers, quint32 *key) const;
     QString normalizedHotkeySequence(const QString &sequence) const;
+    void startRendererInternal(bool userInitiated);
+    RendererDiagnostic consumeRendererStartupLog(qint64 maxTotalBytes);
+    void pollRendererStartup();
+    void publishRendererDiagnostic(const RendererDiagnostic &diagnostic);
+    void terminateRendererProcess();
 
     PresetModel *m_presetModel;
 
@@ -491,6 +504,12 @@ private:
     // 进程
     bool m_refreshingProps = false;  // 防止currentPresetChanged信号级联
     QProcess *m_rendererProcess = nullptr;
+    RendererStartupDiagnostics m_rendererDiagnostics;
+    QTimer *m_rendererStartupTimer = nullptr;
+    QElapsedTimer m_rendererStartupElapsed;
+    QString m_rendererLogPath;
+    QByteArray m_rendererLogBoundaryProbe;
+    bool m_rendererFailureLatched = false;
 
     // 空闲检测
     QTimer *m_idleTimer = nullptr;

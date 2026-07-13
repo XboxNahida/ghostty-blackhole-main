@@ -16,7 +16,10 @@
 #include <QTextStream>
 #include <QStandardPaths>
 #include <QDebug>
+#include <QDesktopServices>
 #include <QUrl>
+
+#include <algorithm>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -210,6 +213,11 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     m_idleTimer = new QTimer(this);
     m_idleTimer->setInterval(1000);
     connect(m_idleTimer, &QTimer::timeout, this, &BlackHoleCore::checkIdle);
+
+    m_rendererStartupTimer = new QTimer(this);
+    m_rendererStartupTimer->setInterval(200);
+    connect(m_rendererStartupTimer, &QTimer::timeout,
+            this, &BlackHoleCore::pollRendererStartup);
 
     // 默认黑名单 = 原生 blackhole.exe isWatchingVideo() 中的列表
     m_idleBlacklist = QStringList({
@@ -683,10 +691,34 @@ void BlackHoleCore::resetDefaults()
 
 void BlackHoleCore::startRenderer()
 {
+    startRendererInternal(true);
+}
+
+namespace {
+
+constexpr qint64 kMaxRendererLogReadBytes = 64 * 1024;
+constexpr qint64 kMaxRendererLogDrainBytes = 4 * 1024 * 1024;
+constexpr qint64 kRendererLogBoundaryProbeBytes = 64;
+
+} // namespace
+
+void BlackHoleCore::startRendererInternal(bool userInitiated)
+{
+    if (!userInitiated && m_rendererFailureLatched) return;
+
+    if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
+        if (userInitiated &&
+            m_rendererDiagnostics.state() == RendererStartupState::Failed) {
+            terminateRendererProcess();
+        }
+    }
+
     if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
         qDebug() << "BlackHoleCore: renderer already running";
         return;
     }
+
+    if (userInitiated) m_rendererFailureLatched = false;
 
     // 先保存配置到文件（blackhole.exe --render 从文件读取配置）
     saveConfig();
@@ -694,10 +726,32 @@ void BlackHoleCore::startRenderer()
     // 查找 blackhole.exe + 它的项目根目录 (保证读写同一份 presets + shaders)
     QString projectRoot;
     QString exePath = findRendererExe(&projectRoot);
+    if (projectRoot.isEmpty()) projectRoot = QCoreApplication::applicationDirPath();
 
-    if (exePath.isEmpty()) {
-        qWarning() << "BlackHoleCore: blackhole.exe not found";
-        emit rendererError(QStringLiteral("找不到 blackhole.exe，请确认程序位置"));
+    m_rendererLogPath = QDir(projectRoot).filePath(QStringLiteral("blackhole_debug.txt"));
+    const QFileInfo baselineLogInfo(m_rendererLogPath);
+    const qint64 previousLogSize = baselineLogInfo.exists() ? baselineLogInfo.size() : 0;
+    m_rendererLogBoundaryProbe.clear();
+    if (previousLogSize > 0) {
+        QFile baselineLog(m_rendererLogPath);
+        const qint64 probeOffset = std::max<qint64>(
+            0, previousLogSize - kRendererLogBoundaryProbeBytes);
+        if (baselineLog.open(QIODevice::ReadOnly) && baselineLog.seek(probeOffset)) {
+            m_rendererLogBoundaryProbe = baselineLog.read(kRendererLogBoundaryProbeBytes);
+        }
+    }
+    m_rendererDiagnostics.beginAttempt(m_rendererLogPath,
+                                       previousLogSize,
+                                       {});
+
+    const RendererDiagnostic missingFiles = m_rendererDiagnostics.validateRequiredFiles(
+        exePath,
+        projectRoot,
+        {QStringLiteral("shaders/vert.glsl"),
+         QStringLiteral("shaders/frag_desktop_header.glsl"),
+         QStringLiteral("blackhole.glsl")});
+    if (missingFiles.valid) {
+        publishRendererDiagnostic(missingFiles);
         return;
     }
 
@@ -712,18 +766,29 @@ void BlackHoleCore::startRenderer()
         });
 
         connect(m_rendererProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this](int code, QProcess::ExitStatus) {
+                this, [this](int code, QProcess::ExitStatus status) {
             qDebug() << "BlackHoleCore: renderer stopped, exit code:" << code;
+            RendererDiagnostic diagnostic;
+            if (m_rendererDiagnostics.state() == RendererStartupState::Starting) {
+                diagnostic = consumeRendererStartupLog(kMaxRendererLogDrainBytes);
+            }
+            if (!diagnostic.valid) {
+                diagnostic = m_rendererDiagnostics.processFinished(
+                    code, status == QProcess::CrashExit);
+            }
+            publishRendererDiagnostic(diagnostic);
             emit rendererStopped();
             emit rendererRunningChanged();
             emit systemActiveChanged();
         });
 
         connect(m_rendererProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
-            Q_UNUSED(err);
             QString msg = m_rendererProcess->errorString();
             qWarning() << "BlackHoleCore: renderer error:" << msg;
-            emit rendererError(msg);
+            if (err == QProcess::FailedToStart &&
+                m_rendererDiagnostics.state() == RendererStartupState::Starting) {
+                publishRendererDiagnostic(m_rendererDiagnostics.processFailedToStart(msg));
+            }
             emit rendererRunningChanged();
             emit systemActiveChanged();
         });
@@ -736,9 +801,125 @@ void BlackHoleCore::startRenderer()
     }
 
     qDebug() << "BlackHoleCore: starting" << exePath << "--render" << "cwd:" << projectRoot;
-    m_rendererProcess->start(exePath, QStringList() << "--render");
+    m_rendererStartupElapsed.restart();
+    m_rendererProcess->start(exePath, {QStringLiteral("--render")});
+    m_rendererStartupTimer->start(200);
 }
+
+RendererDiagnostic BlackHoleCore::consumeRendererStartupLog(qint64 maxTotalBytes)
+{
+    if (m_rendererDiagnostics.state() != RendererStartupState::Starting
+        || maxTotalBytes < kMaxRendererLogReadBytes) {
+        return {};
+    }
+
+    QFile logFile(m_rendererLogPath);
+    if (!logFile.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+
+    qint64 totalRead = 0;
+    while (totalRead + kMaxRendererLogReadBytes <= maxTotalBytes
+           && m_rendererDiagnostics.state() == RendererStartupState::Starting) {
+        const qint64 fileSize = logFile.size();
+        qint64 readOffset = m_rendererDiagnostics.logOffset();
+        bool fileReplacedOrTruncated = fileSize < readOffset;
+
+        if (!fileReplacedOrTruncated && readOffset > 0
+            && !m_rendererLogBoundaryProbe.isEmpty()) {
+            const qint64 probeOffset = readOffset - m_rendererLogBoundaryProbe.size();
+            if (!logFile.seek(probeOffset)
+                || logFile.read(m_rendererLogBoundaryProbe.size())
+                       != m_rendererLogBoundaryProbe) {
+                fileReplacedOrTruncated = true;
+            }
+        }
+
+        if (fileReplacedOrTruncated) {
+            readOffset = 0;
+        }
+        if (readOffset >= fileSize) {
+            if (fileReplacedOrTruncated) {
+                m_rendererLogBoundaryProbe.clear();
+                m_rendererDiagnostics.consumeLogChunk({}, 0, true);
+            }
+            break;
+        }
+
+        if (!logFile.seek(readOffset)) {
+            break;
+        }
+        const QByteArray content = logFile.read(kMaxRendererLogReadBytes);
+        if (content.isEmpty()) {
+            break;
+        }
+
+        const RendererDiagnostic diagnostic = m_rendererDiagnostics.consumeLogChunk(
+            content, readOffset, fileReplacedOrTruncated);
+        totalRead += content.size();
+
+        const qint64 consumedOffset = m_rendererDiagnostics.logOffset();
+        const qint64 probeOffset = std::max<qint64>(
+            0, consumedOffset - kRendererLogBoundaryProbeBytes);
+        if (logFile.seek(probeOffset)) {
+            m_rendererLogBoundaryProbe = logFile.read(consumedOffset - probeOffset);
+        }
+
+        if (diagnostic.valid) {
+            return diagnostic;
+        }
+        if (content.size() < kMaxRendererLogReadBytes) {
+            break;
+        }
+    }
+    return {};
+}
+
+void BlackHoleCore::pollRendererStartup()
+{
+    if (m_rendererDiagnostics.state() != RendererStartupState::Starting) {
+        m_rendererStartupTimer->stop();
+        return;
+    }
+
+    publishRendererDiagnostic(
+        consumeRendererStartupLog(kMaxRendererLogReadBytes));
+
+    if (m_rendererDiagnostics.state() == RendererStartupState::Ready) {
+        m_rendererStartupTimer->stop();
+    } else if (m_rendererStartupElapsed.elapsed() >= 8000) {
+        publishRendererDiagnostic(m_rendererDiagnostics.timeout());
+    }
+}
+
+void BlackHoleCore::publishRendererDiagnostic(const RendererDiagnostic &diagnostic)
+{
+    if (!diagnostic.valid) return;
+    m_rendererFailureLatched = true;
+    m_rendererStartupTimer->stop();
+    terminateRendererProcess();
+    emit rendererStartupFailed(diagnostic.title,
+                               diagnostic.summary,
+                               diagnostic.details,
+                               diagnostic.logPath);
+    emit rendererError(diagnostic.summary);
+}
+
+void BlackHoleCore::openRendererLogDirectory() const
+{
+    const QFileInfo logInfo(m_rendererLogPath);
+    const QString directory = logInfo.absolutePath();
+    QDesktopServices::openUrl(QUrl::fromLocalFile(directory));
+}
+
 void BlackHoleCore::stopRenderer()
+{
+    m_rendererDiagnostics.beginStopping();
+    m_rendererStartupTimer->stop();
+    terminateRendererProcess();
+}
+
+void BlackHoleCore::terminateRendererProcess()
 {
     if (!m_rendererProcess)
         return;
@@ -1356,7 +1537,7 @@ check_foreground_done:
     if (idleMs >= idleThresholdMs && !blocked) {
         if (!running) {
             qDebug() << "BlackHoleCore: idle detected, starting renderer";
-            startRenderer();
+            startRendererInternal(false);
         }
     } else {
         if (running) {
