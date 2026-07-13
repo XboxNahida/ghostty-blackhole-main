@@ -149,6 +149,8 @@ if(BUILD_TESTING)
     )
     target_include_directories(shader_source_tests PRIVATE src)
     add_test(NAME shader_source_tests COMMAND shader_source_tests)
+    set_tests_properties(shader_source_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
     # Compile-guard: verify all render core source files compile on Linux.
     # Uses -fsyntax-only so no GL/Bloom/Win32 symbols need to be linked.

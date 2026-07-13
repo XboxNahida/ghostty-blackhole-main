@@ -54,30 +54,56 @@ bool applyPatches(std::string& body, const ShaderPatch* patches, int count,
     return allOk;
 }
 
-/// Semicolon-aware replacement for `const float NAME = value;` declarations.
-/// Replaces the entire declaration from "const float NAME =" through ";".
-static bool replaceConstFloatDecl(std::string& body, const char* name,
-                                  const std::string& newDecl,
-                                  const char* desc, FILE* debugLog)
+static bool findConstFloatDecl(const std::string& body, const char* name,
+                               size_t& pos, size_t& valuePos, size_t& end,
+                               const char* desc, bool critical, FILE* debugLog)
 {
-    std::string pattern = std::string("const float ") + name + " = ";
-    size_t pos = body.find(pattern);
+    const std::string pattern = std::string("const float ") + name;
+    pos = body.find(pattern);
     if (pos == std::string::npos) {
         if (debugLog) {
-            fprintf(debugLog, "[FAIL] Critical anchor '%s' not found\n", desc);
+            fprintf(debugLog, "[%s] %s: declaration not found\n",
+                    critical ? "FAIL" : "PATCH", desc);
+            fflush(debugLog);
+        }
+        return !critical;
+    }
+
+    size_t equals = pos + pattern.size();
+    while (equals < body.size() && (body[equals] == ' ' || body[equals] == '\t'))
+        ++equals;
+    if (equals >= body.size() || body[equals] != '=') {
+        if (debugLog) {
+            fprintf(debugLog, "[FAIL] Assignment operator not found for '%s'\n", desc);
             fflush(debugLog);
         }
         return false;
     }
-    size_t ve = body.find(";", pos);
-    if (ve == std::string::npos) {
+    valuePos = equals + 1;
+    while (valuePos < body.size() && (body[valuePos] == ' ' || body[valuePos] == '\t'))
+        ++valuePos;
+    end = body.find(';', valuePos);
+    if (end == std::string::npos) {
         if (debugLog) {
             fprintf(debugLog, "[FAIL] Semicolon not found for '%s'\n", desc);
             fflush(debugLog);
         }
         return false;
     }
-    body.replace(pos, ve - pos + 1, newDecl);
+    return true;
+}
+
+/// Whitespace-tolerant, semicolon-aware replacement for a const float declaration.
+static bool replaceConstFloatDecl(std::string& body, const char* name,
+                                  const std::string& newDecl, const char* desc,
+                                  bool critical, FILE* debugLog)
+{
+    size_t pos = 0, valuePos = 0, end = 0;
+    if (!findConstFloatDecl(body, name, pos, valuePos, end, desc, critical, debugLog))
+        return false;
+    if (pos == std::string::npos)
+        return true;
+    body.replace(pos, end - pos + 1, newDecl);
     if (debugLog) {
         fprintf(debugLog, "[OK] %s: replaced at %zu\n", desc, pos);
         fflush(debugLog);
@@ -90,6 +116,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
                                     std::string& out,
                                     FILE* debugLog)
 {
+    out.clear();
     if (header.empty() || body.empty()) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Shader source empty: header=%zu, body=%zu\n", header.size(), body.size()); fflush(debugLog); }
         return false;
@@ -166,20 +193,13 @@ bool buildFragmentShaderFromSources(const std::string& header,
             {"DISK_INCL",   "uDiskIncl > 0.0 ? uDiskIncl :"},
         };
         for (const auto& o : ov) {
-            std::string pattern = std::string("const float ") + o.name + " = ";
-            size_t pos = b.find(pattern);
-            if (pos == std::string::npos) {
-                if (debugLog) { fprintf(debugLog, "[FAIL] Critical anchor '%s' not found\n", pattern.c_str()); fflush(debugLog); }
+            size_t pos = 0, valuePos = 0, end = 0;
+            if (!findConstFloatDecl(b, o.name, pos, valuePos, end,
+                                    o.name, true, debugLog))
                 return false;
-            }
-            size_t ve = b.find(";", pos);
-            if (ve == std::string::npos) {
-                if (debugLog) { fprintf(debugLog, "[FAIL] Semicolon not found after '%s'\n", pattern.c_str()); fflush(debugLog); }
-                return false;
-            }
-            std::string val = b.substr(pos + pattern.length(), ve - pos - pattern.length());
+            std::string val = b.substr(valuePos, end - valuePos);
             std::string replacement = std::string("float ") + o.name + " = " + o.uniform + " " + val + ";";
-            b.replace(pos, ve - pos + 1, replacement);
+            b.replace(pos, end - pos + 1, replacement);
         }
     }
 
@@ -250,13 +270,16 @@ bool buildFragmentShaderFromSources(const std::string& header,
     // These must consume the entire "const float NAME = value;" declaration,
     // not just the prefix, to avoid leaving a stale suffix that breaks GLSL.
     if (!replaceConstFloatDecl(b, "WORK_AREA",   "const float WORK_AREA = 0.0;",
-                               "WORK_AREA set to 0.0", debugLog))
+                               "WORK_AREA set to 0.0", true, debugLog))
         return false;
     if (!replaceConstFloatDecl(b, "TOKEN_HOME_X", "float TOKEN_HOME_X = [redacted];",
-                               "TOKEN_HOME_X non-const", debugLog))
+                               "TOKEN_HOME_X non-const", true, debugLog))
         return false;
     if (!replaceConstFloatDecl(b, "TOKEN_HOME_Y", "float TOKEN_HOME_Y = [redacted];",
-                               "TOKEN_HOME_Y non-const", debugLog))
+                               "TOKEN_HOME_Y non-const", true, debugLog))
+        return false;
+    if (!replaceConstFloatDecl(b, "DEMO_XFADE", "const float DEMO_XFADE = 0.65;",
+                               "DEMO_XFADE=0.65", false, debugLog))
         return false;
 
     // ---- applyPatches for remaining exact-match patches ----
@@ -331,8 +354,6 @@ bool buildFragmentShaderFromSources(const std::string& header,
          "float reach  = mix(0.30, max(TOKEN_REACH, 1.0), g);", "multimon reach", false},
         {"cos(moveT * 0.8)", "cos((moveT + uRandPhase) * 0.8)", "trajectory: cos", false},
         {"sin(moveT * 1.0)", "sin((moveT + uRandPhase) * 1.0)", "trajectory: sin", false},
-        {"const float DEMO_XFADE",
-         "const float DEMO_XFADE = 0.65;", "DEMO_XFADE=0.65", false},
     };
     if (!applyPatches(b, remainingPatches,
                       sizeof(remainingPatches)/sizeof(remainingPatches[0]),
@@ -346,6 +367,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
 }
 
 bool buildFragmentShader(std::string& out, FILE* debugLog) {
+    out.clear();
     std::string header = readFile("shaders/frag_desktop_header.glsl");
     std::string body   = readFile("blackhole.glsl");
     if (header.empty() || body.empty()) {

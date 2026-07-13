@@ -34,6 +34,18 @@ static void deleteTempFile(const std::string& path) {
     if (!path.empty()) unlink(path.c_str());
 }
 
+static std::string readLog(FILE* log) {
+    if (!log) return "";
+    fflush(log);
+    if (fseek(log, 0, SEEK_SET) != 0) return "";
+    std::string result;
+    char buffer[1024];
+    size_t count = 0;
+    while ((count = fread(buffer, 1, sizeof(buffer), log)) > 0)
+        result.append(buffer, count);
+    return result;
+}
+
 void test_readFile() {
     std::string result = readFile("/tmp/nonexistent_file_blackhole_test.glsl");
     TEST("readFile: nonexistent file returns empty", result.empty());
@@ -64,36 +76,35 @@ void test_buildFragmentShader_missing_files() {
     char cwd[4096];
     getcwd(cwd, sizeof(cwd));
     chdir("/tmp");
-    std::string out;
+    std::string out = "stale shader";
     bool ok = buildFragmentShader(out, nullptr);
     chdir(cwd);
     TEST("buildFragmentShader: missing shader files returns false", !ok);
     if (!ok) {
-        TEST("buildFragmentShader: missing files returns empty output", out.empty());
+        TEST("buildFragmentShader: missing files clear output", out.empty());
     }
 }
 
 void test_preset_count_limits() {
     std::string header = readFile("shaders/frag_desktop_header.glsl");
-    if (!header.empty()) {
-        bool hasDefine = header.find("#define MAX_PRESETS 64") != std::string::npos;
-        TEST("preset_limit: header defines MAX_PRESETS = 64", hasDefine);
-    } else {
-        fprintf(stdout, "SKIP: shaders/frag_desktop_header.glsl not found\n");
-    }
+    TEST("preset_limit: header loaded", !header.empty());
+    bool hasDefine = header.find("#define MAX_PRESETS 64") != std::string::npos;
+    TEST("preset_limit: header defines MAX_PRESETS = 64", hasDefine);
 
     std::string fragSrc;
-    if (buildFragmentShader(fragSrc, nullptr)) {
+    bool built = buildFragmentShader(fragSrc, nullptr);
+    TEST("preset_limit: production shader builds", built);
+    if (built) {
         bool hasClamp = fragSrc.find("MAX_PRESETS") != std::string::npos;
         TEST("preset_limit: built shader references MAX_PRESETS", hasClamp);
-    } else {
-        fprintf(stdout, "SKIP: buildFragmentShader failed\n");
     }
 }
 
 void test_version_330() {
     std::string fragSrc;
-    if (buildFragmentShader(fragSrc, nullptr)) {
+    bool built = buildFragmentShader(fragSrc, nullptr);
+    TEST("shader_version: production shader builds", built);
+    if (built) {
         int count = 0;
         size_t pos = 0;
         while ((pos = fragSrc.find("#version", pos)) != std::string::npos) {
@@ -103,8 +114,6 @@ void test_version_330() {
         TEST("shader_version: output contains exactly one #version directive", count == 1);
         bool has330 = fragSrc.find("#version 330") != std::string::npos;
         TEST("shader_version: version is 330", has330);
-    } else {
-        fprintf(stdout, "SKIP: buildFragmentShader failed\n");
     }
 }
 
@@ -176,7 +185,7 @@ static const char* MIN_HEADER =
 /// shader.  Each anchor is present and in a form that matches the patch.
 static const char* MIN_BODY =
     "float t = iTime * DRIFT_SPEED;\n"
-    "const float HOLE_RADIUS = 1.0;\n"
+    "const float HOLE_RADIUS    = 1.0;\n"
     "const float DISK_GAIN = 1.0;\n"
     "const float DISK_TEMP = 1.0;\n"
     "const float EXPOSURE = 1.0;\n"
@@ -186,9 +195,10 @@ static const char* MIN_BODY =
     "DiskLook demoLook() {\n  return DiskLook(1,2,3,4,5,6,7,8,9,10,11,12,13,14);\n}\n"
     "#define SIZE_MODE MODE_TOKENS\n"
     "float rh = HOLE_RADIUS * sz;\n"
-    "const float WORK_AREA = 1.0;\n"
-    "const float TOKEN_HOME_X = 0.5;\n"
-    "const float TOKEN_HOME_Y = 0.5;\n"
+    "const float WORK_AREA     = 1.0;\n"
+    "const float TOKEN_HOME_X  = 0.5;\n"
+    "const float TOKEN_HOME_Y\t= 0.5;\n"
+    "const float DEMO_XFADE    = 0.2;\n"
     "center = (lo + hi) * 0.5 + wander * ampEff\n"
     "               + wobAmp * vec2(cos(moveT * 0.8), sin(moveT * 1.0));\n"
     "lissa(moveT * TOKEN_CALM)\n"
@@ -199,9 +209,9 @@ static const char* MIN_BODY =
 
 void test_fromSources_valid() {
     std::string out;
-    char logbuf[8192] = {};
-    FILE* log = fmemopen(logbuf, sizeof(logbuf), "w");
+    FILE* log = tmpfile();
     bool ok = buildFragmentShaderFromSources(MIN_HEADER, MIN_BODY, out, log);
+    std::string logText = readLog(log);
     if (log) fclose(log);
     TEST("fromSources: valid fixture returns true", ok);
     TEST("fromSources: output is non-empty", !out.empty());
@@ -235,7 +245,10 @@ void test_fromSources_valid() {
             TEST("fromSources: WORK_AREA no double semicolon", noDoubleSemi);
         }
         // Verify diagnostic log is non-empty
-        bool hasDiagnostics = (strlen(logbuf) > 0);
+        TEST("fromSources: DEMO_XFADE has clean declaration",
+             out.find("const float DEMO_XFADE = 0.65;") != std::string::npos &&
+             out.find("0.65;    =") == std::string::npos);
+        bool hasDiagnostics = !logText.empty();
         TEST("fromSources: diagnostic log produced", hasDiagnostics);
     }
 }
@@ -248,28 +261,29 @@ void test_fromSources_missing_critical_anchor() {
         badBody.replace(pos, strlen("float t = iTime * DRIFT_SPEED;"),
                         "float t = iTime * OTHER_CONST; /* moved */");
     }
-    std::string out;
-    // Capture diagnostic output
-    char logbuf[4096] = {};
-    FILE* log = fmemopen(logbuf, sizeof(logbuf), "w");
+    std::string out = "stale shader";
+    FILE* log = tmpfile();
     bool ok = buildFragmentShaderFromSources(MIN_HEADER, badBody, out, log);
+    std::string logText = readLog(log);
     if (log) fclose(log);
     TEST("fromSources: missing moveT anchor returns false", !ok);
+    TEST("fromSources: missing moveT clears output", out.empty());
     TEST("fromSources: missing moveT diagnostic names the anchor",
-         strstr(logbuf, "float t = iTime * DRIFT_SPEED") != nullptr);
+         logText.find("float t = iTime * DRIFT_SPEED") != std::string::npos);
 }
 
 void test_fromSources_missing_iTime() {
     std::string badHeader = "uniform float iNotTime;\n";
     badHeader += "#define MAX_PRESETS 64\n";
-    std::string out;
-    char logbuf[4096] = {};
-    FILE* log = fmemopen(logbuf, sizeof(logbuf), "w");
+    std::string out = "stale shader";
+    FILE* log = tmpfile();
     bool ok = buildFragmentShaderFromSources(badHeader, MIN_BODY, out, log);
+    std::string logText = readLog(log);
     if (log) fclose(log);
     TEST("fromSources: missing iTime anchor returns false", !ok);
+    TEST("fromSources: missing iTime clears output", out.empty());
     TEST("fromSources: missing iTime diagnostic names the anchor",
-         strstr(logbuf, "uniform float iTime") != nullptr);
+         logText.find("uniform float iTime") != std::string::npos);
 }
 
 void test_fromSources_empty() {

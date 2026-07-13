@@ -27,7 +27,7 @@ bool applyPatches(std::string& body, const ShaderPatch* patches, int count,
 /// patches and produce the final fragment shader in `out`.
 /// This is the testable production path; buildFragmentShader() is a wrapper
 /// that reads files and delegates here.
-/// Returns false if any critical patch anchor is missing.
+/// Returns false and clears `out` if any critical patch anchor is missing.
 bool buildFragmentShaderFromSources(const std::string& header,
                                     const std::string& body,
                                     std::string& out,
@@ -36,5 +36,5 @@ bool buildFragmentShaderFromSources(const std::string& header,
 /// Build the fragment shader by reading "shaders/frag_desktop_header.glsl"
 /// and "blackhole.glsl" from disk, then delegating to
 /// buildFragmentShaderFromSources().
-/// Returns false if shader files cannot be read or a critical patch fails.
+/// Returns false and clears `out` if files cannot be read or a critical patch fails.
 bool buildFragmentShader(std::string& out, FILE* debugLog = nullptr);
