@@ -1,134 +1,169 @@
-// gnome_idle_monitor_tests.cpp — DS-06: GNOME idle monitor state machine tests
+#include "gnome_idle_backend.h"
+#include "gnome_idle_monitor.h"
+
 #include <QCoreApplication>
-#include <QDebug>
 
 #include <cstdlib>
 #include <iostream>
-
-#include "gnome_idle_monitor.h"
+#include <vector>
 
 namespace {
+const QString kIdleService = QStringLiteral("org.gnome.Mutter.IdleMonitor");
+const QString kScreenSaverService = QStringLiteral("org.gnome.ScreenSaver");
 
-void Require(bool condition, const char *message)
+void require(bool condition, const char *message)
 {
     if (!condition) {
-        std::cerr << "FAIL: " << message << "\n";
+        std::cerr << "FAIL: " << message << '\n';
         std::exit(1);
     }
-    std::cout << "PASS: " << message << "\n";
 }
 
-} // namespace
+struct FakeBackend final : GnomeIdleBackend {
+    bool idleAvailable = true;
+    bool screenSaverAvailableValue = true;
+    bool locked = false;
+    bool screenSaverReplyOk = true;
+    quint32 nextIdleId = 11;
+    quint32 nextActiveId = 22;
+    quint64 lastIdleInterval = 0;
+    int refreshCount = 0;
+    std::vector<quint32> removed;
 
-int main(int argc, char *argv[])
+    quint32 addIdleWatch(quint64 intervalMs) override
+    {
+        lastIdleInterval = intervalMs;
+        return idleAvailable ? nextIdleId : 0;
+    }
+    quint32 addActiveWatch() override { return idleAvailable ? nextActiveId : 0; }
+    void removeWatch(quint32 id) override { removed.push_back(id); }
+    bool screenSaverActive(bool *ok) override
+    {
+        *ok = screenSaverReplyOk;
+        return locked;
+    }
+    bool idleServiceAvailable() const override { return idleAvailable; }
+    bool screenSaverAvailable() const override { return screenSaverAvailableValue; }
+    void refresh() override { ++refreshCount; }
+};
+}
+
+int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
-    // Test 1: Initial state is Degraded
     {
-        GnomeIdleMonitor monitor;
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "initial state is Degraded");
+        FakeBackend backend;
+        GnomeIdleMonitor monitor(&backend);
+        require(monitor.state() == GnomeIdleMonitor::Degraded, "initial state is Degraded");
+        monitor.start();
+        require(monitor.isActive(), "start with both services and watches becomes Active");
+        require(monitor.hasIdleWatch() && monitor.hasActiveWatch(), "both watches registered");
+        require(backend.lastIdleInterval == 300000, "default idle interval passed to backend");
+        monitor.setIdleSeconds(45);
+        require(backend.lastIdleInterval == 45000, "updated idle interval re-arms production watches");
     }
 
-    // Test 2: Start/stop lifecycle (D-Bus auto-creates proxy, watches may/may not register)
     {
-        GnomeIdleMonitor monitor;
+        FakeBackend backend;
+        backend.locked = true;
+        GnomeIdleMonitor monitor(&backend);
+        monitor.start();
+        require(monitor.isLocked(), "initial locked state is read from backend");
+        require(!monitor.hasIdleWatch() && !monitor.hasActiveWatch(), "locked startup registers no watches");
+    }
+
+    {
+        FakeBackend backend;
+        GnomeIdleMonitor monitor(&backend);
+        bool idleSignal = false;
+        bool activitySignal = false;
+        QObject::connect(&monitor, &GnomeIdleMonitor::idleEligible, [&] { idleSignal = true; });
+        QObject::connect(&monitor, &GnomeIdleMonitor::activityDetected, [&] { activitySignal = true; });
+        monitor.start();
+        monitor.handleWatchFired(11);
+        require(monitor.isIdleEligible() && idleSignal, "exact idle ID enters IdleEligible");
+        monitor.setRendererRunning(true);
+        require(monitor.isRendererRunning(), "renderer callback enters RendererRunning");
+        monitor.handleWatchFired(22);
+        require(activitySignal && monitor.isActive(), "exact active ID stops renderer and re-arms");
+        require(monitor.hasIdleWatch() && monitor.hasActiveWatch(), "activity re-arms both watches");
+    }
+
+    {
+        FakeBackend backend;
+        GnomeIdleMonitor monitor(&backend);
+        bool lockedSignal = false;
+        bool unlockedSignal = false;
+        QObject::connect(&monitor, &GnomeIdleMonitor::lockDetected, [&] { lockedSignal = true; });
+        QObject::connect(&monitor, &GnomeIdleMonitor::unlockDetected, [&] { unlockedSignal = true; });
+        monitor.start();
+        monitor.handleScreenSaverActiveChanged(true);
+        require(monitor.isLocked() && lockedSignal, "lock event enters Locked and emits");
+        require(!monitor.hasIdleWatch() && !monitor.hasActiveWatch(), "lock clears both IDs");
+        require(backend.removed.size() == 2 && backend.removed[0] == 11 && backend.removed[1] == 22,
+                "lock removes exact registered IDs through backend");
+        backend.nextIdleId = 31;
+        backend.nextActiveId = 32;
+        monitor.handleScreenSaverActiveChanged(false);
+        require(monitor.isActive() && unlockedSignal, "unlock re-arms and enters Active");
+        monitor.handleWatchFired(31);
+        require(monitor.isIdleEligible(), "unlock uses newly registered idle ID");
+    }
+
+    {
+        FakeBackend backend;
+        backend.nextActiveId = 0;
+        GnomeIdleMonitor monitor(&backend);
+        monitor.start();
+        require(monitor.state() == GnomeIdleMonitor::Degraded, "partial watch registration degrades");
+        require(!monitor.hasIdleWatch() && !monitor.hasActiveWatch(), "partial registration is rolled back");
+        require(backend.removed.size() == 1 && backend.removed[0] == 11,
+                "successful half of partial registration is removed");
+    }
+
+    {
+        FakeBackend backend;
+        GnomeIdleMonitor monitor(&backend);
+        bool emitted = false;
+        QObject::connect(&monitor, &GnomeIdleMonitor::idleEligible, [&] { emitted = true; });
         monitor.start();
         monitor.stop();
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "stop returns to Degraded");
-        monitor.stop();
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "double stop stays Degraded");
+        monitor.handleWatchFired(11);
+        monitor.handleScreenSaverActiveChanged(true);
+        monitor.handleServiceRegistered(kIdleService);
+        require(monitor.state() == GnomeIdleMonitor::Degraded && !emitted,
+                "all stale callbacks are suppressed after stop");
+        require(backend.refreshCount == 0, "stopped service callback cannot recover");
     }
 
-    // Test 3: setIdleSeconds
     {
-        GnomeIdleMonitor monitor;
-        Require(monitor.idleSeconds() == 300, "default idle seconds is 300");
-        monitor.setIdleSeconds(600);
-        Require(monitor.idleSeconds() == 600, "setIdleSeconds updates value");
+        FakeBackend backend;
+        GnomeIdleMonitor monitor(&backend);
+        monitor.start();
+        backend.idleAvailable = false;
+        monitor.handleServiceUnregistered(kIdleService);
+        require(monitor.state() == GnomeIdleMonitor::Degraded, "service loss degrades");
+        require(!monitor.hasIdleWatch() && !monitor.hasActiveWatch(), "service loss clears watch IDs");
+        require(backend.removed.size() == 2, "service loss removes both registered watches");
+        monitor.handleServiceRegistered(kScreenSaverService);
+        require(monitor.state() == GnomeIdleMonitor::Degraded,
+                "recovery waits until both services are available");
+        backend.idleAvailable = true;
+        backend.nextIdleId = 41;
+        backend.nextActiveId = 42;
+        monitor.handleServiceRegistered(kIdleService);
+        require(monitor.isActive() && monitor.hasIdleWatch() && monitor.hasActiveWatch(),
+                "both-service recovery registers both watches and becomes Active");
+        require(backend.refreshCount == 3, "loss and registration events refresh backend proxies");
     }
 
-    // Test 4: State name helpers
     {
-        GnomeIdleMonitor monitor;
-        Require(monitor.stateName() == "Degraded", "stateName returns Degraded");
-        Require(!monitor.isLocked(), "initial not locked");
-        Require(!monitor.isActive(), "initial not active");
-        Require(!monitor.isIdleEligible(), "initial not idle eligible");
-        Require(!monitor.isRendererRunning(), "initial not rendering");
-    }
-
-    // Test 5: setRendererRunning on Degraded is no-op
-    {
-        GnomeIdleMonitor monitor;
-        monitor.setRendererRunning(true);
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "setRendererRunning(true) on Degraded is no-op");
-        monitor.setRendererRunning(false);
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "setRendererRunning(false) on Degraded is no-op");
-    }
-
-    // Test 6: Idle watch fire → IdleEligible + signal
-    {
-        GnomeIdleMonitor monitor;
-        bool idleEmitted = false;
-        QObject::connect(&monitor, &GnomeIdleMonitor::idleEligible,
-                         [&idleEmitted]() { idleEmitted = true; });
-        // Manually set state to Active and inject a watch
-        // We bypass by calling onWatchFired directly via test helper
-        // First transition to Active by starting (if it happens) or skip
-        monitor.testInjectWatchFired(123); // unknown ID, no-op
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "unknown watch ID is no-op");
-        Require(!idleEmitted, "unknown watch ID does not emit idleEligible");
-    }
-
-    // Test 7: Lock/unlock transitions
-    {
-        GnomeIdleMonitor monitor;
-        bool lockEmitted = false;
-        bool unlockEmitted = false;
-        QObject::connect(&monitor, &GnomeIdleMonitor::lockDetected,
-                         [&lockEmitted]() { lockEmitted = true; });
-        QObject::connect(&monitor, &GnomeIdleMonitor::unlockDetected,
-                         [&unlockEmitted]() { unlockEmitted = true; });
-
-        monitor.testInjectActiveChanged(true);
-        Require(monitor.isLocked(), "lock: ActiveChanged(true) → Locked");
-        Require(lockEmitted, "lock: lockDetected emitted");
-
-        monitor.testInjectActiveChanged(false); // still locked? No, we process it
-        Require(monitor.isActive(), "unlock: ActiveChanged(false) from Locked → Active");
-        Require(unlockEmitted, "unlock: unlockDetected emitted");
-    }
-
-    // Test 8: Service loss → Degraded
-    {
-        GnomeIdleMonitor monitor;
-        monitor.testInjectServiceUnregistered("org.gnome.Mutter.IdleMonitor");
-        Require(monitor.state() == GnomeIdleMonitor::Degraded,
-                "service loss → Degraded");
-    }
-
-    // Test 9: hasIdleWatch / hasActiveWatch helpers
-    {
-        GnomeIdleMonitor monitor;
-        Require(!monitor.testHasIdleWatch(), "no idle watch initially");
-        Require(!monitor.testHasActiveWatch(), "no active watch initially");
-    }
-
-    // Test 10: Double lock/unlock is safe
-    {
-        GnomeIdleMonitor monitor;
-        monitor.testInjectActiveChanged(true);
-        monitor.testInjectActiveChanged(true); // already locked
-        Require(monitor.isLocked(), "double lock stays locked");
-        monitor.testInjectActiveChanged(false);
-        Require(monitor.isActive(), "unlock after lock works");
+        FakeBackend backend;
+        backend.screenSaverReplyOk = false;
+        GnomeIdleMonitor monitor(&backend);
+        monitor.start();
+        require(monitor.state() == GnomeIdleMonitor::Degraded, "GetActive failure degrades");
     }
 
     std::cout << "GNOME_IDLE_MONITOR_TESTS_OK\n";

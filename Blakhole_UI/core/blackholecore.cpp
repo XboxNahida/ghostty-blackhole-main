@@ -1017,6 +1017,9 @@ void BlackHoleCore::setDisplayMode(int mode) {
     emit displayModeChanged();
     // 切换模式时停止一切，等待用户手动启动
     if (m_idleTimer && m_idleTimer->isActive()) m_idleTimer->stop();
+#ifndef Q_OS_WIN
+    if (m_gnomeIdle) m_gnomeIdle->stop();
+#endif
     stopRenderer();
     emit systemActiveChanged();
 }

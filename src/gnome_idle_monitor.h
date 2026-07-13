@@ -1,17 +1,12 @@
-// gnome_idle_monitor.h — GNOME idle/activity/lock-screen monitor (D-Bus)
 #pragma once
 
 #include <QObject>
-#include <QDBusInterface>
 #include <QDBusServiceWatcher>
-#include <QTimer>
 
-// GNOME idle/lock state machine
-// Active -> IdleEligible (idle watch fired)
-// IdleEligible -> RendererRunning (policy allows -> startRenderer)
-// RendererRunning -> Active (user activity detected)
-// Any -> Locked (screensaver active -> stopRenderer)
-// Locked -> Active (screensaver inactive -> re-arm watches)
+#include <memory>
+
+class GnomeIdleBackend;
+
 class GnomeIdleMonitor : public QObject
 {
     Q_OBJECT
@@ -20,6 +15,8 @@ public:
     Q_ENUM(State)
 
     explicit GnomeIdleMonitor(QObject *parent = nullptr);
+    explicit GnomeIdleMonitor(GnomeIdleBackend *backend, QObject *parent = nullptr);
+    ~GnomeIdleMonitor() override;
 
     State state() const { return m_state; }
     bool isLocked() const { return m_state == Locked; }
@@ -27,58 +24,52 @@ public:
     bool isIdleEligible() const { return m_state == IdleEligible; }
     bool isRendererRunning() const { return m_state == RendererRunning; }
     QString stateName() const;
-
-    // Config: idle threshold in seconds
     void setIdleSeconds(int seconds);
     int idleSeconds() const { return m_idleSeconds; }
-
-    // Start/stop monitoring
     void start();
     void stop();
-
-    // For testing: inject a fake D-Bus backend
-    void setDBusInterface(QDBusInterface *idleIface, QDBusInterface *ssIface);
-
-    // Called by BlackHoleCore when renderer starts/stops
     void setRendererRunning(bool running);
 
-    // For testing: inject D-Bus events directly (bypasses D-Bus)
-    void testInjectWatchFired(uint watchId);
-    void testInjectActiveChanged(bool active);
-    void testInjectServiceRegistered(const QString &service);
-    void testInjectServiceUnregistered(const QString &service);
-    bool testHasIdleWatch() const { return m_idleWatchId != 0; }
-    bool testHasActiveWatch() const { return m_activeWatchId != 0; }
+    // Event entry points are public so deterministic backends can exercise the
+    // same production dispatch path without a session bus.
+    void handleWatchFired(quint32 watchId);
+    void handleScreenSaverActiveChanged(bool active);
+    void handleServiceRegistered(const QString &service);
+    void handleServiceUnregistered(const QString &service);
+
+    bool hasIdleWatch() const { return m_idleWatchId != 0; }
+    bool hasActiveWatch() const { return m_activeWatchId != 0; }
 
 signals:
     void stateChanged(GnomeIdleMonitor::State newState);
-    void idleEligible();       // policy may start renderer
-    void activityDetected();   // user returned -> stop renderer
-    void lockDetected();       // screen locked -> stop renderer
-    void unlockDetected();     // screen unlocked -> re-arm
+    void idleEligible();
+    void activityDetected();
+    void lockDetected();
+    void unlockDetected();
 
 private slots:
-    void onWatchFired(uint watchId);
-    void onScreenSaverActiveChanged(bool active);
-    void onDBusServiceRegistered(const QString &service);
-    void onDBusServiceUnregistered(const QString &service);
+    void onWatchFired(uint watchId) { handleWatchFired(watchId); }
+    void onScreenSaverActiveChanged(bool active) { handleScreenSaverActiveChanged(active); }
+    void onDBusServiceRegistered(const QString &service) { handleServiceRegistered(service); }
+    void onDBusServiceUnregistered(const QString &service) { handleServiceUnregistered(service); }
 
 private:
-    void setIdleWatch();
-    void removeIdleWatch();
-    void setActiveWatch();
-    void removeActiveWatch();
-    void setScreenSaverWatch();
-    void transitionTo(State s);
+    void initializeProductionBackend();
+    void connectSignals();
+    void disconnectSignals();
+    void ensureServiceWatcher();
+    bool armWatches();
+    void removeWatches();
+    void recoverIfReady();
+    void transitionTo(State state);
 
     State m_state = Degraded;
-    int m_idleSeconds = 300; // default 5 min
-    uint m_idleWatchId = 0;
-    uint m_activeWatchId = 0;
-
-    QDBusInterface *m_idleIface = nullptr;
-    QDBusInterface *m_ssIface = nullptr;
-    bool m_ownedInterfaces = false;
-
+    int m_idleSeconds = 300;
+    quint32 m_idleWatchId = 0;
+    quint32 m_activeWatchId = 0;
+    bool m_started = false;
+    bool m_signalsConnected = false;
+    GnomeIdleBackend *m_backend = nullptr;
+    std::unique_ptr<GnomeIdleBackend> m_ownedBackend;
     QDBusServiceWatcher *m_serviceWatcher = nullptr;
 };
