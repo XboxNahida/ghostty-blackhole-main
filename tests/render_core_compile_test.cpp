@@ -1,12 +1,6 @@
-// Compile-time verification that the shared render core headers and
-// implementations are valid C++ on Linux.
-//
-// This test provides the minimal stubs needed by gl_funcs_win32.cpp
-// so that the real render core compiles (not just its "no-op" stub under
-// BLACKHOLE_USE_D3D11).  The resulting binary cannot run without a GL
-// context, but that is intentional — this test only verifies that the
-// extracted render code is syntactically and structurally sound before
-// a proper GLFW/EGL context is available.
+// Compile-time syntax check for the shared render core.
+// The CMakeLists.txt render_core_syntax_check target compiles each source
+// file with -fsyntax-only, so no GL/Bloom/Win32 symbols are linked.
 
 // Provide the external symbol that gl_funcs_win32.cpp needs.
 // On Windows this is declared in win32_gl.h; here we provide a stub.

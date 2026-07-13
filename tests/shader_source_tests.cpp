@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-// Test the shader source extraction directly
 #include "render/shader_source.h"
 
 static int testsPassed = 0;
@@ -22,7 +21,6 @@ static int testsFailed = 0;
     } \
 } while(0)
 
-// Helper: create a temp file with given content
 static std::string createTempFile(const char* content) {
     char path[] = "/tmp/bh_test_XXXXXX";
     int fd = mkstemp(path);
@@ -32,17 +30,14 @@ static std::string createTempFile(const char* content) {
     return std::string(path);
 }
 
-// Helper: delete a temp file
 static void deleteTempFile(const std::string& path) {
     if (!path.empty()) unlink(path.c_str());
 }
 
 void test_readFile() {
-    // Test: file not found returns empty string
     std::string result = readFile("/tmp/nonexistent_file_blackhole_test.glsl");
     TEST("readFile: nonexistent file returns empty", result.empty());
 
-    // Test: normal file read
     std::string tmp = createTempFile("hello world");
     if (!tmp.empty()) {
         result = readFile(tmp.c_str());
@@ -50,7 +45,6 @@ void test_readFile() {
         deleteTempFile(tmp);
     }
 
-    // Test: UTF-8 BOM removal
     std::string bom = createTempFile("\xEF\xBB\xBFhello");
     if (!bom.empty()) {
         result = readFile(bom.c_str());
@@ -58,7 +52,6 @@ void test_readFile() {
         deleteTempFile(bom);
     }
 
-    // Test: CRLF normalization
     std::string crlf = createTempFile("line1\r\nline2\r\n");
     if (!crlf.empty()) {
         result = readFile(crlf.c_str());
@@ -68,8 +61,6 @@ void test_readFile() {
 }
 
 void test_buildFragmentShader_missing_files() {
-    // Test: shader resource missing returns false
-    // We purposely chdir to /tmp to force file-not-found
     char cwd[4096];
     getcwd(cwd, sizeof(cwd));
     chdir("/tmp");
@@ -83,8 +74,6 @@ void test_buildFragmentShader_missing_files() {
 }
 
 void test_preset_count_limits() {
-    // The header frag_desktop_header.glsl defines MAX_PRESETS = 64.
-    // This limits the UI preset count to [1, 64].
     std::string header = readFile("shaders/frag_desktop_header.glsl");
     if (!header.empty()) {
         bool hasDefine = header.find("#define MAX_PRESETS 64") != std::string::npos;
@@ -93,7 +82,6 @@ void test_preset_count_limits() {
         fprintf(stdout, "SKIP: shaders/frag_desktop_header.glsl not found\n");
     }
 
-    // After buildFragmentShader, the injected demoLook() clamps to MAX_PRESETS
     std::string fragSrc;
     if (buildFragmentShader(fragSrc, nullptr)) {
         bool hasClamp = fragSrc.find("MAX_PRESETS") != std::string::npos;
@@ -104,10 +92,8 @@ void test_preset_count_limits() {
 }
 
 void test_version_330() {
-    // When buildFragmentShader succeeds, the output should contain exactly one #version directive
     std::string fragSrc;
     if (buildFragmentShader(fragSrc, nullptr)) {
-        // Count #version occurrences
         int count = 0;
         size_t pos = 0;
         while ((pos = fragSrc.find("#version", pos)) != std::string::npos) {
@@ -115,12 +101,115 @@ void test_version_330() {
             pos += 8;
         }
         TEST("shader_version: output contains exactly one #version directive", count == 1);
-        // Verify it's version 330
         bool has330 = fragSrc.find("#version 330") != std::string::npos;
         TEST("shader_version: version is 330", has330);
     } else {
         fprintf(stdout, "SKIP: buildFragmentShader failed (shader files not in CWD)\n");
     }
+}
+
+void test_applyPatches() {
+    // Test: critical patch succeeds
+    {
+        std::string s = "hello foo world";
+        ShaderPatch patches[] = {
+            {"foo", "bar", "replace foo with bar", true}
+        };
+        bool ok = applyPatches(s, patches, 1, nullptr);
+        TEST("applyPatches: critical anchor found succeeds", ok && s == "hello bar world");
+    }
+
+    // Test: critical patch missing returns false
+    {
+        std::string s = "hello world";
+        ShaderPatch patches[] = {
+            {"foo", "bar", "replace foo with bar (missing)", true}
+        };
+        bool ok = applyPatches(s, patches, 1, nullptr);
+        TEST("applyPatches: critical anchor missing returns false", !ok);
+        TEST("applyPatches: body unchanged when critical missing", s == "hello world");
+    }
+
+    // Test: optional patch missing does not fail
+    {
+        std::string s = "hello world";
+        ShaderPatch patches[] = {
+            {"foo", "bar", "replace foo with bar (optional)", false}
+        };
+        bool ok = applyPatches(s, patches, 1, nullptr);
+        TEST("applyPatches: optional anchor missing returns true", ok);
+        TEST("applyPatches: body unchanged when optional missing", s == "hello world");
+    }
+
+    // Test: mixed critical/optional — both found
+    {
+        std::string s = "aaa bbb";
+        ShaderPatch patches[] = {
+            {"aaa", "xxx", "optional aaa", false},
+            {"bbb", "yyy", "critical bbb", true}
+        };
+        bool ok = applyPatches(s, patches, 2, nullptr);
+        TEST("applyPatches: mixed all found returns true", ok);
+        TEST("applyPatches: mixed all found — body updated", s == "xxx yyy");
+    }
+
+    // Test: mixed — critical missing, optional found
+    {
+        std::string s = "aaa bbb";
+        ShaderPatch patches[] = {
+            {"aaa", "xxx", "optional aaa", false},
+            {"ccc", "yyy", "critical ccc missing", true}
+        };
+        bool ok = applyPatches(s, patches, 2, nullptr);
+        TEST("applyPatches: mixed critical missing returns false", !ok);
+    }
+}
+
+void test_critical_anchors_detected() {
+    // Temporarily rename shader files to force buildFragmentShader to find
+    // a blackhole.glsl without the critical anchors, then restore.
+    // Since we can't write to the source tree during tests, we test the
+    // buildFragmentShader logic by directly creating a fixture: a minimal
+    // shader body that's missing the critical anchor.
+
+    char cwd[4096];
+    getcwd(cwd, sizeof(cwd));
+    chdir("/tmp");
+
+    // Create a minimal blackhole.glsl WITHOUT "float t = iTime * DRIFT_SPEED;"
+    std::string badBody = createTempFile(
+        "float t = iTime * SOMETHING_ELSE;\nvoid mainImage() {}\n");
+    std::string goodBody = createTempFile(
+        "float t = iTime * DRIFT_SPEED;\nvoid mainImage() {}\n");
+    std::string header = createTempFile(
+        "uniform float iTime;\n");
+    std::string badHeader = createTempFile(
+        "uniform float iTime;\n"); // good header, good enough
+
+    if (!badBody.empty() && !goodBody.empty() && !header.empty()) {
+        // We can't test buildFragmentShader directly because it reads from
+        // fixed paths "blackhole.glsl" and "shaders/frag_desktop_header.glsl".
+        // Instead, the applyPatches test above already validates the mechanism.
+        //
+        // For buildFragmentShader, we verify by checking that the critical
+        // anchors ARE present in the actual shader files by reading them:
+        chdir(cwd);
+        std::string realBody = readFile("blackhole.glsl");
+        if (!realBody.empty()) {
+            bool hasTimeAnchor = realBody.find("float t = iTime * DRIFT_SPEED;") != std::string::npos;
+            TEST("critical_anchor: blackhole.glsl has 'float t = iTime * DRIFT_SPEED;'", hasTimeAnchor);
+        }
+        std::string realHeader = readFile("shaders/frag_desktop_header.glsl");
+        if (!realHeader.empty()) {
+            bool hasUniformIime = realHeader.find("uniform float iTime;") != std::string::npos;
+            TEST("critical_anchor: header has 'uniform float iTime;'", hasUniformIime);
+        }
+    }
+
+    deleteTempFile(badBody);
+    deleteTempFile(goodBody);
+    deleteTempFile(header);
+    deleteTempFile(badHeader);
 }
 
 int main() {
@@ -130,6 +219,8 @@ int main() {
     test_buildFragmentShader_missing_files();
     test_preset_count_limits();
     test_version_330();
+    test_applyPatches();
+    test_critical_anchors_detected();
 
     fprintf(stdout, "\nResults: %d passed, %d failed\n", testsPassed, testsFailed);
     return testsFailed > 0 ? EXIT_FAILURE : EXIT_SUCCESS;

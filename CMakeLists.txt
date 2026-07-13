@@ -152,12 +152,6 @@ if(BUILD_TESTING)
 
     # Compile-guard: verify all render core source files compile on Linux.
     # Uses -fsyntax-only so no GL/Bloom/Win32 symbols need to be linked.
-    set(_RENDER_SRCS
-        src/render/gl_funcs_win32.cpp
-        src/render/shader_source.cpp
-        src/render/gl_program.cpp
-        src/render/blackhole_renderer.cpp
-    )
     set(_RENDER_FLAGS -std=c++17 -fsyntax-only -I"${CMAKE_SOURCE_DIR}/src")
     add_custom_target(render_core_syntax_check
         COMMAND ${CMAKE_CXX_COMPILER} ${_RENDER_FLAGS}

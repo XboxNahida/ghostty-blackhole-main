@@ -26,6 +26,41 @@ std::string readFile(const char* path) {
     return content;
 }
 
+bool applyPatches(std::string& body, const ShaderPatch* patches, int count,
+                  FILE* debugLog)
+{
+    bool allOk = true;
+    for (int i = 0; i < count; i++) {
+        const ShaderPatch& p = patches[i];
+        size_t pos = body.find(p.anchor);
+        if (pos == std::string::npos) {
+            if (debugLog) {
+                fprintf(debugLog, "[PATCH] %s: anchor not found\n", p.description);
+                fflush(debugLog);
+            }
+            if (p.critical) {
+                if (debugLog) {
+                    fprintf(debugLog, "[PATCH] %s: CRITICAL — returning failure\n", p.description);
+                    fflush(debugLog);
+                }
+                allOk = false;
+            }
+            continue;
+        }
+        if (p.replacement == nullptr) {
+            // Insert-before mode: not used yet, skip
+            continue;
+        }
+        body.replace(pos, strlen(p.anchor), p.replacement);
+        if (debugLog) {
+            fprintf(debugLog, "[PATCH] %s: applied (%zu -> %zu)\n",
+                    p.description, pos, pos + strlen(p.replacement));
+        }
+    }
+    if (debugLog) fflush(debugLog);
+    return allOk;
+}
+
 bool buildFragmentShader(std::string& out, FILE* debugLog) {
     std::string header = readFile("shaders/frag_desktop_header.glsl");
     std::string body   = readFile("blackhole.glsl");
@@ -34,36 +69,51 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         return false;
     }
 
-    const std::string timeUniform = "uniform float iTime;";
-    size_t timeUniformPos = header.find(timeUniform);
-    if (timeUniformPos != std::string::npos) {
-        header.insert(timeUniformPos + timeUniform.length(), "\nuniform float uMovementTime;");
+    // ---- Critical: uMovementTime injection ----
+    // Without this, the shader references an undeclared uniform.
+    {
+        const std::string anchor = "uniform float iTime;";
+        size_t pos = header.find(anchor);
+        if (pos == std::string::npos) {
+            if (debugLog) { fprintf(debugLog, "[FAIL] Critical anchor 'uniform float iTime;' not found in header\n"); fflush(debugLog); }
+            return false;
+        }
+        header.insert(pos + anchor.length(), "\nuniform float uMovementTime;");
+        if (debugLog) { fprintf(debugLog, "[OK] uMovementTime uniform injected\n"); fflush(debugLog); }
     }
 
-    const std::string realMovementTime = "float t = iTime * DRIFT_SPEED;";
-    size_t movementTimePos = body.find(realMovementTime);
-    if (movementTimePos != std::string::npos) {
-        body.insert(movementTimePos + realMovementTime.length(),
-                    "\n    float moveT = uMovementTime * DRIFT_SPEED;");
+    // ---- Critical: moveT declaration ----
+    // Without this, the shader references an undeclared variable.
+    {
+        const std::string anchor = "float t = iTime * DRIFT_SPEED;";
+        size_t pos = body.find(anchor);
+        if (pos == std::string::npos) {
+            if (debugLog) { fprintf(debugLog, "[FAIL] Critical anchor 'float t = iTime...' not found in body\n"); fflush(debugLog); }
+            return false;
+        }
+        body.insert(pos + anchor.length(), "\n    float moveT = uMovementTime * DRIFT_SPEED;");
+        if (debugLog) { fprintf(debugLog, "[OK] moveT declaration injected\n"); fflush(debugLog); }
     }
 
-    const std::pair<const char*, const char*> movementTimeExpressions[] = {
-        {"sin(t * 0.21)", "sin(moveT * 0.21)"},
-        {"sin(t * 0.083)", "sin(moveT * 0.083)"},
-        {"sin(t * 0.157 + 2.0)", "sin(moveT * 0.157 + 2.0)"},
-        {"sin(t * 0.117)", "sin(moveT * 0.117)"},
-        {"sin(t * 0.83)", "sin(moveT * 0.83)"},
-        {"sin(t * 1.31)", "sin(moveT * 1.31)"},
-        {"sin(t * 1.03 + 1.0)", "sin(moveT * 1.03 + 1.0)"},
-        {"lissa(t * TOKEN_CALM)", "lissa(moveT * TOKEN_CALM)"},
-        {"lissa(t * TOKEN_RUSH)", "lissa(moveT * TOKEN_RUSH)"},
-        {"cos(t * 0.8)", "cos(moveT * 0.8)"},
-        {"sin(t * 1.0)", "sin(moveT * 1.0)"}
-    };
-    for (const auto& expression : movementTimeExpressions) {
-        size_t pos = body.find(expression.first);
-        if (pos != std::string::npos) {
-            body.replace(pos, strlen(expression.first), expression.second);
+    // ---- Optional: replace movement time expressions ----
+    {
+        const std::pair<const char*, const char*> replacements[] = {
+            {"sin(t * 0.21)", "sin(moveT * 0.21)"},
+            {"sin(t * 0.083)", "sin(moveT * 0.083)"},
+            {"sin(t * 0.157 + 2.0)", "sin(moveT * 0.157 + 2.0)"},
+            {"sin(t * 0.117)", "sin(moveT * 0.117)"},
+            {"sin(t * 0.83)", "sin(moveT * 0.83)"},
+            {"sin(t * 1.31)", "sin(moveT * 1.31)"},
+            {"sin(t * 1.03 + 1.0)", "sin(moveT * 1.03 + 1.0)"},
+            {"lissa(t * TOKEN_CALM)", "lissa(moveT * TOKEN_CALM)"},
+            {"lissa(t * TOKEN_RUSH)", "lissa(moveT * TOKEN_RUSH)"},
+            {"cos(t * 0.8)", "cos(moveT * 0.8)"},
+            {"sin(t * 1.0)", "sin(moveT * 1.0)"}
+        };
+        for (const auto& r : replacements) {
+            size_t pos = body.find(r.first);
+            if (pos != std::string::npos)
+                body.replace(pos, strlen(r.first), r.second);
         }
     }
 
@@ -79,39 +129,41 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         fflush(debugLog);
     }
 
-    // Make key constants overridable by uniforms
-    struct { const char* name; const char* uniform; } ov[] = {
-        {"HOLE_RADIUS", "uHoleRadius > 0.0 ? uHoleRadius :"},
-        {"DISK_GAIN",   "uDiskGain > 0.0 ? uDiskGain :"},
-        {"DISK_TEMP",   "uDiskTemp > 0.0 ? uDiskTemp :"},
-        {"EXPOSURE",    "uExposure > 0.0 ? uExposure :"},
-        {"DRIFT_SPEED", "uSpeed > 0.0 ? uSpeed :"},
-        {"STAR_GAIN",   "uStarGain > 0.0 ? uStarGain :"},
-        {"DISK_INCL",   "uDiskIncl > 0.0 ? uDiskIncl :"},
-    };
-    for (auto& o : ov) {
-        std::string p = std::string("const float ") + o.name + " = ";
-        size_t pos = body.find(p);
-        if (pos != std::string::npos) {
-            size_t ve = body.find(";", pos);
-            if (ve != std::string::npos) {
-                std::string v = body.substr(pos + p.length(), ve - pos - p.length());
-                body.replace(pos, ve - pos + 1,
-                    std::string("float ") + o.name + " = " + o.uniform + " " + v + ";");
+    // ---- Optional: make key constants overridable by uniforms ----
+    {
+        struct { const char* name; const char* uniform; } ov[] = {
+            {"HOLE_RADIUS", "uHoleRadius > 0.0 ? uHoleRadius :"},
+            {"DISK_GAIN",   "uDiskGain > 0.0 ? uDiskGain :"},
+            {"DISK_TEMP",   "uDiskTemp > 0.0 ? uDiskTemp :"},
+            {"EXPOSURE",    "uExposure > 0.0 ? uExposure :"},
+            {"DRIFT_SPEED", "uSpeed > 0.0 ? uSpeed :"},
+            {"STAR_GAIN",   "uStarGain > 0.0 ? uStarGain :"},
+            {"DISK_INCL",   "uDiskIncl > 0.0 ? uDiskIncl :"},
+        };
+        for (auto& o : ov) {
+            std::string pattern = std::string("const float ") + o.name + " = ";
+            size_t pos = body.find(pattern);
+            if (pos != std::string::npos) {
+                size_t ve = body.find(";", pos);
+                if (ve != std::string::npos) {
+                    std::string val = body.substr(pos + pattern.length(), ve - pos - pattern.length());
+                    body.replace(pos, ve - pos + 1,
+                        std::string("float ") + o.name + " = " + o.uniform + " " + val + ";");
+                }
             }
         }
     }
 
-    // Inject demoPreset() + demoLook() with uniform preset support
+    // ---- Optional: inject demoPreset() + demoLook() ----
     {
         size_t dlo = body.find("DiskLook demoLook()");
         if (dlo != std::string::npos) {
             size_t ob = body.find("{", dlo);
-            int d = 0; size_t dle = ob;
+            int depth = 0; size_t dle = ob;
             if (ob != std::string::npos) {
                 for (dle = ob; dle < body.size(); dle++) {
-                    if (body[dle] == 123) d++;
-                    else if (body[dle] == 125) { d--; if (d == 0) break; }
+                    if (body[dle] == 123) depth++;
+                    else if (body[dle] == 125) { depth--; if (depth == 0) break; }
                 }
             }
             if (dle < body.size()) {
@@ -159,26 +211,28 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         }
     }
 
-    size_t pos = body.find("#define SIZE_MODE MODE_TOKENS");
-    if (pos != std::string::npos)
-        body.replace(pos, 29, "#define SIZE_MODE MODE_DEMO");
+    // ---- Optional: SIZE_MODE ----
+    {
+        size_t pos = body.find("#define SIZE_MODE MODE_TOKENS");
+        if (pos != std::string::npos)
+            body.replace(pos, 29, "#define SIZE_MODE MODE_DEMO");
+    }
 
-    // Remove time wrapping from hole size
+    // ---- Optional: hole size growth ----
     {
         size_t lp = body.find("mod(iTime, DEMO_SEC) / DEMO_GROW_SEC");
         if (lp != std::string::npos)
             body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : min(iTime / DEMO_GROW_SEC, 1.0)))");
     }
 
-    // Apply uBornProgress to sz
+    // ---- Optional: uBornProgress ----
     {
         size_t p = body.find("float rh = HOLE_RADIUS * sz;");
-        if (p != std::string::npos) {
+        if (p != std::string::npos)
             body.insert(p, "    sz *= uBornProgress;\n");
-        }
     }
 
-    // Full-screen fixes: remove WORK_AREA shield
+    // ---- Optional: WORK_AREA fullscreen fixes ----
     {
         size_t p = body.find("const float WORK_AREA");
         if (p != std::string::npos) {
@@ -194,29 +248,26 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         }
     }
 
-    // Multi-monitor range expansion
+    // ---- Optional: multi-monitor range expansion ----
     {
         {
             const std::string oldLo = "vec2  fullLo = vec2(min(xPad, 0.5), marg);";
-            const std::string newLo = "vec2  fullLo = vec2(xPad, marg);";
             size_t p = body.find(oldLo);
-            if (p != std::string::npos) body.replace(p, oldLo.length(), newLo);
+            if (p != std::string::npos) body.replace(p, oldLo.length(), "vec2  fullLo = vec2(xPad, marg);");
         }
         {
             const std::string oldHi = "vec2  fullHi = vec2(max(0.5, 1.0 - xPad),";
-            const std::string newHi = "vec2  fullHi = vec2(1.0 - xPad,";
             size_t p = body.find(oldHi);
-            if (p != std::string::npos) body.replace(p, oldHi.length(), newHi);
+            if (p != std::string::npos) body.replace(p, oldHi.length(), "vec2  fullHi = vec2(1.0 - xPad,");
         }
         {
             const std::string oldR = "float reach  = mix(0.06, max(TOKEN_REACH, 0.06), g);";
-            const std::string newR = "float reach  = mix(0.30, max(TOKEN_REACH, 1.0), g);";
             size_t p = body.find(oldR);
-            if (p != std::string::npos) body.replace(p, oldR.length(), newR);
+            if (p != std::string::npos) body.replace(p, oldR.length(), "float reach  = mix(0.30, max(TOKEN_REACH, 1.0), g);");
         }
     }
 
-    // Randomize initial hole position
+    // ---- Optional: randomize initial hole position ----
     {
         size_t p = body.find("const float TOKEN_HOME_X");
         if (p != std::string::npos) {
@@ -232,7 +283,7 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         }
     }
 
-    // Mouse-follow mode
+    // ---- Critical: mouse-follow mode ----
     {
         const std::string oldCenter =
             "center = (lo + hi) * 0.5 + wander * ampEff\n"
@@ -245,7 +296,7 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         size_t p = body.find(oldCenter);
         if (p == std::string::npos) {
             if (debugLog) {
-                fprintf(debugLog, "[FAIL] Mouse-follow shader center template not found\n");
+                fprintf(debugLog, "[FAIL] Critical anchor 'mouse-follow center template' not found\n");
                 fflush(debugLog);
             }
             return false;
@@ -257,7 +308,7 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         }
     }
 
-    // Randomize trajectory: add uRandPhase to lissa calls
+    // ---- Optional: trajectory randomization ----
     {
         size_t p;
         while ((p = body.find("lissa(moveT * TOKEN_CALM)")) != std::string::npos)
@@ -270,7 +321,7 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
             body.replace(p, 16, "sin((moveT + uRandPhase) * 1.0)");
     }
 
-    // Runtime visual controls
+    // ---- Optional: runtime visual controls ----
     {
         const std::string oldDefl = "* window * shield;";
         const std::string newDefl = "* window * shield * max(uDistortion, 0.0);";
@@ -325,7 +376,7 @@ bool buildFragmentShader(std::string& out, FILE* debugLog) {
         }
     }
 
-    // Preset crossfade
+    // ---- Optional: preset crossfade ----
     {
         size_t p = body.find("const float DEMO_XFADE");
         if (p != std::string::npos) {
