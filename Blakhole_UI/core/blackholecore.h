@@ -507,8 +507,7 @@ private:
     QTimer *m_rendererStartupTimer = nullptr;
     QElapsedTimer m_rendererStartupElapsed;
     QString m_rendererLogPath;
-    qint64 m_rendererLogBaselineSize = 0;
-    QDateTime m_rendererLogBaselineModified;
+    QByteArray m_rendererLogBoundaryProbe;
     bool m_rendererFailureLatched = false;
 
     // 空闲检测

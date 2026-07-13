@@ -110,6 +110,9 @@ void testFailureMarker(const QString &logPath)
             "failure marker has priority over Ready marker");
     require(lastFailure.details.contains(QStringLiteral("final failure")),
             "last failure line is reported");
+    require(lastFailure.details.contains(QStringLiteral("[FAIL] first failure"))
+                && lastFailure.details.contains(QStringLiteral("日志尾部")),
+            "initialization failure includes the current attempt log tail");
 }
 
 void testReadyMarkerAcrossSnapshots(const QString &logPath)
@@ -168,12 +171,18 @@ void testProcessFailures(const QString &logPath)
             "process start diagnostic contains system error");
 
     diagnostics.beginAttempt(logPath, 0, {});
+    const QByteArray exitLog = QByteArrayLiteral(
+        "Renderer window initialized\nCapture backend selected\n");
+    diagnostics.consumeLogSnapshot(exitLog, exitLog.size(), false);
     const RendererDiagnostic exited = diagnostics.processFinished(23, false);
     require(exited.valid
                 && exited.kind == RendererFailureKind::ExitedBeforeReady,
             "exit before Ready produces diagnostic");
     require(exited.details.contains(QStringLiteral("23")),
             "early exit diagnostic contains exit code");
+    require(exited.details.contains(QStringLiteral("Renderer window initialized"))
+                && exited.details.contains(QStringLiteral("日志尾部")),
+            "early exit diagnostic includes the current attempt log tail");
 
     diagnostics.beginAttempt(logPath, 0, {});
     const RendererDiagnostic crashed = diagnostics.processFinished(-1, true);
@@ -188,12 +197,18 @@ void testTimeoutAndStopping(const QString &logPath)
 {
     RendererStartupDiagnostics diagnostics;
     diagnostics.beginAttempt(logPath, 0, {});
+    const QByteArray timeoutLog = QByteArrayLiteral(
+        "Creating OpenGL context\nCompiling fragment shader\n");
+    diagnostics.consumeLogSnapshot(timeoutLog, timeoutLog.size(), false);
     const RendererDiagnostic timedOut = diagnostics.timeout();
     require(timedOut.valid
                 && timedOut.kind == RendererFailureKind::ReadyTimeout,
             "timeout produces ReadyTimeout");
     require(timedOut.details.contains(QStringLiteral("8000")),
             "timeout diagnostic contains 8000 ms threshold");
+    require(timedOut.details.contains(QStringLiteral("Compiling fragment shader"))
+                && timedOut.details.contains(QStringLiteral("日志尾部")),
+            "timeout diagnostic includes the current attempt log tail");
 
     diagnostics.beginAttempt(logPath, 0, {});
     diagnostics.beginStopping();
@@ -217,6 +232,54 @@ void testDiagnosticDetailsAreCapped(const QString &logPath)
             "diagnostic details are capped to 8192 bytes");
 }
 
+void testRollingLogTailIsBounded(const QString &logPath)
+{
+    RendererStartupDiagnostics diagnostics;
+    diagnostics.beginAttempt(logPath, 0, {});
+    const QByteArray oldPrefix = QByteArrayLiteral("OLD_PREFIX_MUST_BE_DROPPED\n");
+    const QByteArray recentSuffix = QByteArrayLiteral("RECENT_SUFFIX_MUST_REMAIN\n");
+    const QByteArray largeLog = oldPrefix + QByteArray(12000, 'x') + '\n'
+                                + recentSuffix;
+    diagnostics.consumeLogSnapshot(largeLog, largeLog.size(), false);
+
+    const RendererDiagnostic exited = diagnostics.processFinished(9, false);
+    require(exited.valid, "large current-attempt log still produces early-exit diagnostic");
+    require(exited.details.contains(QStringLiteral("RECENT_SUFFIX_MUST_REMAIN")),
+            "rolling log tail retains recent bytes");
+    require(!exited.details.contains(QStringLiteral("OLD_PREFIX_MUST_BE_DROPPED")),
+            "rolling log tail drops old bytes");
+    require(exited.details.toUtf8().size() <= 8192,
+            "diagnostic with rolling log tail remains capped to 8192 bytes");
+}
+
+void testLogTailDoesNotLeakAcrossAttemptsOrReplacement(const QString &logPath)
+{
+    RendererStartupDiagnostics diagnostics;
+    const QByteArray oldAttempt = QByteArrayLiteral("OLD_ATTEMPT_CONTEXT\n");
+    diagnostics.beginAttempt(logPath, 0, {});
+    diagnostics.consumeLogSnapshot(oldAttempt, oldAttempt.size(), false);
+
+    const QByteArray newAttempt = QByteArrayLiteral("NEW_ATTEMPT_CONTEXT\n");
+    diagnostics.beginAttempt(logPath, oldAttempt.size(), QDateTime::currentDateTime());
+    diagnostics.consumeLogSnapshot(oldAttempt + newAttempt,
+                                   oldAttempt.size() + newAttempt.size(),
+                                   false);
+    const RendererDiagnostic newAttemptExit = diagnostics.processFinished(4, false);
+    require(newAttemptExit.details.contains(QStringLiteral("NEW_ATTEMPT_CONTEXT")),
+            "new attempt diagnostic contains only newly appended context");
+    require(!newAttemptExit.details.contains(QStringLiteral("OLD_ATTEMPT_CONTEXT")),
+            "old attempt context is not retained");
+
+    diagnostics.beginAttempt(logPath, newAttempt.size(), QDateTime::currentDateTime());
+    const QByteArray replacedLog = QByteArrayLiteral("REPLACED_FILE_CONTEXT\n");
+    diagnostics.consumeLogSnapshot(replacedLog, replacedLog.size(), true);
+    const RendererDiagnostic replacedExit = diagnostics.processFinished(5, false);
+    require(replacedExit.details.contains(QStringLiteral("REPLACED_FILE_CONTEXT")),
+            "replacement context is retained");
+    require(!replacedExit.details.contains(QStringLiteral("NEW_ATTEMPT_CONTEXT")),
+            "replacement clears previous file context");
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -236,6 +299,8 @@ int main(int argc, char *argv[])
     testProcessFailures(logPath);
     testTimeoutAndStopping(logPath);
     testDiagnosticDetailsAreCapped(logPath);
+    testRollingLogTailIsBounded(logPath);
+    testLogTailDoesNotLeakAcrossAttemptsOrReplacement(logPath);
 
     std::cout << "RENDERER_STARTUP_DIAGNOSTICS_TESTS_OK\n";
     return EXIT_SUCCESS;

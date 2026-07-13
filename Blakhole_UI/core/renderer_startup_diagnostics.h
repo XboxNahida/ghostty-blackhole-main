@@ -45,12 +45,16 @@ public:
     RendererDiagnostic consumeLogSnapshot(const QByteArray &content,
                                           qint64 fileSize,
                                           bool fileReplacedOrTruncated);
+    RendererDiagnostic consumeLogChunk(const QByteArray &content,
+                                       qint64 chunkOffset,
+                                       bool fileReplacedOrTruncated);
     RendererDiagnostic processFailedToStart(const QString &processError);
     RendererDiagnostic processFinished(int exitCode, bool crashed);
     RendererDiagnostic timeout();
     void beginStopping();
     RendererStartupState state() const;
     quint64 attemptId() const;
+    qint64 logOffset() const;
 
 private:
     RendererDiagnostic fail(RendererFailureKind kind,
@@ -63,4 +67,5 @@ private:
     QString m_logPath;
     qint64 m_logOffset = 0;
     QByteArray m_incompleteLogLine;
+    QByteArray m_logTail;
 };

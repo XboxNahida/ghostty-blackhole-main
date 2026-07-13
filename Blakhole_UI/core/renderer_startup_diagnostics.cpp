@@ -24,6 +24,28 @@ QString cappedUtf8(const QString &text)
     return capped;
 }
 
+QString detailsWithLogTail(const QString &technicalDetails,
+                           const QByteArray &logTail)
+{
+    if (logTail.isEmpty()) {
+        return cappedUtf8(technicalDetails);
+    }
+
+    QString technicalPrefix = technicalDetails;
+    while (technicalPrefix.toUtf8().size() > 2048) {
+        technicalPrefix.chop(1);
+    }
+
+    const QString separator = QStringLiteral("\n\n--- 日志尾部 ---\n");
+    QString tail = QString::fromUtf8(logTail);
+    QString details = technicalPrefix + separator + tail;
+    while (details.toUtf8().size() > kMaxDiagnosticLogBytes && !tail.isEmpty()) {
+        tail.remove(0, 1);
+        details = technicalPrefix + separator + tail;
+    }
+    return cappedUtf8(details);
+}
+
 QString lastFailureLine(const QByteArray &content)
 {
     const qsizetype markerPosition = content.lastIndexOf(kFailureMarker);
@@ -55,6 +77,7 @@ quint64 RendererStartupDiagnostics::beginAttempt(
     m_logPath = logPath;
     m_logOffset = std::max<qint64>(0, previousLogSize);
     m_incompleteLogLine.clear();
+    m_logTail.clear();
     Q_UNUSED(previousLogModified);
     return m_attemptId;
 }
@@ -100,15 +123,40 @@ RendererDiagnostic RendererStartupDiagnostics::consumeLogSnapshot(
     qint64 startOffset = m_logOffset;
     if (fileReplacedOrTruncated || nonNegativeFileSize < m_logOffset) {
         startOffset = 0;
-        m_incompleteLogLine.clear();
     }
 
     QByteArray addedContent;
     if (startOffset < content.size()) {
         addedContent = content.mid(static_cast<qsizetype>(startOffset));
     }
+    const RendererDiagnostic diagnostic = consumeLogChunk(
+        addedContent, startOffset, fileReplacedOrTruncated || nonNegativeFileSize < m_logOffset);
     m_logOffset = nonNegativeFileSize;
-    const QByteArray contentToParse = m_incompleteLogLine + addedContent;
+    return diagnostic;
+}
+
+RendererDiagnostic RendererStartupDiagnostics::consumeLogChunk(
+    const QByteArray &content,
+    qint64 chunkOffset,
+    bool fileReplacedOrTruncated)
+{
+    if (m_state != RendererStartupState::Starting) {
+        return {};
+    }
+
+    const qint64 nonNegativeOffset = std::max<qint64>(0, chunkOffset);
+    if (fileReplacedOrTruncated || nonNegativeOffset != m_logOffset) {
+        m_incompleteLogLine.clear();
+        m_logTail.clear();
+    }
+
+    m_logTail.append(content);
+    if (m_logTail.size() > kMaxDiagnosticLogBytes) {
+        m_logTail = m_logTail.right(kMaxDiagnosticLogBytes);
+    }
+
+    const QByteArray contentToParse = m_incompleteLogLine + content;
+    m_logOffset = nonNegativeOffset + content.size();
 
     const QString failureLine = lastFailureLine(contentToParse);
     if (!failureLine.isEmpty()) {
@@ -189,6 +237,11 @@ quint64 RendererStartupDiagnostics::attemptId() const
     return m_attemptId;
 }
 
+qint64 RendererStartupDiagnostics::logOffset() const
+{
+    return m_logOffset;
+}
+
 RendererDiagnostic RendererStartupDiagnostics::fail(
     RendererFailureKind kind,
     const QString &summary,
@@ -207,7 +260,12 @@ RendererDiagnostic RendererStartupDiagnostics::fail(
     diagnostic.kind = kind;
     diagnostic.title = QStringLiteral("渲染器启动失败");
     diagnostic.summary = summary;
-    diagnostic.details = cappedUtf8(technicalDetails);
+    const bool includeLogTail = kind == RendererFailureKind::InitializationFailed
+                                || kind == RendererFailureKind::ExitedBeforeReady
+                                || kind == RendererFailureKind::ReadyTimeout;
+    diagnostic.details = includeLogTail
+        ? detailsWithLogTail(technicalDetails, m_logTail)
+        : cappedUtf8(technicalDetails);
     diagnostic.logPath = m_logPath;
     return diagnostic;
 }

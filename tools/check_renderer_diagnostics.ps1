@@ -87,4 +87,21 @@ if ($header -notmatch 'RendererStartupState::Stopping' -and
     throw 'Renderer finished handling must respect the stopping state'
 }
 
+$pollFunctionStart = $source.IndexOf('void BlackHoleCore::pollRendererStartup()')
+$pollFunctionEnd = $source.IndexOf('void BlackHoleCore::publishRendererDiagnostic', $pollFunctionStart)
+if ($pollFunctionStart -lt 0 -or $pollFunctionEnd -lt 0) {
+    throw 'Missing renderer startup polling function'
+}
+$pollFunction = $source.Substring($pollFunctionStart, $pollFunctionEnd - $pollFunctionStart)
+if ($pollFunction -match '\.readAll\s*\(') {
+    throw 'Renderer startup polling must not use unbounded readAll()'
+}
+if ($pollFunction -match 'lastModified\s*\(') {
+    throw 'Renderer startup polling must not treat modification time as replacement'
+}
+if ($pollFunction -notmatch '\.seek\s*\(' -or
+    $pollFunction -notmatch '\.read\s*\(\s*kMaxRendererLogReadBytes\s*\)') {
+    throw 'Renderer startup polling must seek to an offset and use a bounded read'
+}
+
 'RENDERER_DIAGNOSTICS_UI_OK'

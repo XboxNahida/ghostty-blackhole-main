@@ -19,6 +19,8 @@
 #include <QDesktopServices>
 #include <QUrl>
 
+#include <algorithm>
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <mmdeviceapi.h>
@@ -692,6 +694,13 @@ void BlackHoleCore::startRenderer()
     startRendererInternal(true);
 }
 
+namespace {
+
+constexpr qint64 kMaxRendererLogReadBytes = 64 * 1024;
+constexpr qint64 kRendererLogBoundaryProbeBytes = 64;
+
+} // namespace
+
 void BlackHoleCore::startRendererInternal(bool userInitiated)
 {
     if (!userInitiated && m_rendererFailureLatched) return;
@@ -720,13 +729,19 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
 
     m_rendererLogPath = QDir(projectRoot).filePath(QStringLiteral("blackhole_debug.txt"));
     const QFileInfo baselineLogInfo(m_rendererLogPath);
-    m_rendererLogBaselineSize = baselineLogInfo.exists() ? baselineLogInfo.size() : 0;
-    m_rendererLogBaselineModified = baselineLogInfo.exists()
-        ? baselineLogInfo.lastModified()
-        : QDateTime();
+    const qint64 previousLogSize = baselineLogInfo.exists() ? baselineLogInfo.size() : 0;
+    m_rendererLogBoundaryProbe.clear();
+    if (previousLogSize > 0) {
+        QFile baselineLog(m_rendererLogPath);
+        const qint64 probeOffset = std::max<qint64>(
+            0, previousLogSize - kRendererLogBoundaryProbeBytes);
+        if (baselineLog.open(QIODevice::ReadOnly) && baselineLog.seek(probeOffset)) {
+            m_rendererLogBoundaryProbe = baselineLog.read(kRendererLogBoundaryProbeBytes);
+        }
+    }
     m_rendererDiagnostics.beginAttempt(m_rendererLogPath,
-                                       m_rendererLogBaselineSize,
-                                       m_rendererLogBaselineModified);
+                                       previousLogSize,
+                                       {});
 
     const RendererDiagnostic missingFiles = m_rendererDiagnostics.validateRequiredFiles(
         exePath,
@@ -794,15 +809,41 @@ void BlackHoleCore::pollRendererStartup()
     if (logInfo.isFile()) {
         QFile logFile(m_rendererLogPath);
         if (logFile.open(QIODevice::ReadOnly)) {
-            const QByteArray content = logFile.readAll();
-            const bool fileReplacedOrTruncated =
-                logInfo.size() < m_rendererLogBaselineSize ||
-                (m_rendererLogBaselineModified.isValid() &&
-                 logInfo.lastModified() != m_rendererLogBaselineModified);
-            publishRendererDiagnostic(m_rendererDiagnostics.consumeLogSnapshot(
-                content, logInfo.size(), fileReplacedOrTruncated));
-            m_rendererLogBaselineSize = logInfo.size();
-            m_rendererLogBaselineModified = logInfo.lastModified();
+            qint64 readOffset = m_rendererDiagnostics.logOffset();
+            bool fileReplacedOrTruncated = logInfo.size() < readOffset;
+
+            if (!fileReplacedOrTruncated && readOffset > 0
+                && !m_rendererLogBoundaryProbe.isEmpty()) {
+                const qint64 probeOffset = readOffset - m_rendererLogBoundaryProbe.size();
+                if (!logFile.seek(probeOffset)
+                    || logFile.read(m_rendererLogBoundaryProbe.size())
+                           != m_rendererLogBoundaryProbe) {
+                    fileReplacedOrTruncated = true;
+                }
+            }
+
+            if (fileReplacedOrTruncated) {
+                readOffset = 0;
+            }
+            if (logInfo.size() - readOffset > kMaxRendererLogReadBytes) {
+                readOffset = logInfo.size() - kMaxRendererLogReadBytes;
+                fileReplacedOrTruncated = true;
+            }
+
+            QByteArray content;
+            if (logFile.seek(readOffset)) {
+                content = logFile.read(kMaxRendererLogReadBytes);
+            }
+            publishRendererDiagnostic(m_rendererDiagnostics.consumeLogChunk(
+                content, readOffset, fileReplacedOrTruncated));
+
+            const qint64 consumedOffset = m_rendererDiagnostics.logOffset();
+            const qint64 probeOffset = std::max<qint64>(
+                0, consumedOffset - kRendererLogBoundaryProbeBytes);
+            if (logFile.seek(probeOffset)) {
+                m_rendererLogBoundaryProbe = logFile.read(
+                    consumedOffset - probeOffset);
+            }
         }
     }
 
