@@ -108,11 +108,11 @@ CMake Error at CMakeLists.txt:3 (project):
 | 测试文件 | 被测模块 | Qt 依赖 | Windows 依赖 |
 |---|---|---|---|
 | `application_catalog_tests.cpp` | 应用目录 | Core, Gui, Widgets | `version` 库 |
-| `autostart_registry_tests.cpp` | 自启动注册表 | Core | Win32 注册表 API |
+| `autostart_registry_tests.cpp` | 自启动注册表 | 无 | Win32 注册表 API |
 | `avatar_storage_tests.cpp` | 头像存储 | Core, Gui | — |
-| `foreground_window_tests.cpp` | 前台窗口 | Core | Win32 API |
-| `game_detection_tests.cpp` | 游戏检测 | Core | Win32 API |
-| `media_session_tests.cpp` | 媒体会话 | Core | Win32 Audio Session |
+| `foreground_window_tests.cpp` | 前台窗口 | 无 | Win32 API |
+| `game_detection_tests.cpp` | 游戏检测 | 无 | Win32 API |
+| `media_session_tests.cpp` | 媒体会话 | 无 | Win32 Audio Session |
 | `movement_settings_tests.cpp` | 移动参数 | 无 | — |
 | `renderer_startup_diagnostics_tests.cpp` | 启动诊断 | Core | — |
 | `update_checker_state_tests.cpp` | 更新状态机 | Core, Network, Gui | — |
@@ -120,7 +120,7 @@ CMake Error at CMakeLists.txt:3 (project):
 
 ### 6.2 Linux 编译性
 
-`Blakhole_UI/` 子目录可在 Linux 独立完成 CMake 配置（无需根 CMakeLists.txt），6 个测试目标可单独构建。
+`Blakhole_UI/` 子目录可在 Linux 独立完成 CMake 配置（无需根 CMakeLists.txt）。CMake 会生成 6 个测试目标；其中 5 个可成功构建，`application_catalog_tests` 无法完成链接。
 
 在本次验证中，5 个测试目标成功编译并运行：
 
@@ -132,7 +132,7 @@ CMake Error at CMakeLists.txt:3 (project):
 | `update_release_tests` | ✅ 通过 |
 | `update_checker_state_tests` | ❌ 失败（错误信息：`ignored release hides red dot`） |
 
-`application_catalog_tests` 因链接 `version` 库（Windows 专属）在 Linux 上无法编译。
+`application_catalog_tests` 可以编译对象文件，但因依赖 Windows 专属 `version` 库，在 Linux 上无法完成链接。
 `autostart_registry_tests`、`foreground_window_tests`、`game_detection_tests`、`media_session_tests` 因依赖 Win32 API 亦不可编译。
 
 验证命令：
@@ -141,6 +141,8 @@ cmake -S Blakhole_UI -B build-ui-check -G Ninja -DBUILD_TESTING=ON
 cmake --build build-ui-check --target \
   renderer_startup_diagnostics_tests movement_settings_tests \
   avatar_storage_tests update_release_tests update_checker_state_tests
+ctest --test-dir build-ui-check --output-on-failure \
+  -R 'renderer_startup_diagnostics|movement_settings|avatar_storage|update_release|update_checker_state'
 ```
 
 ### 6.3 Windows 基线（预期保留）
