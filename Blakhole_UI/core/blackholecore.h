@@ -468,6 +468,7 @@ private:
     bool parseHotkeySequence(const QString &sequence, quint32 *modifiers, quint32 *key) const;
     QString normalizedHotkeySequence(const QString &sequence) const;
     void startRendererInternal(bool userInitiated);
+    RendererDiagnostic consumeRendererStartupLog(qint64 maxTotalBytes);
     void pollRendererStartup();
     void publishRendererDiagnostic(const RendererDiagnostic &diagnostic);
     void terminateRendererProcess();

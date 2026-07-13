@@ -697,6 +697,7 @@ void BlackHoleCore::startRenderer()
 namespace {
 
 constexpr qint64 kMaxRendererLogReadBytes = 64 * 1024;
+constexpr qint64 kMaxRendererLogDrainBytes = 4 * 1024 * 1024;
 constexpr qint64 kRendererLogBoundaryProbeBytes = 64;
 
 } // namespace
@@ -767,8 +768,15 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
         connect(m_rendererProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this](int code, QProcess::ExitStatus status) {
             qDebug() << "BlackHoleCore: renderer stopped, exit code:" << code;
-            publishRendererDiagnostic(m_rendererDiagnostics.processFinished(
-                code, status == QProcess::CrashExit));
+            RendererDiagnostic diagnostic;
+            if (m_rendererDiagnostics.state() == RendererStartupState::Starting) {
+                diagnostic = consumeRendererStartupLog(kMaxRendererLogDrainBytes);
+            }
+            if (!diagnostic.valid) {
+                diagnostic = m_rendererDiagnostics.processFinished(
+                    code, status == QProcess::CrashExit);
+            }
+            publishRendererDiagnostic(diagnostic);
             emit rendererStopped();
             emit rendererRunningChanged();
             emit systemActiveChanged();
@@ -798,6 +806,75 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
     m_rendererStartupTimer->start(200);
 }
 
+RendererDiagnostic BlackHoleCore::consumeRendererStartupLog(qint64 maxTotalBytes)
+{
+    if (m_rendererDiagnostics.state() != RendererStartupState::Starting
+        || maxTotalBytes < kMaxRendererLogReadBytes) {
+        return {};
+    }
+
+    QFile logFile(m_rendererLogPath);
+    if (!logFile.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+
+    qint64 totalRead = 0;
+    while (totalRead + kMaxRendererLogReadBytes <= maxTotalBytes
+           && m_rendererDiagnostics.state() == RendererStartupState::Starting) {
+        const qint64 fileSize = logFile.size();
+        qint64 readOffset = m_rendererDiagnostics.logOffset();
+        bool fileReplacedOrTruncated = fileSize < readOffset;
+
+        if (!fileReplacedOrTruncated && readOffset > 0
+            && !m_rendererLogBoundaryProbe.isEmpty()) {
+            const qint64 probeOffset = readOffset - m_rendererLogBoundaryProbe.size();
+            if (!logFile.seek(probeOffset)
+                || logFile.read(m_rendererLogBoundaryProbe.size())
+                       != m_rendererLogBoundaryProbe) {
+                fileReplacedOrTruncated = true;
+            }
+        }
+
+        if (fileReplacedOrTruncated) {
+            readOffset = 0;
+        }
+        if (readOffset >= fileSize) {
+            if (fileReplacedOrTruncated) {
+                m_rendererLogBoundaryProbe.clear();
+                m_rendererDiagnostics.consumeLogChunk({}, 0, true);
+            }
+            break;
+        }
+
+        if (!logFile.seek(readOffset)) {
+            break;
+        }
+        const QByteArray content = logFile.read(kMaxRendererLogReadBytes);
+        if (content.isEmpty()) {
+            break;
+        }
+
+        const RendererDiagnostic diagnostic = m_rendererDiagnostics.consumeLogChunk(
+            content, readOffset, fileReplacedOrTruncated);
+        totalRead += content.size();
+
+        const qint64 consumedOffset = m_rendererDiagnostics.logOffset();
+        const qint64 probeOffset = std::max<qint64>(
+            0, consumedOffset - kRendererLogBoundaryProbeBytes);
+        if (logFile.seek(probeOffset)) {
+            m_rendererLogBoundaryProbe = logFile.read(consumedOffset - probeOffset);
+        }
+
+        if (diagnostic.valid) {
+            return diagnostic;
+        }
+        if (content.size() < kMaxRendererLogReadBytes) {
+            break;
+        }
+    }
+    return {};
+}
+
 void BlackHoleCore::pollRendererStartup()
 {
     if (m_rendererDiagnostics.state() != RendererStartupState::Starting) {
@@ -805,47 +882,8 @@ void BlackHoleCore::pollRendererStartup()
         return;
     }
 
-    const QFileInfo logInfo(m_rendererLogPath);
-    if (logInfo.isFile()) {
-        QFile logFile(m_rendererLogPath);
-        if (logFile.open(QIODevice::ReadOnly)) {
-            qint64 readOffset = m_rendererDiagnostics.logOffset();
-            bool fileReplacedOrTruncated = logInfo.size() < readOffset;
-
-            if (!fileReplacedOrTruncated && readOffset > 0
-                && !m_rendererLogBoundaryProbe.isEmpty()) {
-                const qint64 probeOffset = readOffset - m_rendererLogBoundaryProbe.size();
-                if (!logFile.seek(probeOffset)
-                    || logFile.read(m_rendererLogBoundaryProbe.size())
-                           != m_rendererLogBoundaryProbe) {
-                    fileReplacedOrTruncated = true;
-                }
-            }
-
-            if (fileReplacedOrTruncated) {
-                readOffset = 0;
-            }
-            if (logInfo.size() - readOffset > kMaxRendererLogReadBytes) {
-                readOffset = logInfo.size() - kMaxRendererLogReadBytes;
-                fileReplacedOrTruncated = true;
-            }
-
-            QByteArray content;
-            if (logFile.seek(readOffset)) {
-                content = logFile.read(kMaxRendererLogReadBytes);
-            }
-            publishRendererDiagnostic(m_rendererDiagnostics.consumeLogChunk(
-                content, readOffset, fileReplacedOrTruncated));
-
-            const qint64 consumedOffset = m_rendererDiagnostics.logOffset();
-            const qint64 probeOffset = std::max<qint64>(
-                0, consumedOffset - kRendererLogBoundaryProbeBytes);
-            if (logFile.seek(probeOffset)) {
-                m_rendererLogBoundaryProbe = logFile.read(
-                    consumedOffset - probeOffset);
-            }
-        }
-    }
+    publishRendererDiagnostic(
+        consumeRendererStartupLog(kMaxRendererLogReadBytes));
 
     if (m_rendererDiagnostics.state() == RendererStartupState::Ready) {
         m_rendererStartupTimer->stop();

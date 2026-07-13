@@ -280,6 +280,47 @@ void testLogTailDoesNotLeakAcrossAttemptsOrReplacement(const QString &logPath)
             "replacement clears previous file context");
 }
 
+void testFailureMarkerAcrossSequentialChunks(const QString &logPath)
+{
+    RendererStartupDiagnostics diagnostics;
+    diagnostics.beginAttempt(logPath, 0, {});
+
+    QByteArray firstChunk(64 * 1024, 'x');
+    firstChunk.replace(firstChunk.size() - 3, 3, QByteArrayLiteral("[FA"));
+    const RendererDiagnostic beforeFailure = diagnostics.consumeLogChunk(
+        firstChunk, 0, false);
+    require(!beforeFailure.valid
+                && diagnostics.state() == RendererStartupState::Starting,
+            "first bounded chunk with partial marker keeps attempt Starting");
+    require(diagnostics.logOffset() == firstChunk.size(),
+            "first bounded chunk advances the absolute log offset");
+
+    const QByteArray secondChunk = QByteArrayLiteral(
+        "IL] failure after first bounded chunk\n");
+    const RendererDiagnostic afterFailure = diagnostics.consumeLogChunk(
+        secondChunk, firstChunk.size(), false);
+    require(afterFailure.valid
+                && afterFailure.kind == RendererFailureKind::InitializationFailed,
+            "FAIL marker split across sequential bounded chunks is detected");
+    require(afterFailure.details.contains(
+                QStringLiteral("failure after first bounded chunk")),
+            "cross-chunk failure retains the complete failure line");
+
+    diagnostics.beginAttempt(logPath, 0, {});
+    QByteArray readyFirstChunk(64 * 1024, 'y');
+    const QByteArray partialReady = QByteArrayLiteral(
+        "[OK] Ready, entering main ");
+    readyFirstChunk.replace(readyFirstChunk.size() - partialReady.size(),
+                            partialReady.size(),
+                            partialReady);
+    diagnostics.consumeLogChunk(readyFirstChunk, 0, false);
+    const QByteArray readySecondChunk = QByteArrayLiteral("loop\n");
+    const RendererDiagnostic ready = diagnostics.consumeLogChunk(
+        readySecondChunk, readyFirstChunk.size(), false);
+    require(!ready.valid && diagnostics.state() == RendererStartupState::Ready,
+            "Ready marker split across sequential bounded chunks is detected");
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -301,6 +342,7 @@ int main(int argc, char *argv[])
     testDiagnosticDetailsAreCapped(logPath);
     testRollingLogTailIsBounded(logPath);
     testLogTailDoesNotLeakAcrossAttemptsOrReplacement(logPath);
+    testFailureMarkerAcrossSequentialChunks(logPath);
 
     std::cout << "RENDERER_STARTUP_DIAGNOSTICS_TESTS_OK\n";
     return EXIT_SUCCESS;

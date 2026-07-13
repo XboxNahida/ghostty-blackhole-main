@@ -87,21 +87,54 @@ if ($header -notmatch 'RendererStartupState::Stopping' -and
     throw 'Renderer finished handling must respect the stopping state'
 }
 
-$pollFunctionStart = $source.IndexOf('void BlackHoleCore::pollRendererStartup()')
+$consumeFunctionStart = $source.IndexOf('RendererDiagnostic BlackHoleCore::consumeRendererStartupLog')
+if ($consumeFunctionStart -lt 0) {
+    throw 'Missing shared bounded renderer log consumer'
+}
+$consumeFunctionEnd = $source.IndexOf('void BlackHoleCore::pollRendererStartup()', $consumeFunctionStart)
+if ($consumeFunctionEnd -lt 0) {
+    throw 'Missing renderer startup polling function after shared log consumer'
+}
+$consumeFunction = $source.Substring(
+    $consumeFunctionStart, $consumeFunctionEnd - $consumeFunctionStart)
+if ($consumeFunction -match '\.readAll\s*\(') {
+    throw 'Renderer log consumer must not use unbounded readAll()'
+}
+if ($consumeFunction -match 'lastModified\s*\(') {
+    throw 'Renderer log consumer must not treat modification time as replacement'
+}
+if ($consumeFunction -notmatch '\.seek\s*\(' -or
+    $consumeFunction -notmatch '\.read\s*\(\s*kMaxRendererLogReadBytes\s*\)') {
+    throw 'Renderer log consumer must seek to an offset and use bounded chunk reads'
+}
+if ($consumeFunction -match 'readOffset\s*=\s*logInfo\.size\(\)\s*-\s*kMaxRendererLogReadBytes') {
+    throw 'Renderer log backlog must be consumed sequentially instead of seeking to its tail'
+}
+
+$pollFunctionStart = $consumeFunctionEnd
 $pollFunctionEnd = $source.IndexOf('void BlackHoleCore::publishRendererDiagnostic', $pollFunctionStart)
-if ($pollFunctionStart -lt 0 -or $pollFunctionEnd -lt 0) {
-    throw 'Missing renderer startup polling function'
-}
 $pollFunction = $source.Substring($pollFunctionStart, $pollFunctionEnd - $pollFunctionStart)
-if ($pollFunction -match '\.readAll\s*\(') {
-    throw 'Renderer startup polling must not use unbounded readAll()'
+if ($pollFunction -notmatch 'consumeRendererStartupLog\s*\(\s*kMaxRendererLogReadBytes\s*\)') {
+    throw 'Timer polling must use the shared bounded renderer log consumer'
 }
-if ($pollFunction -match 'lastModified\s*\(') {
-    throw 'Renderer startup polling must not treat modification time as replacement'
+
+$finishedHandlerStart = $source.IndexOf(
+    'connect(m_rendererProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished)')
+$finishedHandlerEnd = $source.IndexOf(
+    'connect(m_rendererProcess, &QProcess::errorOccurred', $finishedHandlerStart)
+if ($finishedHandlerStart -lt 0 -or $finishedHandlerEnd -lt 0) {
+    throw 'Missing renderer finished handler'
 }
-if ($pollFunction -notmatch '\.seek\s*\(' -or
-    $pollFunction -notmatch '\.read\s*\(\s*kMaxRendererLogReadBytes\s*\)') {
-    throw 'Renderer startup polling must seek to an offset and use a bounded read'
+$finishedHandler = $source.Substring(
+    $finishedHandlerStart, $finishedHandlerEnd - $finishedHandlerStart)
+$finishedConsume = $finishedHandler.IndexOf('consumeRendererStartupLog')
+$finishedState = $finishedHandler.IndexOf('processFinished')
+if ($finishedConsume -lt 0 -or $finishedState -lt 0 -or
+    $finishedConsume -gt $finishedState) {
+    throw 'Renderer finished handler must consume remaining log before processFinished'
+}
+if ($finishedHandler -notmatch 'kMaxRendererLogDrainBytes') {
+    throw 'Renderer finished log drain must have an explicit total byte limit'
 }
 
 'RENDERER_DIAGNOSTICS_UI_OK'
