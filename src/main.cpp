@@ -32,6 +32,10 @@
 #include "movement_settings.h"
 #include "win32_gl.h"
 #include "monitors.h"
+#include "render/gl_funcs.h"
+#include "render/shader_source.h"
+#include "render/gl_program.h"
+#include "render/blackhole_renderer.h"
 #ifdef BLACKHOLE_USE_D3D11
 #include "d3d11_renderer.h"
 #include "win32_window.h"

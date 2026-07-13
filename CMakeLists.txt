@@ -36,6 +36,10 @@ if(WIN32 AND BLACKHOLE_BUILD_RENDERER)
 
     add_executable(blackhole
         src/main.cpp
+        src/render/gl_funcs_win32.cpp
+        src/render/shader_source.cpp
+        src/render/gl_program.cpp
+        src/render/blackhole_renderer.cpp
         src/foreground_window.cpp
         src/game_detection.cpp
         src/media_session.cpp
@@ -65,6 +69,7 @@ if(WIN32 AND BLACKHOLE_BUILD_RENDERER)
     target_include_directories(blackhole PRIVATE
         ${OPENGL_INCLUDE_DIRS}
         "${BLACKHOLE_GENERATED_DIR}"
+        src
     )
 
     target_link_libraries(blackhole PRIVATE
@@ -132,4 +137,16 @@ endif()
 # ══════════════════════════════════════════════════════════════
 if(BLACKHOLE_BUILD_UI)
     add_subdirectory(Blakhole_UI)
+endif()
+
+# ══════════════════════════════════════════════════════════════
+# Tests
+# ══════════════════════════════════════════════════════════════
+if(BUILD_TESTING)
+    add_executable(shader_source_tests EXCLUDE_FROM_ALL
+        tests/shader_source_tests.cpp
+        src/render/shader_source.cpp
+    )
+    target_include_directories(shader_source_tests PRIVATE src)
+    add_test(NAME shader_source_tests COMMAND shader_source_tests)
 endif()
