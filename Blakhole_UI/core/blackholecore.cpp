@@ -25,6 +25,10 @@
 
 #include <algorithm>
 
+#ifndef Q_OS_WIN
+#include "gnome_idle_monitor.h"
+#endif
+
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <mmdeviceapi.h>
@@ -209,9 +213,25 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     , m_presetModel(new PresetModel(this))
     , m_presetListModel(new PresetListModel(this))
     , m_rendererProcess(nullptr)
+#ifndef Q_OS_WIN
+    , m_gnomeIdle(nullptr)
+#endif
 {
     initDefaultPresets();
     QCoreApplication::instance()->installNativeEventFilter(this);
+
+#ifndef Q_OS_WIN
+    m_gnomeIdle = new GnomeIdleMonitor(this);
+    connect(m_gnomeIdle, &GnomeIdleMonitor::idleEligible, this, [this]() {
+        startRendererInternal(false);
+    });
+    connect(m_gnomeIdle, &GnomeIdleMonitor::activityDetected, this, [this]() {
+        stopRenderer();
+    });
+    connect(m_gnomeIdle, &GnomeIdleMonitor::lockDetected, this, [this]() {
+        stopRenderer();
+    });
+#endif
 
     // 空闲检测定时器
     m_idleTimer = new QTimer(this);

@@ -44,6 +44,7 @@ set(APP_SOURCES
     core/blackholepreviewfbo.h
     core/blackholepreviewfbo.cpp
     ../src/renderer_search_linux.cpp
+    ../src/gnome_idle_monitor.cpp
 )
 
 # Windows-only sources
@@ -90,6 +91,10 @@ set_target_properties(appBlakholeUI PROPERTIES
 target_link_libraries(appBlakholeUI
     PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL Qt6::Network
 )
+
+if(NOT WIN32)
+    target_link_libraries(appBlakholeUI PRIVATE Qt6::DBus)
+endif()
 
 if(WIN32)
     target_link_libraries(appBlakholeUI

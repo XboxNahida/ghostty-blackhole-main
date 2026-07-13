@@ -84,6 +84,9 @@ private:
 };
 
 // 黑洞核心 — 配置管理 + 进程控制
+#ifndef Q_OS_WIN
+    class GnomeIdleMonitor;
+#endif
 class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_OBJECT
 
@@ -518,6 +521,9 @@ private:
     static constexpr qsizetype kMaxStderrBufferBytes = 65536;
 
     // 空闲检测
+#ifndef Q_OS_WIN
+    GnomeIdleMonitor *m_gnomeIdle = nullptr;
+#endif
     QTimer *m_idleTimer = nullptr;
 
     // 高级设置
