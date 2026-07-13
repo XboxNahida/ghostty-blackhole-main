@@ -14,7 +14,7 @@ constexpr int kTimeoutMs = 8000;
 constexpr qsizetype kMaxResponseBytes = 1024 * 1024;
 constexpr auto kIgnoredKey = "ignoredVersion";
 constexpr auto kVisitedKey = "visitedVersion";
-QSettings Settings() { return QSettings(QStringLiteral("XboxNahida"), QStringLiteral("Blakhole UI")); }
+QSettings Settings() { return QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("XboxNahida"), QStringLiteral("Blakhole UI")); }
 
 void SetError(QString *error, const QString &message)
 {
@@ -183,6 +183,7 @@ void UpdateChecker::applyRelease(const UpdateReleaseInfo &release, bool manual)
         return;
     }
     if (manual) clearSuppression();
+    settings.sync();
     const QString ignored = settings.value(kIgnoredKey).toString();
     const QString visited = settings.value(kVisitedKey).toString();
     if (!ignored.isEmpty() && ignored != release.tagName) settings.remove(kIgnoredKey);
@@ -223,14 +224,20 @@ bool UpdateChecker::openDownloadPageForTesting()
         || m_latestUrl.host().compare(QStringLiteral("github.com"), Qt::CaseInsensitive) != 0) {
         return false;
     }
-    Settings().setValue(kVisitedKey, m_latestVersion);
+    {
+        QSettings settings = Settings();
+        settings.setValue(kVisitedKey, m_latestVersion);
+        settings.sync();
+    }
     return true;
 }
 
 void UpdateChecker::ignoreCurrentRelease()
 {
     if (m_latestVersion.isEmpty()) return;
-    Settings().setValue(kIgnoredKey, m_latestVersion);
+    QSettings settings = Settings();
+    settings.setValue(kIgnoredKey, m_latestVersion);
+    settings.sync();
     setUpdateAvailable(false);
     setStatus(QStringLiteral("已忽略 %1").arg(m_latestVersion));
 }
@@ -247,6 +254,7 @@ void UpdateChecker::clearStateForTesting()
     QSettings settings = Settings();
     settings.remove(kIgnoredKey);
     settings.remove(kVisitedKey);
+    settings.sync();
     setUpdateAvailable(false);
 }
 

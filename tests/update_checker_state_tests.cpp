@@ -32,7 +32,8 @@ UpdateReleaseInfo Release(const QString &tag)
 
 QSettings Settings()
 {
-    return QSettings(QStringLiteral("XboxNahida"), QStringLiteral("Blakhole UI"));
+    return QSettings(QSettings::IniFormat, QSettings::UserScope,
+                     QStringLiteral("XboxNahida"), QStringLiteral("Blakhole UI"));
 }
 
 QByteArray ReleaseJson(const QByteArray &draft, const QByteArray &prerelease)
