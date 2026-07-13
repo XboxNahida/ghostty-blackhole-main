@@ -10,6 +10,8 @@ SystemTray::SystemTray(QObject *parent)
     , m_window(nullptr)
 {
     m_tray->setIcon(QIcon(":/new/prefix1/fonts/icon.ico"));
+    if (m_tray->icon().isNull())
+        m_tray->setIcon(QIcon::fromTheme(QStringLiteral("application-x-executable")));
     m_tray->setToolTip("Blakhole UI");
 
     QAction *showAction = m_menu->addAction("显示窗口");

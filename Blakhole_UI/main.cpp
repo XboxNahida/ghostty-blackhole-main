@@ -33,7 +33,10 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("XboxNahida"));
     QCoreApplication::setApplicationVersion(QStringLiteral(APP_VERSION_STRING));
 
-    app.setWindowIcon(QIcon(":/new/prefix1/fonts/icon.ico"));
+    QIcon appIcon(":/new/prefix1/fonts/icon.ico");
+    if (appIcon.isNull())
+        appIcon = QIcon::fromTheme(QStringLiteral("application-x-executable"));
+    app.setWindowIcon(appIcon);
 
     qmlRegisterType<BlackHoleCore>("BlakholeUI", 1, 0, "BlackHoleCore");
     qmlRegisterType<BlackholePreviewFBO>("BlakholeUI", 1, 0, "BlackholePreviewFBO");
@@ -61,16 +64,17 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("BlakholeUI", "Main");
 
-#ifdef Q_OS_WIN
+    // 关联托盘与窗口（跨平台）
     const auto rootObjects = engine.rootObjects();
     if (!rootObjects.isEmpty()) {
         QQuickWindow *window = qobject_cast<QQuickWindow*>(rootObjects.first());
         if (window) {
+#ifdef Q_OS_WIN
             HWND hwnd = reinterpret_cast<HWND>(window->winId());
             int cornerPreference = 2;
             DwmSetWindowAttribute(hwnd, 33, &cornerPreference, sizeof(cornerPreference));
+#endif
 
-            // 关联托盘与窗口
             auto *tray = window->findChild<SystemTray*>();
             if (tray) {
                 tray->setWindow(window);
@@ -84,7 +88,6 @@ int main(int argc, char *argv[])
             }
         }
     }
-#endif
 
     return app.exec();
 }

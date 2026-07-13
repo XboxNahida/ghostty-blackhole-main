@@ -8,11 +8,15 @@
 #include <QSet>
 
 #include <algorithm>
-#include <tlhelp32.h>
 #include <vector>
+
+#ifdef Q_OS_WIN
+#include <tlhelp32.h>
+#endif
 
 namespace {
 
+#ifdef Q_OS_WIN
 QString ReadVersionString(const QString &path, const wchar_t *field)
 {
     const std::wstring nativePath = QDir::toNativeSeparators(path).toStdWString();
@@ -45,6 +49,7 @@ QString ReadVersionString(const QString &path, const wchar_t *field)
     }
     return QString::fromWCharArray(value).trimmed();
 }
+#endif // Q_OS_WIN
 
 QString IconDataUrl(const QFileInfo &fileInfo)
 {
@@ -58,6 +63,7 @@ QString IconDataUrl(const QFileInfo &fileInfo)
     return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(png.toBase64());
 }
 
+#ifdef Q_OS_WIN
 QString ProcessPath(DWORD pid)
 {
     HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
@@ -82,6 +88,7 @@ bool IsHiddenProcess(const ApplicationCatalogEntry &entry, const QString &window
     return QDir::toNativeSeparators(entry.executablePath).startsWith(
         prefix, Qt::CaseInsensitive);
 }
+#endif // Q_OS_WIN
 
 } // namespace
 
@@ -97,7 +104,11 @@ ApplicationCatalogEntry ApplicationCatalog_FromExecutable(
     if (entry.executablePath.isEmpty()) entry.executablePath = source.absoluteFilePath();
     entry.executablePath = QDir::toNativeSeparators(entry.executablePath);
     entry.processName = source.fileName();
+#ifdef Q_OS_WIN
     entry.displayName = ReadVersionString(entry.executablePath, L"FileDescription");
+#else
+    entry.displayName.clear();
+#endif
     if (entry.displayName.isEmpty()) {
         entry.displayName = source.completeBaseName();
     }
@@ -106,6 +117,7 @@ ApplicationCatalogEntry ApplicationCatalog_FromExecutable(
     return entry;
 }
 
+#ifdef Q_OS_WIN
 QVector<ApplicationCatalogEntry> ApplicationCatalog_EnumerateRunning(DWORD excludedPid)
 {
     QVector<ApplicationCatalogEntry> entries;
@@ -148,3 +160,9 @@ QVector<ApplicationCatalogEntry> ApplicationCatalog_EnumerateRunning(DWORD exclu
               });
     return entries;
 }
+#else
+QVector<ApplicationCatalogEntry> ApplicationCatalog_EnumerateRunning(int)
+{
+    return {};
+}
+#endif // Q_OS_WIN

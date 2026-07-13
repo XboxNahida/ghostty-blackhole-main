@@ -2,11 +2,14 @@
 #include "blackholecore.h"
 #include "application_catalog.h"
 #include "avatar_storage.h"
+#include "movement_settings.h"
+
+#ifdef Q_OS_WIN
 #include "autostart_registry.h"
 #include "foreground_window.h"
 #include "game_detection.h"
 #include "media_session.h"
-#include "movement_settings.h"
+#endif
 
 #include <QCoreApplication>
 #include <QDir>
@@ -1276,6 +1279,8 @@ void BlackHoleCore::renameCurrentPreset(const QString &name)
 
 // ====== 空闲检测 ======
 
+#ifdef Q_OS_WIN
+
 // IAudioMeterInformation GUID (missing from MinGW headers)
 static const GUID IID_IAudioMeterInformation2 = {0xC02216F6,0x8C67,0x4B5B,{0x9D,0x00,0xD0,0x08,0xE7,0x3E,0x00,0x64}};
 struct IAudioMeterInformation2 : IUnknown {
@@ -1305,6 +1310,8 @@ static void GetProcName(DWORD pid, char* out, int maxLen) {
     }
     CloseHandle(snap);
 }
+
+#endif // Q_OS_WIN
 
 static bool IdleListMatchesProcess(const QStringList &list, const char *processName)
 {
@@ -2294,6 +2301,7 @@ void BlackHoleCore::unregisterCloseHotkey()
 
 bool BlackHoleCore::parseHotkeySequence(const QString &sequence, quint32 *modifiers, quint32 *key) const
 {
+#ifdef Q_OS_WIN
     if (!modifiers || !key) return false;
     *modifiers = 0;
     *key = 0;
@@ -2327,6 +2335,12 @@ bool BlackHoleCore::parseHotkeySequence(const QString &sequence, quint32 *modifi
     }
 
     return *key != 0 && *modifiers != 0;
+#else
+    Q_UNUSED(sequence);
+    Q_UNUSED(modifiers);
+    Q_UNUSED(key);
+    return false;
+#endif
 }
 
 QString BlackHoleCore::normalizedHotkeySequence(const QString &sequence) const

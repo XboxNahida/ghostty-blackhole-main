@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
     assert(QFileInfo(current.executablePath).isAbsolute());
     assert(current.iconDataUrl.isEmpty());
 
+#ifdef Q_OS_WIN
     const QVector<ApplicationCatalogEntry> running =
         ApplicationCatalog_EnumerateRunning(0);
     bool foundCurrent = false;
@@ -40,7 +41,8 @@ int main(int argc, char *argv[])
         }
     }
     assert(foundCurrent);
+#endif
 
-    std::cout << "APPLICATION_CATALOG_TESTS_OK entries=" << running.size() << "\n";
+    std::cout << "APPLICATION_CATALOG_TESTS_OK\n";
     return 0;
 }
