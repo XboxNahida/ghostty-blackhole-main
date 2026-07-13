@@ -150,14 +150,30 @@ if(BUILD_TESTING)
     target_include_directories(shader_source_tests PRIVATE src)
     add_test(NAME shader_source_tests COMMAND shader_source_tests)
 
-    # Compile-guard: verify render core headers compile on Linux
-    add_executable(render_core_compile_test EXCLUDE_FROM_ALL
-        tests/render_core_compile_test.cpp
+    # Compile-guard: verify all render core source files compile on Linux.
+    # Uses -fsyntax-only so no GL/Bloom/Win32 symbols need to be linked.
+    set(_RENDER_SRCS
         src/render/gl_funcs_win32.cpp
         src/render/shader_source.cpp
         src/render/gl_program.cpp
         src/render/blackhole_renderer.cpp
     )
-    target_include_directories(render_core_compile_test PRIVATE src)
-    target_compile_definitions(render_core_compile_test PRIVATE BLACKHOLE_USE_D3D11)
+    set(_RENDER_FLAGS -std=c++17 -fsyntax-only -I"${CMAKE_SOURCE_DIR}/src")
+    add_custom_target(render_core_syntax_check
+        COMMAND ${CMAKE_CXX_COMPILER} ${_RENDER_FLAGS}
+            "${CMAKE_SOURCE_DIR}/tests/render_core_compile_test.cpp"
+        COMMAND ${CMAKE_CXX_COMPILER} ${_RENDER_FLAGS}
+            "${CMAKE_SOURCE_DIR}/src/render/gl_funcs_win32.cpp"
+        COMMAND ${CMAKE_CXX_COMPILER} ${_RENDER_FLAGS}
+            "${CMAKE_SOURCE_DIR}/src/render/shader_source.cpp"
+        COMMAND ${CMAKE_CXX_COMPILER} ${_RENDER_FLAGS}
+            "${CMAKE_SOURCE_DIR}/src/render/gl_program.cpp"
+        COMMAND ${CMAKE_CXX_COMPILER} ${_RENDER_FLAGS}
+            "${CMAKE_SOURCE_DIR}/src/render/blackhole_renderer.cpp"
+        COMMENT "Syntax-checking render core on Linux"
+    )
+    add_test(NAME render_core_syntax_check
+        COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}"
+            --target render_core_syntax_check
+    )
 endif()

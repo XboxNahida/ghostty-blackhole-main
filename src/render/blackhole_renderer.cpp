@@ -139,15 +139,16 @@ void BlackholeRenderer::drawAndBloom(int fbW, int fbH, const BlackholeConfig& cf
         gl_Uniform1fv(loc_uPSt, pc, buf);
     }
     gl_Uniform1f(locBorn, bornProgress);
-    gl_Uniform1f(locFixedSz, cfg.fixedSize);
+    gl_Uniform1i(locFixedSz, cfg.fixedSize ? 1 : 0);
     gl_Uniform1f(locFixedLvl, cfg.fixedLevel);
-    gl_Uniform1f(locGrowEnabled, cfg.growEnabled ? 1.0f : 0.0f);
+    gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
     gl_Uniform1f(locInitialSize, cfg.initialSize);
-    gl_Uniform1f(locLightingEffect, cfg.lightingEffect ? 1.0f : 0.0f);
-    gl_Uniform1f(locDistortion, cfg.distortion);
+    gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
+    float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
+    gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
     gl_Uniform1f(locHomeX, homeX);
     gl_Uniform1f(locHomeY, homeY);
-    gl_Uniform1f(locFollowMouse, cfg.followMouse ? 1.0f : 0.0f);
+    gl_Uniform1i(locFollowMouse, cfg.followMouse ? 1 : 0);
     gl_Uniform1f(locPhase, phaseOffset);
     gl_Uniform1f(locPresetOff, presetOffset);
 
