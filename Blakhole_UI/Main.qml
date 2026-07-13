@@ -32,6 +32,12 @@ ApplicationWindow {
         checker: updateChecker
     }
 
+    Components.RendererErrorDialog {
+        id: rendererErrorDialog
+        theme: theme
+        core: blackHoleCore
+    }
+
     SystemTray {
         id: systemTray
         Component.onCompleted: systemTray.visible = false
@@ -48,6 +54,14 @@ ApplicationWindow {
         }
         function onCloseHotkeyStatusChanged() {
             root.closeHotkeyStatus = blackHoleCore.closeHotkeyStatus
+        }
+        function onRendererStartupFailed(title, summary, details, logPath) {
+            root.visible = true
+            root.showNormal()
+            systemTray.visible = false
+            root.raise()
+            root.requestActivate()
+            rendererErrorDialog.showFailure(title, summary, details, logPath)
         }
     }
 

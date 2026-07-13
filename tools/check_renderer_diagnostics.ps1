@@ -22,6 +22,13 @@ Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' '8000' 'startup timeout'
 Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' '200' 'log polling interval'
 Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'startRendererInternal\(bool userInitiated\)' 'automatic retry distinction'
 Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'rendererStartupFailed' 'diagnostic publication'
+Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'function showFailure' 'dialog failure API'
+Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'copy\(\)' 'copy details action'
+Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'openRendererLogDirectory' 'open log directory action'
+Require-Pattern 'Blakhole_UI\Main.qml' 'onRendererStartupFailed' 'renderer failure connection'
+Require-Pattern 'Blakhole_UI\Main.qml' 'root\.showNormal\(\)' 'restore minimized window'
+Require-Pattern 'Blakhole_UI\Main.qml' 'root\.requestActivate\(\)' 'activate restored window'
+Require-Pattern 'Blakhole_UI\Main.qml' 'systemTray\.visible\s*=\s*false' 'tray state reset'
 
 $header = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\core\blackholecore.h')
 $source = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\core\blackholecore.cpp')
@@ -80,4 +87,4 @@ if ($header -notmatch 'RendererStartupState::Stopping' -and
     throw 'Renderer finished handling must respect the stopping state'
 }
 
-'RENDERER_DIAGNOSTICS_BACKEND_OK'
+'RENDERER_DIAGNOSTICS_UI_OK'
