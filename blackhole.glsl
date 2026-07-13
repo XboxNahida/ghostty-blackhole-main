@@ -166,14 +166,14 @@ struct DiskLook {
     float temp, incl, roll, inner, outer, opac, dopp, beam,
           gain, contr, wind, speed, expo, star;
 };
-const DiskLook LOOK_DEFAULT = DiskLook(
+DiskLook LOOK_DEFAULT = DiskLook(
     DISK_TEMP, DISK_INCL, DISK_ROLL, DISK_INNER, DISK_OUTER, DISK_OPACITY,
     DOPPLER_MIX, DISK_BEAM, DISK_GAIN, DISK_CONTRAST, DISK_WIND, DISK_SPEED,
     EXPOSURE, STAR_GAIN);
 #define DEMO_N 8
 // the tuner's presets (ParamSpec.swift), ~5.25 s each; Zen is skipped (too
 // subtle to read in a quick demo) and Inferno bookends the loop
-const DiskLook DEMO_TOUR[DEMO_N] = DiskLook[DEMO_N](
+DiskLook DEMO_TOUR[DEMO_N] = DiskLook[DEMO_N](
     //        temp    incl  roll   inner outer opac  dopp  beam gain contr wind speed expo  star
     DiskLook( 5500.0, 1.50,  0.35, 1.8,  8.0, 0.90, 0.60, 2.5, 2.2, 1.6, 7.0, 5.0, 1.40, 0.0),  // inferno
     DiskLook( 4500.0, 1.52,  0.10, 2.2,  7.0, 0.85, 0.35, 2.0, 1.4, 0.5, 7.0, 5.0, 1.20, 0.0),  // gargantua

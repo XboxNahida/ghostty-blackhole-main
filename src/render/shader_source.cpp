@@ -338,6 +338,7 @@ bool buildFragmentShaderFromSources(const std::string& header,
          "        vec3 coldBlueLight = vec3(0.10, 0.54, 1.00) * diskSide;\n"
          "        vec3 dualToneLight = warmGoldLight + coldBlueLight;\n"
          "        float outerDiskFade = smoothstep(0.15, 1.0, diskUnit);\n"
+         "        float nativeDiskDetail = 1.0;\n"
          "        float middleBrightLayer = realDiskMask * nativeDiskDetail * (0.32 + 0.82 * (1.0 - outerDiskFade));\n"
          "        float screenR = length(p);\n"
          "        float ringWidth = max(rh * 0.10, 0.0004);\n"

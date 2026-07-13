@@ -205,7 +205,8 @@ static const char* MIN_BODY =
     "lissa(moveT * TOKEN_RUSH)\n"
     "    fragColor = vec4(col, 1.0);\n"
     "* window * shield;\n"
-    "mod(iTime, DEMO_SEC) / DEMO_GROW_SEC\n";
+    "mod(iTime, DEMO_SEC) / DEMO_GROW_SEC\n"
+    "float shield = vis * smoothstep(WORK_AREA, WORK_AREA + 0.18, yUp);\n";
 
 void test_fromSources_valid() {
     std::string out;

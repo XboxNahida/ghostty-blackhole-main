@@ -32,6 +32,30 @@ static const char* flagValue(int argc, char* argv[], const char* name) {
     return nullptr;
 }
 
+// ── CLI validation ──
+static bool isValidArg(const char* arg) {
+    static const char* known[] = {
+        "--render", "--windowed", "--diagnostic", "--resources", "--background",
+        "--config", "--display", "--help", nullptr
+    };
+    for (int i = 0; known[i]; i++)
+        if (strcmp(arg, known[i]) == 0) return true;
+    return false;
+}
+
+static int validateArgs(int argc, char* argv[]) {
+    for (int i = 1; i < argc; i++) {
+        if (argv[i][0] == '-' && !isValidArg(argv[i])) {
+            fprintf(stderr, "ERROR: unknown argument: %s\n", argv[i]);
+            fprintf(stderr, "Usage: %s --render --windowed --background generated\n", argv[0]);
+            fprintf(stderr, "       [--config <path>] [--resources <dir>]\n");
+            fprintf(stderr, "       [--display <N>] [--diagnostic]\n");
+            return 2;
+        }
+    }
+    return 0;
+}
+
 // ── Input state ──
 static bool g_quit = false;
 static double g_lastCursorX = 0.0, g_lastCursorY = 0.0;
@@ -72,12 +96,33 @@ int main(int argc, char* argv[]) {
     bool diagnostic = hasFlag(argc, argv, "--diagnostic");
     FILE* log = diagnostic ? stderr : nullptr;
 
+    // Validate CLI before any side effects
+    {
+        int ret = validateArgs(argc, argv);
+        if (ret != 0) return ret;
+    }
+
     const char* resourcesDir = flagValue(argc, argv, "--resources");
     if (resourcesDir && resourcesDir[0]) {
         if (chdir(resourcesDir) != 0) {
             fprintf(stderr, "FAILED: chdir to %s\n", resourcesDir);
             return EXIT_FAILURE;
         }
+    }
+
+    // ── Validate --background (DS-03: must be "generated") ──
+    {
+        const char* bg = flagValue(argc, argv, "--background");
+        if (!bg || strcmp(bg, "generated") != 0) {
+            fprintf(stderr, "ERROR: --background must be 'generated' (DS-03)\n");
+            return 2;
+        }
+    }
+
+    // ── Validate --render (required for DS-03) ──
+    if (!hasFlag(argc, argv, "--render")) {
+        fprintf(stderr, "ERROR: --render is required\n");
+        return 2;
     }
 
     // ── GLFW init ──
@@ -91,13 +136,21 @@ int main(int argc, char* argv[]) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // shown after init
 
-    // Determine window size
+    // Determine window size and monitor
     int winW = 1280, winH = 720;
     GLFWmonitor* monitor = nullptr;
     if (!windowed) {
-        monitor = glfwGetPrimaryMonitor();
+        const char* dispStr = flagValue(argc, argv, "--display");
+        int dispIdx = dispStr ? atoi(dispStr) : 0;
+        int count = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+        if (dispIdx >= 0 && dispIdx < count) {
+            monitor = monitors[dispIdx];
+        } else {
+            monitor = glfwGetPrimaryMonitor();
+        }
         if (!monitor) {
-            fprintf(stderr, "FAILED: no primary monitor, falling back to windowed\n");
+            fprintf(stderr, "FAILED: no monitor available, falling back to windowed\n");
             windowed = true;
         } else {
             const GLFWvidmode* mode = glfwGetVideoMode(monitor);
@@ -146,12 +199,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    // ── Load config ──
+    // ── Load config (use --config path if provided) ──
     BlackholeConfig cfg;
     {
+        const char* configPath = flagValue(argc, argv, "--config");
         char names[64][64];
-        if (!LoadPresetsFromFile(cfg, names))
-            InitDefaultPresets(cfg);
+        if (configPath) {
+            if (!LoadPresetsFromFile(cfg, names, configPath))
+                InitDefaultPresets(cfg);
+        } else {
+            if (!LoadPresetsFromFile(cfg, names))
+                InitDefaultPresets(cfg);
+        }
         LoadAdvancedConfig(cfg);
         cfg.mode = 0;
     }
@@ -201,8 +260,16 @@ int main(int argc, char* argv[]) {
     GLint locTime = gl_GetUniformLocation(program, "iTime");
     GLint locDate = gl_GetUniformLocation(program, "iDate");
     GLint locCh0  = gl_GetUniformLocation(program, "iChannel0");
-
-    // (Preset uniforms are not uploaded in this MVP; they use defaults)
+    GLint locBorn = gl_GetUniformLocation(program, "uBornProgress");
+    GLint locLight = gl_GetUniformLocation(program, "uLightingEffect");
+    GLint locDist = gl_GetUniformLocation(program, "uDistortion");
+    GLint locHoleR = gl_GetUniformLocation(program, "uHoleRadius");
+    GLint locGain  = gl_GetUniformLocation(program, "uDiskGain");
+    GLint locTemp  = gl_GetUniformLocation(program, "uDiskTemp");
+    GLint locExpo  = gl_GetUniformLocation(program, "uExposure");
+    GLint locSpeed = gl_GetUniformLocation(program, "uSpeed");
+    GLint locStar  = gl_GetUniformLocation(program, "uStarGain");
+    GLint locIncl  = gl_GetUniformLocation(program, "uDiskIncl");
 
     // ── Show window ──
     glfwSetKeyCallback(win, keyCallback);
@@ -210,9 +277,11 @@ int main(int argc, char* argv[]) {
     glfwSetCursorPosCallback(win, cursorPosCallback);
     glfwShowWindow(win);
 
-    // ── Determine actual framebuffer size ──
+    // ── Determine actual framebuffer size and set viewport ──
     int fbW, fbH;
     glfwGetFramebufferSize(win, &fbW, &fbH);
+    if (fbW > 0 && fbH > 0)
+        glViewport(0, 0, fbW, fbH);
 
     // ── Render loop ──
     double startTime = glfwGetTime();
@@ -232,7 +301,14 @@ int main(int argc, char* argv[]) {
         if (newFbW != fbW || newFbH != fbH) {
             fbW = newFbW;
             fbH = newFbH;
-            glViewport(0, 0, fbW, fbH);
+            if (fbW > 0 && fbH > 0)
+                glViewport(0, 0, fbW, fbH);
+        }
+
+        // Skip drawing if framebuffer is zero-sized
+        if (fbW == 0 || fbH == 0) {
+            glfwSwapBuffers(win);
+            continue;
         }
 
         gl_UseProgram(program);
@@ -242,6 +318,18 @@ int main(int argc, char* argv[]) {
         gl_Uniform3f(locRes, (float)fbW, (float)fbH, 0);
         gl_Uniform1f(locTime, t);
         gl_Uniform4f(locDate, 0, 0, 0, ep);
+
+        // Upload config uniforms from BlackholeConfig
+        gl_Uniform1f(locBorn, 1.0f);
+        gl_Uniform1i(locLight, cfg.lightingEffect ? 1 : 0);
+        gl_Uniform1f(locDist, cfg.distortion);
+        if (cfg.holeRadius >= 0.0f) gl_Uniform1f(locHoleR, cfg.holeRadius);
+        if (cfg.diskGain   >= 0.0f) gl_Uniform1f(locGain, cfg.diskGain);
+        if (cfg.diskTemp   >= 0.0f) gl_Uniform1f(locTemp, cfg.diskTemp);
+        if (cfg.exposure   >= 0.0f) gl_Uniform1f(locExpo, cfg.exposure);
+        if (cfg.spd        >= 0.0f) gl_Uniform1f(locSpeed, cfg.spd);
+        if (cfg.starGain   >= 0.0f) gl_Uniform1f(locStar, cfg.starGain);
+        if (cfg.diskIncl   >= 0.0f) gl_Uniform1f(locIncl, cfg.diskIncl);
 
         gl_BindVertexArray(vao);
         gl_DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
