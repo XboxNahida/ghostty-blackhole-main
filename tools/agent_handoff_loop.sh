@@ -38,7 +38,7 @@ run_deepseek() {
 
 run_codex() {
     log_line "Codex turn started"
-    codex exec -C "$ROOT" -s workspace-write -a never \
+    codex -C "$ROOT" -s workspace-write -a never exec \
         "读取 $MAILBOX 并执行其中 Codex 验收协议。你是 REVIEWER。若 READY_FOR_REVIEW，检查真实 diff/调用点，在 /tmp 全新构建测试，只验收本机 Linux，将结果写回 State/REVIEWER。通过则授权计划中下一 DS；失败则写明最小修复和证据。不要修改 IMPLEMENTER 区域，不要为 Windows 增加工作。" \
         >>"$LOG_FILE" 2>&1
     log_line "Codex turn ended with mailbox status $(mailbox_status)"
