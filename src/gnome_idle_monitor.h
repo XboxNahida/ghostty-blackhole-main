@@ -42,6 +42,14 @@ public:
     // Called by BlackHoleCore when renderer starts/stops
     void setRendererRunning(bool running);
 
+    // For testing: inject D-Bus events directly (bypasses D-Bus)
+    void testInjectWatchFired(uint watchId);
+    void testInjectActiveChanged(bool active);
+    void testInjectServiceRegistered(const QString &service);
+    void testInjectServiceUnregistered(const QString &service);
+    bool testHasIdleWatch() const { return m_idleWatchId != 0; }
+    bool testHasActiveWatch() const { return m_activeWatchId != 0; }
+
 signals:
     void stateChanged(GnomeIdleMonitor::State newState);
     void idleEligible();       // policy may start renderer

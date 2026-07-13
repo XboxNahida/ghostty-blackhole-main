@@ -991,6 +991,9 @@ void BlackHoleCore::stopAll()
         m_idleTimer->stop();
         qDebug() << "BlackHoleCore: idle detection stopped";
     }
+#ifndef Q_OS_WIN
+    if (m_gnomeIdle) m_gnomeIdle->stop();
+#endif
     stopRenderer();
     emit systemActiveChanged();
 }

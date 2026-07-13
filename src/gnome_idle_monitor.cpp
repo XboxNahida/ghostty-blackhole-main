@@ -104,11 +104,19 @@ void GnomeIdleMonitor::start()
     // Check initial lock state before arming watches
     setScreenSaverWatch();
 
-    // Only arm watches if not locked
-    if (m_state != Locked) {
-        transitionTo(Active);
+    // Only arm watches if not locked and interfaces are valid
+    if (m_state != Locked && m_idleIface && m_idleIface->isValid()) {
         setIdleWatch();
         setActiveWatch();
+        // Transition to Active only if at least one watch was registered
+        if (m_idleWatchId != 0 || m_activeWatchId != 0) {
+            transitionTo(Active);
+        } else {
+            // Watches failed — stay/return to Degraded
+            transitionTo(Degraded);
+        }
+    } else if (m_state != Locked) {
+        transitionTo(Degraded);
     }
 }
 
@@ -188,20 +196,18 @@ void GnomeIdleMonitor::onWatchFired(uint watchId)
 {
     qDebug() << "GnomeIdleMonitor: WatchFired id=" << watchId;
     if (watchId == m_idleWatchId) {
-        // Idle watch fired: user has been idle long enough
         m_idleWatchId = 0; // one-shot watch consumed
         if (m_state == Active) {
             transitionTo(IdleEligible);
             emit idleEligible();
         }
     } else if (watchId == m_activeWatchId) {
-        // Active watch fired: user became active
         m_activeWatchId = 0; // one-shot watch consumed
         if (m_state == IdleEligible || m_state == RendererRunning) {
             transitionTo(Active);
             emit activityDetected();
         }
-        // Re-arm idle watch
+        // Re-arm one-shot watches
         setIdleWatch();
         setActiveWatch();
     }
@@ -229,6 +235,18 @@ void GnomeIdleMonitor::onDBusServiceRegistered(const QString &service)
     if (service == kSSService) {
         setScreenSaverWatch();
     }
+    // Re-arm watches if we were in Degraded and now have valid interfaces
+    if (m_state == Degraded && m_idleIface && m_idleIface->isValid()
+        && m_ssIface && m_ssIface->isValid()) {
+        setScreenSaverWatch();
+        if (m_state != Locked) {
+            setIdleWatch();
+            setActiveWatch();
+            if (m_idleWatchId != 0 || m_activeWatchId != 0) {
+                transitionTo(Active);
+            }
+        }
+    }
 }
 
 void GnomeIdleMonitor::onDBusServiceUnregistered(const QString &service)
@@ -247,4 +265,25 @@ void GnomeIdleMonitor::transitionTo(State s)
     m_state = s;
     qDebug() << "GnomeIdleMonitor: state ->" << stateName();
     emit stateChanged(s);
+}
+
+// --- Test injection helpers ---
+void GnomeIdleMonitor::testInjectWatchFired(uint watchId)
+{
+    onWatchFired(watchId);
+}
+
+void GnomeIdleMonitor::testInjectActiveChanged(bool active)
+{
+    onScreenSaverActiveChanged(active);
+}
+
+void GnomeIdleMonitor::testInjectServiceRegistered(const QString &service)
+{
+    onDBusServiceRegistered(service);
+}
+
+void GnomeIdleMonitor::testInjectServiceUnregistered(const QString &service)
+{
+    onDBusServiceUnregistered(service);
 }
