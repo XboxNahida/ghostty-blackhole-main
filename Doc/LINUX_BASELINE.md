@@ -33,22 +33,22 @@
 | NVIDIA 驱动 | 595.71.05 (Open Kernel Module) |
 | 驱动 GPU UUID | GPU-058a95fe-1ab8-377e-82ed-cffca03847d8 |
 | Video BIOS | 94.06.2f.00.ec |
-| GLX (XWayland) | 无法创建上下文：`BadValue (integer parameter out of range for operation)` |
-| EGL | `eglinfo` segfault（需排查，可能缺少 libegl-dev） |
+| GLX (XWayland) | 可用，glxinfo -B 获取到 NVIDIA OpenGL 4.6 上下文 |
+| EGL (Wayland/GBM) | NVIDIA EGL 1.5，eglinfo -B 正常 |
 | OpenGL 预期 | 驱动声明支持 OpenGL 4.6，项目 shader 要求 3.30 |
 
 ## 4. 迁移依赖准备
 
 | 依赖 | 状态 |
 |---|---|
-| libpipewire-0.3-dev | 已安装（0.3.x） |
+| libpipewire-0.3-dev | 已安装（1.6.2） |
 | libspa-0.2-dev | 已安装 |
 | xdg-desktop-portal | 已安装 |
 | xdg-desktop-portal-gnome | 已安装 |
 | libglfw3-dev | 已安装（3.4-4） |
 | qt6-base-dev | 已安装（6.10.2） |
 | qt6-declarative-dev | 已安装（6.10.2） |
-| libegl-dev | **未安装**（`eglinfo` segfault） |
+| libegl-dev | 已安装（1.7.0-3） |
 
 ## 5. CMake 构建现状
 
@@ -76,7 +76,7 @@ advapi32 dwmapi ole32 runtimeobject version
 
 ### 5.3 无条件编译的 Windows 专属源文件
 
-**src/** 下所有文件均无条件加入 `blackhole` 目标：
+根 CMake 明确列出的以下 Windows 专属源文件（均无条件加入 `blackhole` 目标）：
 
 | 文件 | Windows 依赖 |
 |---|---|
@@ -103,7 +103,7 @@ CMake Error at CMakeLists.txt:3 (project):
 
 ### 6.1 测试文件清单
 
-所有测试位于 `tests/` 目录，均为 Qt/C++ 单元测试：
+所有测试位于 `tests/` 目录，部分为 Qt/C++ 单元测试（依赖 Qt::Core），部分为纯 C++ 测试：
 
 | 测试文件 | 被测模块 | Qt 依赖 | Windows 依赖 |
 |---|---|---|---|
@@ -120,11 +120,32 @@ CMake Error at CMakeLists.txt:3 (project):
 
 ### 6.2 Linux 编译性
 
-在 Linux 上，UI 目标因 CMake 配置失败无法编译，测试作为 UI 目标的子目标同样不可达。部分纯逻辑测试（如 `movement_settings_tests.cpp`、`renderer_startup_diagnostics_tests.cpp`）理论上可独立编译，但当前 CMake 结构未提供此路径。
+`Blakhole_UI/` 子目录可在 Linux 独立完成 CMake 配置（无需根 CMakeLists.txt），6 个测试目标可单独构建。
+
+在本次验证中，5 个测试目标成功编译并运行：
+
+| 测试目标 | 结果 |
+|---|---|
+| `renderer_startup_diagnostics_tests` | ✅ 通过 |
+| `movement_settings_tests` | ✅ 通过 |
+| `avatar_storage_tests` | ✅ 通过 |
+| `update_release_tests` | ✅ 通过 |
+| `update_checker_state_tests` | ❌ 失败（错误信息：`ignored release hides red dot`） |
+
+`application_catalog_tests` 因链接 `version` 库（Windows 专属）在 Linux 上无法编译。
+`autostart_registry_tests`、`foreground_window_tests`、`game_detection_tests`、`media_session_tests` 因依赖 Win32 API 亦不可编译。
+
+验证命令：
+```bash
+cmake -S Blakhole_UI -B build-ui-check -G Ninja -DBUILD_TESTING=ON
+cmake --build build-ui-check --target \
+  renderer_startup_diagnostics_tests movement_settings_tests \
+  avatar_storage_tests update_release_tests update_checker_state_tests
+```
 
 ### 6.3 Windows 基线（预期保留）
 
-Windows 上 `cmake -S . -B build-win -G Ninja` 可成功配置并编译，所有测试通过。此基线不应被 Linux 移植破坏。
+本次未验证。预期 Windows 上 `cmake -S . -B build-win -G Ninja` 可成功配置并编译，所有测试通过。此基线不应被 Linux 移植破坏。
 
 ## 7. 项目结构概览
 
@@ -166,9 +187,9 @@ Windows 上 `cmake -S . -B build-win -G Ninja` 可成功配置并编译，所有
 
 ## 8. 关键发现
 
-1. **GLX 不可用**：纯 Wayland 会话下 GLX 无法创建上下文。Linux 渲染器应使用 EGL + OpenGL 3.3 Core。
-2. **eglinfo segfault**：`eglinfo` 在 Wayland + NVIDIA 下 segfault，可能需要 `libegl-dev` 或 NVIDIA EGL 库路径配置。
+1. **GLX 可用**：XWayland 下 GLX 可获取 NVIDIA OpenGL 4.6 上下文，项目要求的 GLSL 3.30 完全满足。具体 Wayland 上下文后端由 GLFW/平台配置处理。
+2. **EGL 正常**：NVIDIA EGL 1.5 在 Wayland/GBM/X11 平台均可使用，eglinfo 工作正常。
 3. **PipeWire/Portal 开发库已安装**：可直接用于 DS-08 桌面捕获实现。
 4. **Qt6 DBus 已安装**：可用于 DS-06 (Mutter IdleMonitor) 和 DS-07 (MPRIS)。
-5. **测试框架仅 Windows 可运行**：需要 CMake 拆分后才能用于 Linux 验证。
+5. **测试框架部分可运行**：5 个测试目标已在 Linux 成功编译运行，4 通过、1 失败；Win32 依赖的测试仍需 CMake 拆分后才能编译。
 6. **UI 包含 Windows 专属链接**：`advapi32 dwmapi ole32 runtimeobject version` 需在 Linux 构建中隔离。
