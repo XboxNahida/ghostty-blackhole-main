@@ -62,5 +62,5 @@ private:
     bool m_reportedCurrentAttempt = false;
     QString m_logPath;
     qint64 m_logOffset = 0;
-    QDateTime m_previousLogModified;
+    QByteArray m_incompleteLogLine;
 };

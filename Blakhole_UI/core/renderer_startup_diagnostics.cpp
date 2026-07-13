@@ -54,7 +54,8 @@ quint64 RendererStartupDiagnostics::beginAttempt(
     m_reportedCurrentAttempt = false;
     m_logPath = logPath;
     m_logOffset = std::max<qint64>(0, previousLogSize);
-    m_previousLogModified = previousLogModified;
+    m_incompleteLogLine.clear();
+    Q_UNUSED(previousLogModified);
     return m_attemptId;
 }
 
@@ -99,6 +100,7 @@ RendererDiagnostic RendererStartupDiagnostics::consumeLogSnapshot(
     qint64 startOffset = m_logOffset;
     if (fileReplacedOrTruncated || nonNegativeFileSize < m_logOffset) {
         startOffset = 0;
+        m_incompleteLogLine.clear();
     }
 
     QByteArray addedContent;
@@ -106,16 +108,28 @@ RendererDiagnostic RendererStartupDiagnostics::consumeLogSnapshot(
         addedContent = content.mid(static_cast<qsizetype>(startOffset));
     }
     m_logOffset = nonNegativeFileSize;
+    const QByteArray contentToParse = m_incompleteLogLine + addedContent;
 
-    const QString failureLine = lastFailureLine(addedContent);
+    const QString failureLine = lastFailureLine(contentToParse);
     if (!failureLine.isEmpty()) {
+        m_incompleteLogLine.clear();
         return fail(RendererFailureKind::InitializationFailed,
                     QStringLiteral("渲染器初始化失败"),
                     failureLine);
     }
 
-    if (addedContent.contains(kReadyMarker)) {
+    if (contentToParse.contains(kReadyMarker)) {
+        m_incompleteLogLine.clear();
         m_state = RendererStartupState::Ready;
+        return {};
+    }
+
+    const qsizetype lastLineBreak = contentToParse.lastIndexOf('\n');
+    m_incompleteLogLine = lastLineBreak >= 0
+        ? contentToParse.mid(lastLineBreak + 1)
+        : contentToParse;
+    if (m_incompleteLogLine.size() > kMaxDiagnosticLogBytes) {
+        m_incompleteLogLine = m_incompleteLogLine.right(kMaxDiagnosticLogBytes);
     }
     return {};
 }

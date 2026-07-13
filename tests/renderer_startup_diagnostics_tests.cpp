@@ -112,6 +112,49 @@ void testFailureMarker(const QString &logPath)
             "last failure line is reported");
 }
 
+void testReadyMarkerAcrossSnapshots(const QString &logPath)
+{
+    RendererStartupDiagnostics diagnostics;
+    diagnostics.beginAttempt(logPath, 0, {});
+
+    const QByteArray partialReady = QByteArrayLiteral(
+        "Renderer initialized\n[OK] Ready, entering main ");
+    const RendererDiagnostic beforeReady = diagnostics.consumeLogSnapshot(
+        partialReady, partialReady.size(), false);
+    require(!beforeReady.valid
+                && diagnostics.state() == RendererStartupState::Starting,
+            "partial Ready marker keeps attempt Starting");
+
+    const QByteArray completeReady = partialReady + QByteArrayLiteral("loop\n");
+    const RendererDiagnostic afterReady = diagnostics.consumeLogSnapshot(
+        completeReady, completeReady.size(), false);
+    require(!afterReady.valid
+                && diagnostics.state() == RendererStartupState::Ready,
+            "Ready marker split across snapshots is detected");
+}
+
+void testFailureMarkerAcrossSnapshots(const QString &logPath)
+{
+    RendererStartupDiagnostics diagnostics;
+    diagnostics.beginAttempt(logPath, 0, {});
+    const QByteArray partialFailure = QByteArrayLiteral("Renderer initialized\n[FA");
+    const RendererDiagnostic beforeFailure = diagnostics.consumeLogSnapshot(
+        partialFailure, partialFailure.size(), false);
+    require(!beforeFailure.valid
+                && diagnostics.state() == RendererStartupState::Starting,
+            "partial failure marker keeps attempt Starting");
+
+    const QByteArray completeFailure = partialFailure
+                                       + QByteArrayLiteral("IL] Shader compile failed\n");
+    const RendererDiagnostic afterFailure = diagnostics.consumeLogSnapshot(
+        completeFailure, completeFailure.size(), false);
+    require(afterFailure.valid
+                && afterFailure.kind == RendererFailureKind::InitializationFailed,
+            "failure marker split across snapshots is detected");
+    require(afterFailure.details.contains(QStringLiteral("Shader compile failed")),
+            "split failure diagnostic contains the complete failure line");
+}
+
 void testProcessFailures(const QString &logPath)
 {
     RendererStartupDiagnostics diagnostics;
@@ -188,6 +231,8 @@ int main(int argc, char *argv[])
     testAttemptAndMissingFiles(rootPath, logPath);
     testReadyAndLogBaselines(logPath);
     testFailureMarker(logPath);
+    testFailureMarkerAcrossSnapshots(logPath);
+    testReadyMarkerAcrossSnapshots(logPath);
     testProcessFailures(logPath);
     testTimeoutAndStopping(logPath);
     testDiagnosticDetailsAreCapped(logPath);
