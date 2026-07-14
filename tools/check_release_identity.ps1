@@ -39,7 +39,7 @@ function Require-FileText {
 }
 
 Require-FileText "cmake\AppVersion.cmake" @(
-    'set(BLACKHOLE_VERSION "1.2.0")',
+    'set(BLACKHOLE_VERSION "1.2.1")',
     "BLACKHOLE_VERSION_MAJOR",
     "BLACKHOLE_VERSION_MINOR",
     "BLACKHOLE_VERSION_PATCH"
@@ -79,15 +79,15 @@ foreach ($builtFile in $builtFiles) {
             Fail-IdentityCheck "$(Split-Path -Leaf $path) has empty $property"
         }
     }
-    if ($version.ProductVersion -cne "1.2.0") {
-        Fail-IdentityCheck "$(Split-Path -Leaf $path) ProductVersion is $($version.ProductVersion), expected 1.2.0"
+    if ($version.ProductVersion -cne "1.2.1") {
+        Fail-IdentityCheck "$(Split-Path -Leaf $path) ProductVersion is $($version.ProductVersion), expected 1.2.1"
     }
-    if ($version.FileVersion -cne "1.2.0.0") {
-        Fail-IdentityCheck "$(Split-Path -Leaf $path) FileVersion is $($version.FileVersion), expected 1.2.0.0"
+    if ($version.FileVersion -cne "1.2.1.0") {
+        Fail-IdentityCheck "$(Split-Path -Leaf $path) FileVersion is $($version.FileVersion), expected 1.2.1.0"
     }
     if ($version.FileDescription -cne $builtFile.Description) {
         Fail-IdentityCheck "$(Split-Path -Leaf $path) FileDescription has an encoding mismatch"
     }
 }
 
-"RELEASE_IDENTITY_OK version=1.2.0"
+"RELEASE_IDENTITY_OK version=1.2.1"

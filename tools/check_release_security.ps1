@@ -107,10 +107,10 @@ foreach ($executable in $executables) {
     if ($version.ProductName -cne $executable.ProductName) {
         Add-Failure "$($executable.Name) ProductName is [$($version.ProductName)]"
     }
-    if ($version.ProductVersion -cne "1.2.0") {
+    if ($version.ProductVersion -cne "1.2.1") {
         Add-Failure "$($executable.Name) ProductVersion is [$($version.ProductVersion)]"
     }
-    if ($version.FileVersion -cne "1.2.0.0") {
+    if ($version.FileVersion -cne "1.2.1.0") {
         Add-Failure "$($executable.Name) FileVersion is [$($version.FileVersion)]"
     }
     if ($version.CompanyName -cne "XboxNahida") {
@@ -178,8 +178,8 @@ if (-not (Test-Path -LiteralPath $releaseInfoPath -PathType Leaf)) {
 else {
     $releaseInfo = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseInfoPath
     foreach ($requiredPattern in @(
-        '(?m)^Version: 1\.2\.0$',
-        '(?m)^Tag: v1\.2\.0$',
+        '(?m)^Version: 1\.2\.1$',
+        '(?m)^Tag: v1\.2\.1$',
         '(?m)^Commit: [0-9a-f]{40}$',
         '(?m)^BuildTimeUTC: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$',
         '(?m)^BuildTimeLocal: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$',
@@ -300,4 +300,4 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Output "RELEASE_SECURITY_OK version=1.2.0"
+Write-Output "RELEASE_SECURITY_OK version=1.2.1"
