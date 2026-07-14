@@ -17,7 +17,7 @@ Item {
     property string confirmText: "Continue"
     property string extraText: ""           // 第三个按钮文字,为空则隐藏
     property string checkboxText: ""        // 复选框文字,为空则隐藏
-    property bool checkboxChecked: false
+    property alias checkboxChecked: checkBox.checked
     property bool dismissOnOverlay: true
     signal confirm()
     signal cancel()
@@ -90,7 +90,6 @@ Item {
                 id: checkBox
                 visible: dialogRoot.checkboxText !== ""
                 text: dialogRoot.checkboxText
-                checked: dialogRoot.checkboxChecked
                 Layout.fillWidth: true
 
                 contentItem: Text {

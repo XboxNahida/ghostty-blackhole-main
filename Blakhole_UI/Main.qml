@@ -901,11 +901,23 @@ ApplicationWindow {
         checkboxText: "\u4ee5\u540e\u4e0d\u518d\u8be2\u95ee"
         dismissOnOverlay: false
         onConfirm: {
-            if (exitDialog.checkboxChecked) { root.defaultCloseAction = 0; if (blackHoleCore) blackHoleCore.defaultCloseAction = 0 }
+            if (exitDialog.checkboxChecked) {
+                root.defaultCloseAction = 0
+                if (blackHoleCore) {
+                    blackHoleCore.defaultCloseAction = 0
+                    blackHoleCore.saveConfig()
+                }
+            }
             root.close()
         }
         onExtra: {
-            if (exitDialog.checkboxChecked) { root.defaultCloseAction = 1; if (blackHoleCore) blackHoleCore.defaultCloseAction = 1 }
+            if (exitDialog.checkboxChecked) {
+                root.defaultCloseAction = 1
+                if (blackHoleCore) {
+                    blackHoleCore.defaultCloseAction = 1
+                    blackHoleCore.saveConfig()
+                }
+            }
             systemTray.show()
         }
         onCheckboxToggled: function(checked) { root.skipExitDialog = checked; if (blackHoleCore) blackHoleCore.skipExitDialog = checked }
