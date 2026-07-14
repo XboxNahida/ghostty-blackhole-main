@@ -27,6 +27,8 @@ struct FakeBackend final : GnomeIdleBackend {
     quint32 nextIdleId = 11;
     quint32 nextActiveId = 22;
     quint64 lastIdleInterval = 0;
+    quint64 idleTime = 300000;
+    bool idleTimeReplyOk = true;
     int refreshCount = 0;
     std::vector<quint32> removed;
 
@@ -37,6 +39,7 @@ struct FakeBackend final : GnomeIdleBackend {
     }
     quint32 addActiveWatch() override { return idleAvailable ? nextActiveId : 0; }
     void removeWatch(quint32 id) override { removed.push_back(id); }
+    quint64 idleTimeMs(bool *ok) override { *ok = idleTimeReplyOk; return idleTime; }
     bool screenSaverActive(bool *ok) override
     {
         *ok = screenSaverReplyOk;
@@ -88,6 +91,19 @@ int main(int argc, char **argv)
         monitor.handleWatchFired(22);
         require(activitySignal && monitor.isActive(), "exact active ID stops renderer and re-arms");
         require(monitor.hasIdleWatch() && monitor.hasActiveWatch(), "activity re-arms both watches");
+    }
+
+    {
+        FakeBackend backend;
+        GnomeIdleMonitor monitor(&backend);
+        bool activitySignal = false;
+        QObject::connect(&monitor, &GnomeIdleMonitor::activityDetected, [&] { activitySignal = true; });
+        monitor.start();
+        monitor.handleWatchFired(11);
+        monitor.setRendererRunning(true);
+        backend.idleTime = 0;
+        monitor.pollActivity();
+        require(activitySignal && monitor.isActive(), "idle-time fallback detects resumed activity");
     }
 
     {

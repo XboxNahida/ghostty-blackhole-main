@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QDBusServiceWatcher>
+#include <QTimer>
 
 #include <memory>
 
@@ -29,6 +30,7 @@ public:
     void start();
     void stop();
     void setRendererRunning(bool running);
+    void pollActivity();
 
     // Event entry points are public so deterministic backends can exercise the
     // same production dispatch path without a session bus.
@@ -72,4 +74,5 @@ private:
     GnomeIdleBackend *m_backend = nullptr;
     std::unique_ptr<GnomeIdleBackend> m_ownedBackend;
     QDBusServiceWatcher *m_serviceWatcher = nullptr;
+    QTimer *m_activityPollTimer = nullptr;
 };

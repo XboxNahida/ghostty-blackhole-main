@@ -9,6 +9,7 @@ public:
     virtual quint32 addIdleWatch(quint64 intervalMs) = 0;
     virtual quint32 addActiveWatch() = 0;
     virtual void removeWatch(quint32 id) = 0;
+    virtual quint64 idleTimeMs(bool *ok) = 0;
     virtual bool screenSaverActive(bool *ok) = 0;
     virtual bool idleServiceAvailable() const = 0;
     virtual bool screenSaverAvailable() const = 0;

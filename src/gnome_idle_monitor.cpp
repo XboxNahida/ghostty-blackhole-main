@@ -41,6 +41,16 @@ public:
         if (id && idleServiceAvailable()) m_idle->asyncCall(QStringLiteral("RemoveWatch"), id);
     }
 
+    quint64 idleTimeMs(bool *ok) override
+    {
+        *ok = false;
+        if (!idleServiceAvailable()) return 0;
+        QDBusPendingReply<quint64> reply = m_idle->asyncCall(QStringLiteral("GetIdletime"));
+        reply.waitForFinished();
+        *ok = reply.isValid();
+        return *ok ? reply.value() : 0;
+    }
+
     bool screenSaverActive(bool *ok) override
     {
         *ok = false;
@@ -71,11 +81,17 @@ private:
 GnomeIdleMonitor::GnomeIdleMonitor(QObject *parent) : QObject(parent)
 {
     initializeProductionBackend();
+    m_activityPollTimer = new QTimer(this);
+    m_activityPollTimer->setInterval(250);
+    connect(m_activityPollTimer, &QTimer::timeout, this, &GnomeIdleMonitor::pollActivity);
 }
 
 GnomeIdleMonitor::GnomeIdleMonitor(GnomeIdleBackend *backend, QObject *parent)
     : QObject(parent), m_backend(backend)
 {
+    m_activityPollTimer = new QTimer(this);
+    m_activityPollTimer->setInterval(250);
+    connect(m_activityPollTimer, &QTimer::timeout, this, &GnomeIdleMonitor::pollActivity);
 }
 
 GnomeIdleMonitor::~GnomeIdleMonitor() = default;
@@ -176,6 +192,7 @@ void GnomeIdleMonitor::start()
 void GnomeIdleMonitor::stop()
 {
     m_started = false;
+    m_activityPollTimer->stop();
     removeWatches();
     disconnectSignals();
     transitionTo(Degraded);
@@ -209,6 +226,21 @@ void GnomeIdleMonitor::setRendererRunning(bool running)
     else if (!running && m_state == RendererRunning) {
         if (armWatches()) transitionTo(Active);
         else transitionTo(Degraded);
+    }
+}
+
+void GnomeIdleMonitor::pollActivity()
+{
+    if (!m_started || m_state != RendererRunning) return;
+    bool ok = false;
+    const quint64 idleMs = m_backend->idleTimeMs(&ok);
+    if (ok && idleMs < quint64(m_idleSeconds) * 1000) {
+        if (armWatches()) {
+            transitionTo(Active);
+            emit activityDetected();
+        } else {
+            transitionTo(Degraded);
+        }
     }
 }
 
@@ -270,6 +302,8 @@ void GnomeIdleMonitor::transitionTo(State state)
 {
     if (m_state == state) return;
     m_state = state;
+    if (state == RendererRunning) m_activityPollTimer->start();
+    else m_activityPollTimer->stop();
     qDebug() << "GnomeIdleMonitor: state ->" << stateName();
     emit stateChanged(state);
 }
