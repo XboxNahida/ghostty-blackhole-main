@@ -50,3 +50,7 @@ _work.txt
 # OS
 Thumbs.db
 debug_state.md
+agent_turn.txt
+
+# AI tooling
+.reasonix/

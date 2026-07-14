@@ -18,22 +18,30 @@
 
 int main(int argc, char *argv[])
 {
-    // Qt 6 Windows 默认使用 D3D11 RHI 后端，
-    // QQuickFramebufferObject + QOpenGLFunctions 需要 OpenGL 后端
+    // QQuickFramebufferObject + QOpenGLFunctions requires the OpenGL backend.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
-    // 指定 OpenGL 3.3 Core Profile，确保 Qt 使用正确的 GLSL 版本
+    // The preview shaders require desktop GLSL 3.30. Request desktop OpenGL
+    // everywhere, but only set the CoreProfile bit on Windows. Passing that
+    // bit through EGL fails with EGL_BAD_MATCH on the NVIDIA Wayland driver.
     QSurfaceFormat fmt;
+    fmt.setRenderableType(QSurfaceFormat::OpenGL);
     fmt.setVersion(3, 3);
+#ifdef Q_OS_WIN
     fmt.setProfile(QSurfaceFormat::CoreProfile);
+#endif
     QSurfaceFormat::setDefaultFormat(fmt);
     QApplication app(argc, argv);
+    const bool minimizedArgument = app.arguments().contains(QStringLiteral("--minimized"));
 
     QCoreApplication::setApplicationName(QStringLiteral("Blakhole UI"));
     QCoreApplication::setOrganizationName(QStringLiteral("XboxNahida"));
     QCoreApplication::setApplicationVersion(QStringLiteral(APP_VERSION_STRING));
 
-    app.setWindowIcon(QIcon(":/new/prefix1/fonts/icon.ico"));
+    QIcon appIcon(":/new/prefix1/fonts/icon.ico");
+    if (appIcon.isNull())
+        appIcon = QIcon::fromTheme(QStringLiteral("application-x-executable"));
+    app.setWindowIcon(appIcon);
 
     qmlRegisterType<BlackHoleCore>("BlakholeUI", 1, 0, "BlackHoleCore");
     qmlRegisterType<BlackholePreviewFBO>("BlakholeUI", 1, 0, "BlackholePreviewFBO");
@@ -61,30 +69,29 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("BlakholeUI", "Main");
 
-#ifdef Q_OS_WIN
+    // 关联托盘与窗口（跨平台）
     const auto rootObjects = engine.rootObjects();
     if (!rootObjects.isEmpty()) {
         QQuickWindow *window = qobject_cast<QQuickWindow*>(rootObjects.first());
         if (window) {
+#ifdef Q_OS_WIN
             HWND hwnd = reinterpret_cast<HWND>(window->winId());
             int cornerPreference = 2;
             DwmSetWindowAttribute(hwnd, 33, &cornerPreference, sizeof(cornerPreference));
+#endif
 
-            // 关联托盘与窗口
             auto *tray = window->findChild<SystemTray*>();
             if (tray) {
                 tray->setWindow(window);
 
                 // 启动后自动隐藏界面并启动黑洞
-                if (blackHoleCore.launchMinimized()) {
-                    window->hide();
-                    tray->setVisible(true);
+                if (minimizedArgument || blackHoleCore.launchMinimized()) {
+                    tray->show();
                     blackHoleCore.applyAndStart();
                 }
             }
         }
     }
-#endif
 
     return app.exec();
 }

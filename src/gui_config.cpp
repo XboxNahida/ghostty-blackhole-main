@@ -65,8 +65,8 @@ void SavePresetsToFile(const BlackholeConfig& cfg, const char names[64][64]) {
     fclose(f);
 }
 
-bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[64][64]) {
-    FILE* f = fopen("blackhole_presets.txt", "r");
+bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[64][64], const char* path) {
+    FILE* f = fopen(path ? path : "blackhole_presets.txt", "r");
     if (!f) return false;
     char line[256];
     if (!fgets(line, sizeof(line), f)) { fclose(f); return false; } // skip comment

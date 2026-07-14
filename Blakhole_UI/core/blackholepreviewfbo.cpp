@@ -137,6 +137,9 @@ void BlackholePreviewRenderer::synchronize(QQuickFramebufferObject *item)
 void BlackholePreviewRenderer::resolveShaderPath(QString &vertPath, QString &fragHeaderPath, QString &fragBodyPath)
 {
     QStringList searchDirs;
+#ifdef BLACKHOLE_INSTALL_DATADIR
+    searchDirs << QStringLiteral(BLACKHOLE_INSTALL_DATADIR);
+#endif
     QString appDir = QCoreApplication::applicationDirPath();
     searchDirs << appDir;
     searchDirs << QDir(appDir).filePath("..");
@@ -145,14 +148,23 @@ void BlackholePreviewRenderer::resolveShaderPath(QString &vertPath, QString &fra
     for (const QString &dir : searchDirs) {
         QString vp  = dir + "/shaders/vert.glsl";
         QString fhp = dir + "/shaders/frag_preview_header.glsl";
-        QString fbp = dir + "/blackhole_preview.glsl";
-        if (QFileInfo::exists(vp) && QFileInfo::exists(fhp) && QFileInfo::exists(fbp)) {
-            vertPath = vp; fragHeaderPath = fhp; fragBodyPath = fbp;
-            qDebug() << "BlackholePreviewFBO: shaders found in" << dir;
-            return;
+        const QStringList bodyPaths = {
+            dir + "/blackhole_preview.glsl",
+            dir + "/blackhole.glsl",
+            dir + "/shaders/blackhole_preview.glsl"
+        };
+        if (QFileInfo::exists(vp) && QFileInfo::exists(fhp)) {
+            for (const QString &fbp : bodyPaths) {
+                if (QFileInfo::exists(fbp)) {
+                    vertPath = vp; fragHeaderPath = fhp; fragBodyPath = fbp;
+                    qDebug() << "BlackholePreviewFBO: shaders found in" << dir;
+                    return;
+                }
+            }
         }
         vp  = dir + "/release/shaders/vert.glsl";
         fhp = dir + "/release/shaders/frag_preview_header.glsl";
+        const QString fbp = dir + "/blackhole_preview.glsl";
         if (QFileInfo::exists(vp) && QFileInfo::exists(fhp) && QFileInfo::exists(fbp)) {
             vertPath = vp; fragHeaderPath = fhp; fragBodyPath = fbp;
             qDebug() << "BlackholePreviewFBO: shaders found in" << dir << "/release";

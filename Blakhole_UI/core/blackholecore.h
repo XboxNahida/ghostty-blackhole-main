@@ -7,6 +7,8 @@
 #include <QAbstractListModel>
 #include <QAbstractNativeEventFilter>
 #include <QVector>
+#include <QHash>
+#include "renderer_process_state.h"
 #include <QString>
 #include <QColor>
 #include <QVariantList>
@@ -84,6 +86,10 @@ private:
 };
 
 // 黑洞核心 — 配置管理 + 进程控制
+#ifndef Q_OS_WIN
+    class GnomeIdleMonitor;
+    class MprisMonitor;
+#endif
 class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_OBJECT
 
@@ -446,11 +452,12 @@ private:
     QString configPath(const QString &fileName) const;
     QString legacyConfigPath(const QString &fileName) const;
     bool openConfigForRead(QFile &file, const QString &fileName) const;
-    // 查找 blackhole.exe (与 main.cpp --render 子进程对应). 若 projectRootOut 非空, 输出
-    // 该 exe 的"项目根目录" (exe 在 <root>/build/ 下时取其父目录, 否则取 exe 同级目录).
-    // Qt UI 与 blackhole.exe --render 必须读写同一份 blackhole_presets.txt + shaders/, 这要求
-    // 两者工作目录一致 — Qt UI 用此函数定位项目根, 让 configFilePath() 与 startRenderer() 都对齐.
+    // 查找 blackhole-renderer (Linux) / blackhole.exe (Windows).
+    // 搜索顺序: 1) 显式注入路径 2) UI 同级 3) 上溯各级+兄弟 build 4) QStandardPaths.
     QString findRendererExe(QString *projectRootOut = nullptr) const;
+    // 注入显式渲染器路径（用于测试或用户指定）
+    void setRendererExePath(const QString &path) { m_rendererExeOverride = path; }
+    QString rendererExePath() const { return m_rendererExeOverride.isEmpty() ? findRendererExe() : m_rendererExeOverride; }
     void refreshCurrentPresetProps();
     void saveAdvancedConfig();
     void loadAdvancedConfig();
@@ -472,6 +479,7 @@ private:
     void pollRendererStartup();
     void publishRendererDiagnostic(const RendererDiagnostic &diagnostic);
     void terminateRendererProcess();
+    void stopRendererWithReason(const char *reason);
 
     PresetModel *m_presetModel;
 
@@ -486,6 +494,7 @@ private:
     bool    m_launchMinimized  = false;
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
+    QString m_screenName;
     int     m_captureMode  = -1; // -1=自动检测, 0=WGC, 1=DXGI (对齐 main.cpp)
     bool    m_fixedSize    = false;  // 固定大小（不随时间增长）
     float   m_fixedLevel   = 1.0f;   // 固定大小级别 (0.01~1.0 = 1%~100%)
@@ -503,15 +512,26 @@ private:
 
     // 进程
     bool m_refreshingProps = false;  // 防止currentPresetChanged信号级联
-    QProcess *m_rendererProcess = nullptr;
+    QVector<QProcess*> m_rendererProcesses;
+    RendererProcessState m_rendererProcessState;
     RendererStartupDiagnostics m_rendererDiagnostics;
     QTimer *m_rendererStartupTimer = nullptr;
     QElapsedTimer m_rendererStartupElapsed;
     QString m_rendererLogPath;
     QByteArray m_rendererLogBoundaryProbe;
     bool m_rendererFailureLatched = false;
+    QString m_rendererExeOverride;
+    QHash<QProcess*, QByteArray> m_rendererStdoutBuffers;
+    QHash<QProcess*, QByteArray> m_rendererStderrBuffers;
+    static constexpr qsizetype kMaxStdoutBufferBytes = 65536;
+    static constexpr qsizetype kMaxStderrBufferBytes = 65536;
 
     // 空闲检测
+#ifndef Q_OS_WIN
+    GnomeIdleMonitor *m_gnomeIdle = nullptr;
+    MprisMonitor *m_mpris = nullptr;
+    bool m_trayAvailable = false;
+#endif
     QTimer *m_idleTimer = nullptr;
 
     // 高级设置
