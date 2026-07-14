@@ -94,8 +94,14 @@ export default class BlackholeExtension extends Extension {
 
     Start() {
         this._running = true;
+        // Both compositor actors must share one spawn or their distortion
+        // fields would not line up. Keep enough edge margin for the entrance.
+        const homeX = 0.18 + Math.random() * 0.64;
+        const homeY = 0.18 + Math.random() * 0.64;
+        const phase = Math.random() * Math.PI * 2.0;
         for (const {effect} of this._effects) {
             effect.reloadConfig();
+            effect.prepareStart(homeX, homeY, phase);
             effect.setRunning(true);
         }
         this._dbus?.emit_property_changed('Running', new GLib.Variant('b', true));

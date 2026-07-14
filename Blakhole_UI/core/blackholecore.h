@@ -106,7 +106,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(int screenTarget READ screenTarget WRITE setScreenTarget NOTIFY screenTargetChanged)
     // 捕获方式 (-1=自动检测, 0=WGC, 1=DXGI) — 与 ImGui UI / main.cpp 共用 presets.txt 第 2 行字段
     Q_PROPERTY(int captureMode READ captureMode WRITE setCaptureMode NOTIFY captureModeChanged)
-    // 固定大小 (黑洞不再随时间增长，保持固定比例)
+    // 固定大小 (黑洞不再往返缩放，保持固定比例)
     Q_PROPERTY(bool fixedSize READ fixedSize WRITE setFixedSize NOTIFY fixedSizeChanged)
     Q_PROPERTY(float fixedLevel READ fixedLevel WRITE setFixedLevel NOTIFY fixedLevelChanged)
 
@@ -501,7 +501,7 @@ private:
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
     QString m_screenName;
     int     m_captureMode  = -1; // -1=自动检测, 0=WGC, 1=DXGI (对齐 main.cpp)
-    bool    m_fixedSize    = false;  // 固定大小（不随时间增长）
+    bool    m_fixedSize    = false;  // 固定大小（不往返缩放）
     float   m_fixedLevel   = 1.0f;   // 固定大小级别 (0.01~1.0 = 1%~100%)
 
     // 当前预设

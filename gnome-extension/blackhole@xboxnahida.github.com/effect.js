@@ -33,7 +33,12 @@ function loadShader(extensionPath) {
             `+ wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));
         // Preserve the original ambient pace. DRIFT_SPEED remains the user's
         // multiplier, while 0.16 is the calibrated base frequency.
-        center = vec2(0.5) + vec2(0.28, 0.24) * lissa(t * 0.16 + 1.7);`)
+        vec2 orbitCenter = vec2(0.5) + vec2(0.28, 0.24) *
+            lissa(t * 0.16 + uRandPhase);
+        // Begin at the configured/random spawn point, then blend into the
+        // continuous ambient orbit without a visible position jump.
+        center = mix(vec2(uHomeX, uHomeY), orbitCenter,
+            smoothstep(0.0, 1.0, min(t / 8.0, 1.0)));`)
         // GNOME owns the lifecycle transition. Keep the configured final
         // size intact while giving every start a small-to-large entrance and
         // every stop the exact reverse motion.
@@ -73,6 +78,7 @@ function readConfig() {
         // default configuration.
         fixedLevel: 1.0,
         fixedSize: false,
+        spawnPosition: 0,
         holeRadius: 0.02,
         movementSpeed: 1.0,
         rotationSpeed: 0.08,
@@ -114,6 +120,8 @@ function readConfig() {
                 config.holeRadius = 0.02 * value;
             else if (key === 'movementSpeed' && value > 0)
                 config.movementSpeed = Math.max(0.1, Math.min(3.0, value));
+            else if (key === 'spawnPosition')
+                config.spawnPosition = Math.max(0, Math.min(4, Math.trunc(value)));
             else if ((key === 'animationSpeed' || key === 'spd') && value > 0)
                 config.rotationSpeed = 0.08 * value;
         }
@@ -162,11 +170,12 @@ function loadConfiguredShader(extensionPath) {
     const config = readConfig();
     const levelExpression = config.fixedSize
         ? config.fixedLevel.toFixed(4)
-        : 'min(iTime / DEMO_GROW_SEC, 1.0)';
+        : '(0.5 - 0.5 * cos(3.14159265 * iTime / DEMO_GROW_SEC))';
     console.log(`[blackhole] config: holeRadius=${config.holeRadius.toFixed(4)} ` +
         `movementSpeed=${config.movementSpeed.toFixed(1)} ` +
         `rotationSpeed=${config.rotationSpeed.toFixed(2)} ` +
-        `size=${config.fixedSize ? `fixed:${config.fixedLevel.toFixed(2)}` : 'grow:40s'}`);
+        `size=${config.fixedSize ? `fixed:${config.fixedLevel.toFixed(2)}` : 'pulse:40s+40s'} ` +
+        `spawn=${config.spawnPosition}`);
     let shader = loadShader(extensionPath)
         .replace(/const float HOLE_RADIUS\s*=\s*[-+0-9.]+;/,
             `const float HOLE_RADIUS = ${config.holeRadius.toFixed(4)};`)
@@ -179,7 +188,7 @@ function loadConfiguredShader(extensionPath) {
     const lookSource = configuredLookSource(config);
     if (lookSource)
         shader = shader.replace(/DiskLook demoLook\(\) \{[\s\S]*?\n\}/, lookSource);
-    return shader;
+    return {shader, spawnPosition: config.spawnPosition};
 }
 
 export const BlackholePrototypeEffect = GObject.registerClass(
@@ -187,6 +196,10 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
     _init(extensionPath) {
         super._init();
         this._extensionPath = extensionPath;
+        this._spawnPosition = 0;
+        this._homeX = 0.5;
+        this._homeY = 0.5;
+        this._randomPhase = 0.0;
         this.reloadConfig();
         this._startUs = GLib.get_monotonic_time();
         this._redrawId = 0;
@@ -199,8 +212,24 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
     }
 
     reloadConfig() {
-        this.set_shader_source(loadConfiguredShader(this._extensionPath));
+        const configured = loadConfiguredShader(this._extensionPath);
+        this._spawnPosition = configured.spawnPosition;
+        this.set_shader_source(configured.shader);
         this.get_actor()?.queue_redraw();
+    }
+
+    prepareStart(randomX, randomY, randomPhase) {
+        const fixedHomes = [
+            null,
+            [0.18, 0.18],
+            [0.82, 0.18],
+            [0.18, 0.82],
+            [0.82, 0.82],
+        ];
+        const fixed = fixedHomes[this._spawnPosition];
+        this._homeX = fixed?.[0] ?? randomX;
+        this._homeY = fixed?.[1] ?? randomY;
+        this._randomPhase = randomPhase;
     }
 
     setRunning(running) {
@@ -291,9 +320,9 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
         this.set_uniform_value('uTransition', this._transition);
         this.set_uniform_value('uDistortion', 1.0);
         this.set_uniform_value('uSlotSec', 5.25);
-        this.set_uniform_value('uHomeX', 0.5);
-        this.set_uniform_value('uHomeY', 0.5);
-        this.set_uniform_value('uRandPhase', 0.0);
+        this.set_uniform_value('uHomeX', this._homeX);
+        this.set_uniform_value('uHomeY', this._homeY);
+        this.set_uniform_value('uRandPhase', this._randomPhase);
         this.set_uniform_value('uPresetOffset', 0.0);
 
         if (paintNode && paintContext)

@@ -161,6 +161,36 @@ Item {
                         }
                     }
 
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+
+                            Text {
+                                text: "黑洞出现位置"
+                                font.pixelSize: 14
+                                color: theme.textColor
+                            }
+                            Text {
+                                text: "随机模式会在每次启动效果时重新选择出生位置"
+                                font.pixelSize: 11
+                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5)
+                            }
+                        }
+
+                        Components.EDropDown {
+                            preferredWidth: 150
+                            model: ["随机", "左上", "右上", "左下", "右下"]
+                            currentIndex: advPage.bhCore ? advPage.bhCore.spawnPosition : 0
+                            onActivated: function(index) {
+                                if (advPage.bhCore) advPage.bhCore.spawnPosition = index
+                            }
+                        }
+                    }
+
                     Components.ESlider {
                         Layout.fillWidth: true
                         label: "吸积盘旋转速度"
@@ -195,13 +225,16 @@ Item {
                                 color: theme.textColor
                             }
                             Text {
-                                text: "由 GNOME 合成器使用固定级别，不再随时间增长"
+                                text: fixedSizeSwitch.checked
+                                    ? "锁定核心与透镜尺度；预设切换仍会改变吸积盘外观"
+                                    : "40 秒长大、40 秒回缩，平滑往返循环"
                                 font.pixelSize: 11
                                 color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5)
                             }
                         }
 
                         Components.ESwitchButton {
+                            id: fixedSizeSwitch
                             size: "xs"
                             text: checked ? "已固定" : "动态"
                             checked: advPage.bhCore ? advPage.bhCore.fixedSize : false

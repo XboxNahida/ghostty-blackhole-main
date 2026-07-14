@@ -384,8 +384,10 @@ void BlackholePreviewRenderer::render()
     m_program->setUniformValue("uExposure",   m_diskExpo);
     m_program->setUniformValue("uSpeed",      m_movementSpeed);
     m_program->setUniformValue("uRotationSpeed", 0.08f * m_animationSpeed);
+    constexpr float kPi = 3.14159265f;
+    const float dynamicLevel = 0.5f - 0.5f * qCos(kPi * t / 40.0f);
     m_program->setUniformValue("uSizeLevel",
-        m_fixedSize ? m_fixedLevel : qMin(t / 40.0f, 1.0f));
+        m_fixedSize ? m_fixedLevel : dynamicLevel);
     m_program->setUniformValue("uStarGain",   m_diskStar);
     m_program->setUniformValue("uDiskIncl",   m_diskIncl);
     m_program->setUniformValue("uBornProgress", 1.0f);
