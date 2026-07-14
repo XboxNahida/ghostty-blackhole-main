@@ -17,6 +17,8 @@
 - 捕获方式支持自动 / WGC / DXGI（Windows），自动模式优先 WGC。
 - 多显示器支持主屏、副屏、跨屏和一屏一黑洞（Windows）。
 
+> Ubuntu 移植版尚未发布 GitHub Release，请从 `port/ubuntu-wayland` 分支构建。该分支基于上游 1.2.0；上游 1.2.1 的更新尚未合并。
+
 ## 运行要求
 
 ### 操作系统
@@ -32,7 +34,7 @@
 
 ### 显卡兼容性
 
-当前默认渲染路径：**WGC/DXGI 桌面捕获 → CPU 回读 → OpenGL 3.3 渲染**。WGC/DXGI 内部依赖 D3D11，但默认路径不做 D3D11 渲染。
+Windows 默认渲染路径：**WGC/DXGI 桌面捕获 → CPU 回读 → OpenGL 3.3 渲染**。WGC/DXGI 内部依赖 D3D11，但默认路径不做 D3D11 渲染。Linux 主链路则直接在 GNOME Shell 合成器中应用 shader。
 
 #### 桌面独显
 
@@ -67,6 +69,7 @@
 |------|------|
 | `blackhole.exe` | 无额外依赖，静态链接 |
 | `appBlakholeUI.exe` | Qt 6.8+ 运行时 DLL（`release/` 已附带） |
+| `appBlakholeUI` (Linux) | Qt 6、GNOME Shell 50、D-Bus 与 OpenGL 运行时；用 `.deb` 安装时由 APT 解决 |
 
 ### 编译要求
 
@@ -103,10 +106,17 @@
 
 ### Linux (Ubuntu GNOME Wayland)
 
-1. 启动 `appBlakholeUI`
-2. 配置参数 → 点击 **"启动黑洞"**
-3. 程序通过 D-Bus 向 GNOME Shell 扩展发送指令，在合成器层实时渲染
-4. 也可在终端使用 D-Bus 直接控制：
+1. 按下文“Linux 从源码安装”完成构建和安装，首次安装 GNOME 扩展后注销并重新登录一次。
+2. 启用扩展，然后启动 `appBlakholeUI`：
+
+   ```bash
+   gnome-extensions enable blackhole@xboxnahida.github.com
+   appBlakholeUI
+   ```
+
+3. 配置参数 → 点击 **"启动黑洞"**
+4. 程序通过 D-Bus 向 GNOME Shell 扩展发送指令，在合成器层实时渲染。
+5. 也可在终端使用 D-Bus 直接控制：
 
    ```bash
    gdbus call --session --dest io.github.xboxnahida.Blackhole \
@@ -143,11 +153,11 @@
 
 ## 配置参数
 
-- **14 个可调参数**：色温、倾角、旋转、半径、不透明度、多普勒、光束指数、亮度增益、条纹对比度、缠绕紧度、旋转速度、曝光度、星空亮度
+- **主要可调参数**：色温、倾角、旋转、半径、不透明度、多普勒、光束指数、亮度增益、条纹对比度、缠绕紧度、旋转速度、曝光度、星空亮度
 - **16 个预设**，支持复制/粘贴、上移/下移排序
 - **三种播放模式**：顺序 / 循环 / 随机
-- **捕获方式**：自动 / WGC / DXGI
-- **显示器模式**：主屏 / 副屏 / 跨屏 / 一屏一黑洞
+- **Windows 捕获方式**：自动 / WGC / DXGI
+- **Windows 显示器模式**：主屏 / 副屏 / 跨屏 / 一屏一黑洞
 - **固定大小**：可让黑洞保持固定比例，不再随时间增长
 
 ---
@@ -164,7 +174,7 @@
 
 ### 源代码模块
 
-#### ✅ 活跃模块（正在使用）
+#### Windows 活跃模块
 
 | 文件 | 功能 |
 |------|------|
@@ -181,6 +191,18 @@
 | `shaders/frag_desktop_header.glsl` | 桌面版 uniform 声明 |
 | `shaders/frag_preview_header.glsl` | 预览版 uniform 声明 |
 | `shaders/blackhole_preview.glsl` | 预览版着色器（Blakhole_UI FBO 用） |
+
+#### Linux 活跃模块
+
+| 文件 | 功能 |
+|------|------|
+| `Blakhole_UI/core/blackholecore.cpp` | Qt UI 配置、D-Bus 效果启停与生命周期管理 |
+| `src/gnome_idle_monitor.cpp/h` | GNOME IdleMonitor 空闲与恢复活动检测 |
+| `src/mpris_monitor.cpp/h` | MPRIS 媒体播放检测 |
+| `src/autostart_xdg.cpp/h` | XDG 用户级自启动 |
+| `gnome-extension/blackhole@xboxnahida.github.com/` | GNOME 50 合成器效果、D-Bus 接口与 shader |
+| `src/main_linux.cpp` | 旧全屏渲染器入口，当前保留作为兼容/诊断路径 |
+| `src/portal_capture.cpp/h` | 旧全屏路径的 XDG Desktop Portal + PipeWire 捕获 |
 
 #### 🔒 预留/实验模块（完整实现，当前未启用）
 
@@ -229,18 +251,73 @@ target_compile_definitions(blackhole PRIVATE BLACKHOLE_USE_D3D11)
 
 ### Linux
 
+#### 1. 获取 Ubuntu 移植分支
+
+```bash
+git clone --branch port/ubuntu-wayland \
+  https://github.com/Kiarelemb/ghostty-blackhole-ubuntu.git
+cd ghostty-blackhole-ubuntu
+```
+
+#### 2. 安装构建依赖（Ubuntu 26.04）
+
+```bash
+sudo apt update
+sudo apt install build-essential cmake ninja-build pkg-config dpkg-dev \
+  qt6-base-dev qt6-declarative-dev libglfw3-dev \
+  libpipewire-0.3-dev libwayland-dev wayland-protocols
+```
+
+#### 3. 构建
+
 ```bash
 cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/usr \
   -DBLACKHOLE_BUILD_UI=ON \
-  -DBLACKHOLE_ENABLE_PORTAL_CAPTURE=ON
+  -DBLACKHOLE_BUILD_RENDERER=ON \
+  -DBLACKHOLE_ENABLE_PORTAL_CAPTURE=ON \
+  -DBUILD_TESTING=ON
 cmake --build build
+```
 
-# 安装（系统级）
-sudo cmake --install build
+单元测试目标默认不随主程序构建，需要显式构建后再运行 CTest：
 
-# 打包为 .deb
+```bash
+cmake --build build --parallel --target \
+  shader_source_tests portal_capture_tests \
+  renderer_startup_diagnostics_tests movement_settings_tests \
+  application_catalog_tests avatar_storage_tests update_release_tests \
+  update_checker_state_tests renderer_search_tests \
+  gnome_idle_monitor_tests mpris_monitor_tests ds09_linux_tests
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+#### 4. 生成并安装 `.deb`
+
+```bash
 cpack --config build/CPackConfig.cmake -G DEB
+sudo apt install ./blackhole-1.2.0-linux-amd64.deb
+```
+
+APT 会安装包中声明的运行时依赖。首次安装 GNOME Shell 扩展后，请注销并重新登录一次，然后执行：
+
+```bash
+gnome-extensions enable blackhole@xboxnahida.github.com
+gnome-extensions info blackhole@xboxnahida.github.com
+appBlakholeUI
+```
+
+`gnome-extensions info` 应显示 `State: ACTIVE`。如果 D-Bus 启动后无效果，请检查：
+
+```bash
+journalctl -b /usr/bin/gnome-shell --no-pager | tail -n 200
+```
+
+#### 5. 卸载
+
+```bash
+sudo apt remove blackhole
 ```
 
 ---
@@ -253,7 +330,7 @@ cpack --config build/CPackConfig.cmake -G DEB
 | **纹理传输 (Win)** | CPU 回读 (`Staging → Map → glTexSubImage2D`) | 跨厂商兼容，隔离 GPU 差异 |
 | **渲染 (Win)** | OpenGL 3.3 + WGL | 原生 Win32 窗口，全屏顶层覆盖 |
 | **Linux 后端** | GNOME Shell 扩展 (JS) + D-Bus | 合成器层实时效果，无需 Portal |
-| **桌面捕获 (Linux)** | XDG Desktop Portal (可选) / 生成背景 | 回退到生成背景，避免递归捕获 |
+| **旧全屏路径 (Linux)** | XDG Desktop Portal / 生成背景 | 保留作为兼容与诊断路径，不是当前 UI 默认后端 |
 | **空闲检测 (Win)** | D3D全屏 / 窗口尺寸 / 音频会话 | 三层检测 |
 | **空闲检测 (Linux)** | GNOME idle monitor + MPRIS | D-Bus 空闲 + 媒体播放检测 |
 | **配置面板（旧）** | ImGui | blackhole.exe 内置 |
