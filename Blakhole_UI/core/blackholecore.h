@@ -7,6 +7,8 @@
 #include <QAbstractListModel>
 #include <QAbstractNativeEventFilter>
 #include <QVector>
+#include <QHash>
+#include "renderer_process_state.h"
 #include <QString>
 #include <QColor>
 #include <QVariantList>
@@ -86,6 +88,7 @@ private:
 // 黑洞核心 — 配置管理 + 进程控制
 #ifndef Q_OS_WIN
     class GnomeIdleMonitor;
+    class MprisMonitor;
 #endif
 class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_OBJECT
@@ -476,6 +479,7 @@ private:
     void pollRendererStartup();
     void publishRendererDiagnostic(const RendererDiagnostic &diagnostic);
     void terminateRendererProcess();
+    void stopRendererWithReason(const char *reason);
 
     PresetModel *m_presetModel;
 
@@ -490,6 +494,7 @@ private:
     bool    m_launchMinimized  = false;
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
+    QString m_screenName;
     int     m_captureMode  = -1; // -1=自动检测, 0=WGC, 1=DXGI (对齐 main.cpp)
     bool    m_fixedSize    = false;  // 固定大小（不随时间增长）
     float   m_fixedLevel   = 1.0f;   // 固定大小级别 (0.01~1.0 = 1%~100%)
@@ -507,7 +512,8 @@ private:
 
     // 进程
     bool m_refreshingProps = false;  // 防止currentPresetChanged信号级联
-    QProcess *m_rendererProcess = nullptr;
+    QVector<QProcess*> m_rendererProcesses;
+    RendererProcessState m_rendererProcessState;
     RendererStartupDiagnostics m_rendererDiagnostics;
     QTimer *m_rendererStartupTimer = nullptr;
     QElapsedTimer m_rendererStartupElapsed;
@@ -515,14 +521,16 @@ private:
     QByteArray m_rendererLogBoundaryProbe;
     bool m_rendererFailureLatched = false;
     QString m_rendererExeOverride;
-    QByteArray m_rendererStdoutBuffer;
-    QByteArray m_rendererStderrBuffer;
+    QHash<QProcess*, QByteArray> m_rendererStdoutBuffers;
+    QHash<QProcess*, QByteArray> m_rendererStderrBuffers;
     static constexpr qsizetype kMaxStdoutBufferBytes = 65536;
     static constexpr qsizetype kMaxStderrBufferBytes = 65536;
 
     // 空闲检测
 #ifndef Q_OS_WIN
     GnomeIdleMonitor *m_gnomeIdle = nullptr;
+    MprisMonitor *m_mpris = nullptr;
+    bool m_trayAvailable = false;
 #endif
     QTimer *m_idleTimer = nullptr;
 

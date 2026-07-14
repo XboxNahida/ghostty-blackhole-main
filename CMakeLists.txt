@@ -5,7 +5,7 @@ include(cmake/AppVersion.cmake)
 if(WIN32)
     project(blackhole-standalone VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX RC)
 else()
-    project(blackhole-standalone VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
+    project(blackhole-standalone VERSION ${BLACKHOLE_VERSION} LANGUAGES C CXX)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -14,8 +14,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ---- Options ----
 option(BLACKHOLE_BUILD_UI "Build Qt/QML configuration UI" ON)
 option(BLACKHOLE_BUILD_RENDERER "Build the blackhole-renderer (glfw+OpenGL)" ON)
-option(BLACKHOLE_ENABLE_PORTAL_CAPTURE "Enable XDG Desktop Portal screen capture (Linux)" OFF)
+option(BLACKHOLE_ENABLE_PORTAL_CAPTURE "Enable XDG Desktop Portal screen capture (Linux)" ON)
 include(CTest)
+include(GNUInstallDirs)
 
 # ---- Generated version header (platform neutral) ----
 set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -117,6 +118,25 @@ endif()
 if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
     find_package(glfw3 REQUIRED)
     find_package(OpenGL REQUIRED)
+    find_package(Qt6 REQUIRED COMPONENTS Core DBus)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+    pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
+
+    # Generate xdg-foreign-unstable-v2 client code
+    set(XDG_FOREIGN_XML "/usr/share/wayland-protocols/unstable/xdg-foreign/xdg-foreign-unstable-v2.xml")
+    set(XDG_FOREIGN_GEN "${CMAKE_CURRENT_BINARY_DIR}/xdg-foreign-gen")
+    file(MAKE_DIRECTORY "${XDG_FOREIGN_GEN}")
+    add_custom_command(
+        OUTPUT "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.h"
+               "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.c"
+        COMMAND wayland-scanner client-header "${XDG_FOREIGN_XML}"
+                "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.h"
+        COMMAND wayland-scanner private-code "${XDG_FOREIGN_XML}"
+                "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.c"
+        DEPENDS "${XDG_FOREIGN_XML}"
+        COMMENT "Generating xdg-foreign-unstable-v2 code"
+    )
 
     add_executable(blackhole-renderer
         src/main_linux.cpp
@@ -124,17 +144,29 @@ if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
         src/render/shader_source.cpp
         src/render/gl_program.cpp
         src/preset_config_linux.cpp
+        src/portal_capture.cpp
+        src/portal_capture.h
+        src/wayland_surface_export.cpp
+        src/wayland_surface_export.h
+        "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.h"
+        "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.c"
     )
 
     target_include_directories(blackhole-renderer PRIVATE
         src
         "${BLACKHOLE_GENERATED_DIR}"
+        "${XDG_FOREIGN_GEN}"
     )
 
     target_link_libraries(blackhole-renderer PRIVATE
         glfw
         OpenGL::GL
+        Qt6::Core
+        Qt6::DBus
+        PkgConfig::PIPEWIRE
+        PkgConfig::WAYLAND_CLIENT
     )
+    set_target_properties(blackhole-renderer PROPERTIES AUTOMOC ON)
 
     # Copy shader files alongside the binary for runtime loading
     add_custom_command(TARGET blackhole-renderer POST_BUILD
@@ -156,6 +188,39 @@ if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
             "${CMAKE_SOURCE_DIR}/blackhole_advanced.txt"
             "$<TARGET_FILE_DIR:blackhole-renderer>/blackhole_advanced.txt"
         COMMENT "Copying runtime resources for blackhole-renderer"
+    )
+
+    # Install rules for blackhole-renderer (Linux)
+    # Layout expected by the renderer at runtime:
+    # <resources root>/blackhole.glsl
+    # <resources root>/shaders/vert.glsl
+    # <resources root>/shaders/frag_desktop_header.glsl
+    install(TARGETS blackhole-renderer
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    # Shared shaders and config — both renderer and UI preview use these
+    install(FILES
+        "${CMAKE_SOURCE_DIR}/shaders/vert.glsl"
+        "${CMAKE_SOURCE_DIR}/shaders/frag_desktop_header.glsl"
+        "${CMAKE_SOURCE_DIR}/shaders/frag_preview_header.glsl"
+        "${CMAKE_SOURCE_DIR}/shaders/blackhole_preview.glsl"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole/shaders
+    )
+    install(FILES
+        "${CMAKE_SOURCE_DIR}/blackhole.glsl"
+        "${CMAKE_SOURCE_DIR}/blackhole_presets.txt"
+        "${CMAKE_SOURCE_DIR}/blackhole_advanced.txt"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole
+    )
+    install(DIRECTORY
+        "${CMAKE_SOURCE_DIR}/gnome-extension/blackhole@xboxnahida.github.com/"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/gnome-shell/extensions/blackhole@xboxnahida.github.com
+    )
+
+    # Pass the install data dir as a compile definition so the UI can find
+    # installed resources at runtime (dev tree falls back to projectRoot).
+    target_compile_definitions(blackhole-renderer PRIVATE
+        BLACKHOLE_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/blackhole"
     )
 endif()
 
@@ -199,4 +264,42 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}"
             --target render_core_syntax_check
     )
+
+    if(NOT WIN32)
+        find_package(Qt6 REQUIRED COMPONENTS Core DBus Test)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+        add_executable(portal_capture_tests EXCLUDE_FROM_ALL
+            tests/portal_capture_tests.cpp
+            src/portal_capture.cpp src/portal_capture.h
+            src/wayland_surface_export.cpp src/wayland_surface_export.h
+            "${XDG_FOREIGN_GEN}/xdg-foreign-unstable-v2.c")
+        set_target_properties(portal_capture_tests PROPERTIES AUTOMOC ON)
+        target_include_directories(portal_capture_tests PRIVATE src "${XDG_FOREIGN_GEN}")
+        target_link_libraries(portal_capture_tests PRIVATE Qt6::Core Qt6::DBus Qt6::Test PkgConfig::PIPEWIRE PkgConfig::WAYLAND_CLIENT)
+        add_test(NAME portal_capture_tests COMMAND portal_capture_tests)
+    endif()
 endif()
+
+# ══════════════════════════════════════════════════════════════
+# Packaging (CPack DEB)
+# ══════════════════════════════════════════════════════════════
+include(GNUInstallDirs)
+set(CPACK_PACKAGE_NAME "blackhole")
+set(CPACK_PACKAGE_VERSION "${BLACKHOLE_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Black hole screensaver for GNOME Wayland")
+set(CPACK_PACKAGE_VENDOR "XboxNahida")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/XboxNahida/blackhole")
+set(CPACK_PACKAGE_CONTACT "XboxNahida")
+set(CPACK_PACKAGE_FILE_NAME "blackhole-${BLACKHOLE_VERSION}-linux-amd64")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+
+set(CPACK_DEBIAN_PACKAGE_NAME "blackhole")
+set(CPACK_DEBIAN_PACKAGE_SECTION "x11")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/XboxNahida/blackhole")
+set(CPACK_GENERATOR "DEB")
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};blackhole-standalone;ALL;/")
+
+include(CPack)

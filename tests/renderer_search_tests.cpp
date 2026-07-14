@@ -137,13 +137,15 @@ int main(int argc, char *argv[])
     // 测试9: 搜索 — 非可执行文件不被接受
     {
         QTemporaryDir dir;
-        QString exePath = dir.path() + QStringLiteral("/blackhole-renderer");
+        const QStringList isolatedNames = {
+            QStringLiteral("non-executable-renderer-under-test")};
+        QString exePath = dir.path() + QStringLiteral("/") + isolatedNames.first();
         QFile f(exePath);
         Require(f.open(QIODevice::WriteOnly), "create non-executable file");
         f.write("x");
         f.close();
         // 不设置可执行权限
-        QString found = ResolveRendererPath({}, exeNames, dir.path());
+        QString found = ResolveRendererPath({}, isolatedNames, dir.path());
         Require(found.isEmpty(), "non-executable search file is rejected");
     }
 

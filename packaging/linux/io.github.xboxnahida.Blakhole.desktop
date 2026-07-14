@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Blakhole
+Name[zh_CN]=黑洞
+Comment=Black hole screensaver
+Comment[zh_CN]=黑洞屏保
+Exec=appBlakholeUI
+Icon=io.github.xboxnahida.Blakhole
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-GNOME-Autostart-Notify=false

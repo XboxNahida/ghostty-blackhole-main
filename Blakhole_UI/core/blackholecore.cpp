@@ -27,7 +27,16 @@
 
 #ifndef Q_OS_WIN
 #include "gnome_idle_monitor.h"
+#include "mpris_monitor.h"
+#include "autostart_xdg.h"
+#include <QDBusInterface>
+#include <QDBusReply>
 #endif
+
+#include <QSystemTrayIcon>
+#include "screen_selection_linux.h"
+#include <QGuiApplication>
+#include <QScreen>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -38,6 +47,45 @@
 #endif
 
 static constexpr int kCloseHotkeyId = 0x4248;
+
+#ifndef Q_OS_WIN
+namespace {
+constexpr auto kBlackholeBus = "io.github.xboxnahida.Blackhole";
+constexpr auto kBlackholePath = "/io/github/xboxnahida/Blackhole";
+constexpr auto kBlackholeInterface = "io.github.xboxnahida.Blackhole";
+
+QDBusInterface compositorInterface()
+{
+    return QDBusInterface(QString::fromLatin1(kBlackholeBus),
+                          QString::fromLatin1(kBlackholePath),
+                          QString::fromLatin1(kBlackholeInterface),
+                          QDBusConnection::sessionBus());
+}
+
+bool compositorRunning()
+{
+    QDBusInterface iface = compositorInterface();
+    if (!iface.isValid()) return false;
+    const QDBusReply<bool> reply = iface.call(QStringLiteral("GetState"));
+    return reply.isValid() && reply.value();
+}
+
+bool callCompositor(const QString &method, QString *error = nullptr)
+{
+    QDBusInterface iface = compositorInterface();
+    if (!iface.isValid()) {
+        if (error) *error = iface.lastError().message();
+        return false;
+    }
+    const QDBusMessage reply = iface.call(method);
+    if (reply.type() == QDBusMessage::ErrorMessage) {
+        if (error) *error = reply.errorMessage();
+        return false;
+    }
+    return true;
+}
+}
+#endif
 
 // ========== PresetModel ==========
 
@@ -212,30 +260,50 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     : QObject(parent)
     , m_presetModel(new PresetModel(this))
     , m_presetListModel(new PresetListModel(this))
-    , m_rendererProcess(nullptr)
+    , m_rendererProcesses()
 #ifndef Q_OS_WIN
     , m_gnomeIdle(nullptr)
+    , m_mpris(nullptr)
 #endif
 {
     initDefaultPresets();
     QCoreApplication::instance()->installNativeEventFilter(this);
 
 #ifndef Q_OS_WIN
+    // Check system tray availability (GNOME may not support it)
+    m_trayAvailable = QSystemTrayIcon::isSystemTrayAvailable();
+    if (!m_trayAvailable) {
+        qDebug() << "BlackHoleCore: system tray not available on this desktop";
+    }
+
     m_gnomeIdle = new GnomeIdleMonitor(this);
     connect(m_gnomeIdle, &GnomeIdleMonitor::idleEligible, this, [this]() {
+        if (m_mpris && m_mpris->isPlaying() && !m_videoAsIdle) {
+            setIdleDetectionState(tr("正在播放媒体，不启动黑洞"), false);
+            return;
+        }
         startRendererInternal(false);
     });
     connect(m_gnomeIdle, &GnomeIdleMonitor::activityDetected, this, [this]() {
-        stopRenderer();
+        stopRendererWithReason("GNOME activity detected");
     });
     connect(m_gnomeIdle, &GnomeIdleMonitor::lockDetected, this, [this]() {
-        stopRenderer();
+        stopRendererWithReason("GNOME screen lock detected");
     });
     connect(this, &BlackHoleCore::rendererStarted, this, [this]() {
         m_gnomeIdle->setRendererRunning(true);
     });
     connect(this, &BlackHoleCore::rendererStopped, this, [this]() {
         m_gnomeIdle->setRendererRunning(false);
+    });
+
+    // MPRIS media playback monitor
+    m_mpris = new MprisMonitor(this);
+    connect(m_mpris, &MprisMonitor::playingChanged, this, [this](bool playing) {
+        if (!m_videoAsIdle && playing) {
+            // Media is playing and video-as-idle is off: stop renderer
+            stopRendererWithReason("MPRIS player entered Playing state");
+        }
     });
 #endif
 
@@ -268,7 +336,7 @@ BlackHoleCore::~BlackHoleCore()
 {
     unregisterCloseHotkey();
     QCoreApplication::instance()->removeNativeEventFilter(this);
-    stopRenderer();
+    stopRendererWithReason("BlackHoleCore destructor");
 }
 
 // ====== 默认预设 ======
@@ -304,31 +372,58 @@ void BlackHoleCore::initDefaultPresets()
 
 // ====== 配置文件路径 ======
 
+// Determine the installed resource directory for Linux.
+#ifndef Q_OS_WIN
+static QString installedDataDir()
+{
+    return QStringLiteral(BLACKHOLE_INSTALL_DATADIR);
+}
+#endif
+
+// Returns true when running from an installed (non-dev-tree) location.
+static bool isInstalledLayout(const QString &projectRoot)
+{
+    if (projectRoot.isEmpty()) return true;
+    // In a dev tree, shaders/vert.glsl lives next to the project root.
+    // After install, the binary dir only contains the executables.
+    return !QFileInfo(projectRoot + QStringLiteral("/shaders/vert.glsl")).exists();
+}
+
 QString BlackHoleCore::configFilePath() const
 {
-    // 优先使用 blackhole.exe --render 实际读取的"项目根"目录,
-    // 保证 Qt UI 与渲染器子进程读写同一份 blackhole_presets.txt.
-    // blackhole.exe main.cpp:670-674 把 cwd 设为 build/ 的父目录, 即项目根.
+#ifndef Q_OS_WIN
+    // On Linux, use QStandardPaths for installed config.
+    QString projectRoot;
+    findRendererExe(&projectRoot);
+    if (!projectRoot.isEmpty() && !isInstalledLayout(projectRoot)) {
+        // Development tree: config lives alongside resources.
+        return projectRoot + QStringLiteral("/blackhole_presets.txt");
+    }
+    // Installed layout: use a user-writable config directory.
+    const QString configDir = QStandardPaths::writableLocation(
+        QStandardPaths::AppConfigLocation);
+    return configDir + QStringLiteral("/blackhole_presets.txt");
+#else
+    // Windows: keep original behavior — config alongside the binary.
     QString projectRoot;
     findRendererExe(&projectRoot);
     if (!projectRoot.isEmpty()) {
-        return projectRoot + "/blackhole_presets.txt";
+        return projectRoot + QStringLiteral("/blackhole_presets.txt");
     }
 
-    // 回退: 找不到 blackhole.exe 时, 仍按原逻辑用 appDir 或其上溯目录
     QString appDir = QCoreApplication::applicationDirPath();
-    QString cfgPath = appDir + "/blackhole_presets.txt";
+    QString cfgPath = appDir + QStringLiteral("/blackhole_presets.txt");
     if (QFileInfo::exists(cfgPath))
         return cfgPath;
 
     QDir dir(appDir);
-    dir.cdUp(); // build → project root
-    cfgPath = dir.absoluteFilePath("blackhole_presets.txt");
+    dir.cdUp();
+    cfgPath = dir.absoluteFilePath(QStringLiteral("blackhole_presets.txt"));
     if (QFileInfo::exists(cfgPath))
         return cfgPath;
 
-    // 默认在应用目录创建
-    return appDir + "/blackhole_presets.txt";
+    return appDir + QStringLiteral("/blackhole_presets.txt");
+#endif
 }
 
 QString BlackHoleCore::configDir() const
@@ -478,6 +573,8 @@ void BlackHoleCore::loadConfig()
 #ifdef Q_OS_WIN
     std::wstring registeredCommand;
     m_autoStart = AutoStart_Query(registeredCommand);
+#else
+    m_autoStart = AutoStart_XDG_Query();
 #endif
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -503,6 +600,10 @@ void BlackHoleCore::loadConfig()
 void BlackHoleCore::saveConfig()
 {
     QString path = configFilePath();
+    if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+        qWarning() << "BlackHoleCore: cannot create config directory for:" << path;
+        return;
+    }
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qWarning() << "BlackHoleCore: cannot write config:" << path;
@@ -714,16 +815,35 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
 {
     if (!userInitiated && m_rendererFailureLatched) return;
 
-    if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
+#ifndef Q_OS_WIN
+    QString error;
+    if (!callCompositor(QStringLiteral("Start"), &error)) {
+        emit rendererError(tr("无法启动 GNOME 黑洞扩展：%1").arg(error));
+        qWarning() << "BlackHoleCore: compositor Start failed:" << error;
+        return;
+    }
+    emit rendererStarted();
+    emit rendererRunningChanged();
+    emit systemActiveChanged();
+    qDebug() << "BlackHoleCore: GNOME compositor effect started";
+    return;
+#endif
+
+    // Check if any renderer process is already running
+    auto anyRunning = [this]() -> bool {
+        for (const auto *p : m_rendererProcesses)
+            if (p->state() != QProcess::NotRunning) return true;
+        return false;
+    };
+
+    if (anyRunning()) {
         if (userInitiated &&
             m_rendererDiagnostics.state() == RendererStartupState::Failed) {
             terminateRendererProcess();
+        } else {
+            qDebug() << "BlackHoleCore: renderer already running";
+            return;
         }
-    }
-
-    if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
-        qDebug() << "BlackHoleCore: renderer already running";
-        return;
     }
 
     if (userInitiated) m_rendererFailureLatched = false;
@@ -736,7 +856,20 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
     QString exePath = findRendererExe(&projectRoot);
     if (projectRoot.isEmpty()) projectRoot = QCoreApplication::applicationDirPath();
 
-    m_rendererLogPath = QDir(projectRoot).filePath(QStringLiteral("blackhole_debug.txt"));
+    // Determine the resources path for --resources.
+    // Dev tree: projectRoot contains shaders/ + blackhole.glsl.
+    // Installed: resources are under the install data directory.
+    QString resourcesPath = projectRoot;
+#ifndef Q_OS_WIN
+    if (isInstalledLayout(projectRoot)) {
+        resourcesPath = installedDataDir();
+        if (resourcesPath.isEmpty()) {
+            resourcesPath = projectRoot;
+        }
+    }
+#endif
+
+    m_rendererLogPath = QDir(configDir()).filePath(QStringLiteral("blackhole_debug.txt"));
     const QFileInfo baselineLogInfo(m_rendererLogPath);
     const qint64 previousLogSize = baselineLogInfo.exists() ? baselineLogInfo.size() : 0;
     m_rendererLogBoundaryProbe.clear();
@@ -754,7 +887,7 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
 
     const RendererDiagnostic missingFiles = m_rendererDiagnostics.validateRequiredFiles(
         exePath,
-        projectRoot,
+        resourcesPath,
         {QStringLiteral("shaders/vert.glsl"),
          QStringLiteral("shaders/frag_desktop_header.glsl"),
          QStringLiteral("blackhole.glsl")});
@@ -763,81 +896,128 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
         return;
     }
 
-    if (!m_rendererProcess) {
-        m_rendererProcess = new QProcess(this);
+    // Determine which display indices to start
+    QVector<int> displays;
+#ifndef Q_OS_WIN
+    const auto screens = QGuiApplication::screens();
+    QStringList names;
+    for (const QScreen *screen : screens) names.append(screen->name());
+    const int primary = screens.indexOf(QGuiApplication::primaryScreen());
+    displays = ResolveLinuxDisplays(m_screenTarget, m_screenName, names, primary);
+#else
+    displays.append(0);
+#endif
 
-        connect(m_rendererProcess, &QProcess::started, this, [this]() {
+    // Clean up previous process objects
+    qDeleteAll(m_rendererProcesses);
+    m_rendererProcesses.clear();
+    m_rendererProcessState.reset();
+
+    int numStarted = 0;
+    for (int displayIdx : displays) {
+        auto *process = new QProcess(this);
+
+        connect(process, &QProcess::started, this, [this]() {
             qDebug() << "BlackHoleCore: renderer started";
-            emit rendererStarted();
-            emit rendererRunningChanged();
-            emit systemActiveChanged();
-        });
-
-        connect(m_rendererProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this](int code, QProcess::ExitStatus status) {
-            qDebug() << "BlackHoleCore: renderer stopped, exit code:" << code;
-            RendererDiagnostic diagnostic;
-            if (m_rendererDiagnostics.state() == RendererStartupState::Starting) {
-                diagnostic = consumeRendererStartupLog(kMaxRendererLogDrainBytes);
+            if (m_rendererProcessState.processStarted()) {
+                emit rendererStarted();
+                emit rendererRunningChanged();
+                emit systemActiveChanged();
             }
-            if (!diagnostic.valid) {
-                diagnostic = m_rendererDiagnostics.processFinished(
-                    code, status == QProcess::CrashExit);
+        });
+
+        connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, displayIdx](int code, QProcess::ExitStatus status) {
+            qWarning().noquote()
+                << QStringLiteral("BlackHoleCore: renderer display=%1 finished exitCode=%2 exitStatus=%3 diagnosticsState=%4 elapsedMs=%5")
+                       .arg(displayIdx)
+                       .arg(code)
+                       .arg(status == QProcess::NormalExit ? QStringLiteral("NormalExit")
+                                                          : QStringLiteral("CrashExit"))
+                       .arg(static_cast<int>(m_rendererDiagnostics.state()))
+                       .arg(m_rendererStartupElapsed.isValid() ? m_rendererStartupElapsed.elapsed() : -1);
+            const bool last = m_rendererProcessState.processStopped();
+            if (last) {
+                RendererDiagnostic diagnostic;
+                if (m_rendererDiagnostics.state() == RendererStartupState::Starting)
+                    diagnostic = consumeRendererStartupLog(kMaxRendererLogDrainBytes);
+                if (!diagnostic.valid)
+                    diagnostic = m_rendererDiagnostics.processFinished(code, status == QProcess::CrashExit);
+                publishRendererDiagnostic(diagnostic);
+                emit rendererStopped();
+                emit rendererRunningChanged();
+                emit systemActiveChanged();
+            } else if (code != 0 || status == QProcess::CrashExit) {
+                qWarning() << "BlackHoleCore: renderer failure isolated to display" << displayIdx;
             }
-            publishRendererDiagnostic(diagnostic);
-            emit rendererStopped();
-            emit rendererRunningChanged();
-            emit systemActiveChanged();
         });
 
-        connect(m_rendererProcess, &QProcess::readyReadStandardOutput, this, [this]() {
-            const QByteArray data = m_rendererProcess->readAllStandardOutput();
-            m_rendererStdoutBuffer.append(data);
-            if (m_rendererStdoutBuffer.size() > kMaxStdoutBufferBytes)
-                m_rendererStdoutBuffer.remove(0, m_rendererStdoutBuffer.size() - kMaxStdoutBufferBytes);
+        connect(process, &QProcess::readyReadStandardOutput, this, [this, process]() {
+            const QByteArray data = process->readAllStandardOutput();
+            QByteArray &buffer = m_rendererStdoutBuffers[process]; buffer.append(data);
+            if (buffer.size() > kMaxStdoutBufferBytes)
+                buffer.remove(0, buffer.size() - kMaxStdoutBufferBytes);
         });
 
-        connect(m_rendererProcess, &QProcess::readyReadStandardError, this, [this]() {
-            const QByteArray data = m_rendererProcess->readAllStandardError();
-            m_rendererStderrBuffer.append(data);
-            if (m_rendererStderrBuffer.size() > kMaxStderrBufferBytes)
-                m_rendererStderrBuffer.remove(0, m_rendererStderrBuffer.size() - kMaxStderrBufferBytes);
+        connect(process, &QProcess::readyReadStandardError, this, [this, process]() {
+            const QByteArray data = process->readAllStandardError();
+            QByteArray &buffer = m_rendererStderrBuffers[process]; buffer.append(data);
+            if (buffer.size() > kMaxStderrBufferBytes)
+                buffer.remove(0, buffer.size() - kMaxStderrBufferBytes);
+
+            // Linux renderer diagnostics are emitted on stderr. Mirror them to
+            // the per-user startup log consumed by pollRendererStartup(), while
+            // retaining the bounded per-process buffer for failure isolation.
+            QFile logFile(m_rendererLogPath);
+            if (logFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
+                logFile.write(data);
+                logFile.flush();
+            }
         });
 
-        connect(m_rendererProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
-            QString msg = m_rendererProcess->errorString();
-            qWarning() << "BlackHoleCore: renderer error:" << msg;
+        connect(process, &QProcess::errorOccurred, this, [this, process, displayIdx](QProcess::ProcessError err) {
+            QString msg = process->errorString();
+            qWarning() << "BlackHoleCore: renderer error on display" << displayIdx << ":" << msg;
             if (err == QProcess::FailedToStart &&
                 m_rendererDiagnostics.state() == RendererStartupState::Starting) {
-                publishRendererDiagnostic(m_rendererDiagnostics.processFailedToStart(msg));
+                if (m_rendererProcessState.runningCount() == 0)
+                    publishRendererDiagnostic(m_rendererDiagnostics.processFailedToStart(
+                        tr("显示器 %1: %2").arg(displayIdx).arg(msg)));
             }
             emit rendererRunningChanged();
             emit systemActiveChanged();
         });
-    }
 
-    // 设 working directory 到项目根, 与 blackhole.exe main.cpp 的 SetCurrentDirectory 一致,
-    // 让渲染器从项目根读 shaders/ + blackhole_presets.txt (与 Qt UI 写入的同一份)
-    if (!projectRoot.isEmpty()) {
-        m_rendererProcess->setWorkingDirectory(projectRoot);
-    }
+        // 设 working directory 到项目根
+        if (!resourcesPath.isEmpty()) {
+            process->setWorkingDirectory(resourcesPath);
+        }
 
-    qDebug() << "BlackHoleCore: starting" << exePath << "--render" << "cwd:" << projectRoot;
-    m_rendererStartupElapsed.restart();
-    m_rendererStdoutBuffer.clear();
-    m_rendererStderrBuffer.clear();
+        qDebug() << "BlackHoleCore: starting" << exePath << "--render" << "display:" << displayIdx << "res:" << resourcesPath;
 
-    // 构建完整参数向量: Linux 渲染器需要 --render --background generated --config/--resources
-    QStringList rendererArgs = {QStringLiteral("--render")};
+        // The normal screensaver presentation must not capture its own
+        // fullscreen surface.  Portal desktop capture creates recursive
+        // feedback on GNOME Wayland and also introduces an authorization
+        // dialog that steals activation from the renderer.
+        QStringList rendererArgs = {QStringLiteral("--render")};
 #ifndef Q_OS_WIN
-    rendererArgs << QStringLiteral("--background") << QStringLiteral("generated")
-                 << QStringLiteral("--resources") << projectRoot
-                 << QStringLiteral("--config") << configFilePath()
-                 << QStringLiteral("--windowed")
-                 << QStringLiteral("--diagnostic");
+        rendererArgs << QStringLiteral("--background") << QStringLiteral("generated")
+                     << QStringLiteral("--resources") << resourcesPath
+                     << QStringLiteral("--config") << configFilePath()
+                     << QStringLiteral("--display") << QString::number(displayIdx)
+                     << QStringLiteral("--diagnostic");
 #endif
-    m_rendererProcess->start(exePath, rendererArgs);
-    m_rendererStartupTimer->start(200);
+        m_rendererProcesses.append(process);
+        process->start(exePath, rendererArgs);
+        ++numStarted;
+    }
+
+    if (numStarted > 0) {
+        m_rendererStartupElapsed.restart();
+        m_rendererStdoutBuffers.clear();
+        m_rendererStderrBuffers.clear();
+        m_rendererStartupTimer->start(200);
+    }
 }
 
 RendererDiagnostic BlackHoleCore::consumeRendererStartupLog(qint64 maxTotalBytes)
@@ -948,6 +1128,26 @@ void BlackHoleCore::openRendererLogDirectory() const
 
 void BlackHoleCore::stopRenderer()
 {
+    stopRendererWithReason("public stopRenderer request");
+}
+
+void BlackHoleCore::stopRendererWithReason(const char *reason)
+{
+    qWarning().noquote()
+        << QStringLiteral("BlackHoleCore: stopRenderer requested reason=\"%1\" running=%2 diagnosticsState=%3 elapsedMs=%4")
+               .arg(QString::fromUtf8(reason ? reason : "unknown"))
+               .arg(rendererRunning())
+               .arg(static_cast<int>(m_rendererDiagnostics.state()))
+               .arg(m_rendererStartupElapsed.isValid() ? m_rendererStartupElapsed.elapsed() : -1);
+#ifndef Q_OS_WIN
+    QString error;
+    if (!callCompositor(QStringLiteral("Stop"), &error))
+        qWarning() << "BlackHoleCore: compositor Stop failed:" << error;
+    emit rendererStopped();
+    emit rendererRunningChanged();
+    emit systemActiveChanged();
+    return;
+#endif
     m_rendererDiagnostics.beginStopping();
     m_rendererStartupTimer->stop();
     terminateRendererProcess();
@@ -955,14 +1155,24 @@ void BlackHoleCore::stopRenderer()
 
 void BlackHoleCore::terminateRendererProcess()
 {
-    if (!m_rendererProcess)
+    if (m_rendererProcesses.isEmpty())
         return;
 
-    if (m_rendererProcess->state() != QProcess::NotRunning) {
-        m_rendererProcess->terminate();
-        if (!m_rendererProcess->waitForFinished(3000)) {
-            m_rendererProcess->kill();
-            m_rendererProcess->waitForFinished(2000);
+    for (auto *process : m_rendererProcesses) {
+        if (process->state() != QProcess::NotRunning) {
+            qWarning() << "BlackHoleCore: sending terminate to renderer pid=" << process->processId();
+            process->terminate();
+        }
+    }
+
+    // Wait for all to finish
+    for (auto *process : m_rendererProcesses) {
+        if (process->state() != QProcess::NotRunning) {
+            if (!process->waitForFinished(3000)) {
+                qWarning() << "BlackHoleCore: renderer ignored terminate; sending kill pid=" << process->processId();
+                process->kill();
+                process->waitForFinished(2000);
+            }
         }
     }
 }
@@ -976,7 +1186,7 @@ void BlackHoleCore::applyAndStart()
         startRenderer();
     } else {
         // 空闲检测模式: 启动定时器，等待空闲时自动启动
-        stopRenderer();
+        stopRendererWithReason("applyAndStart switched to idle-detection mode");
         if (m_idleTimer && !m_idleTimer->isActive()) {
             m_idleTimer->start();
             emit systemActiveChanged();
@@ -993,19 +1203,31 @@ void BlackHoleCore::stopAll()
     }
 #ifndef Q_OS_WIN
     if (m_gnomeIdle) m_gnomeIdle->stop();
+    if (m_mpris) m_mpris->stop();
 #endif
-    stopRenderer();
+    stopRendererWithReason("stopAll request");
     emit systemActiveChanged();
 }
 
 bool BlackHoleCore::rendererRunning() const
 {
-    return m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning;
+#ifndef Q_OS_WIN
+    return compositorRunning();
+#endif
+    for (const auto *p : m_rendererProcesses)
+        if (p->state() != QProcess::NotRunning) return true;
+    return false;
 }
 
 bool BlackHoleCore::isSystemActive() const
 {
-    return (m_idleTimer && m_idleTimer->isActive()) || (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning);
+    if (m_idleTimer && m_idleTimer->isActive()) return true;
+#ifndef Q_OS_WIN
+    return compositorRunning();
+#endif
+    for (const auto *p : m_rendererProcesses)
+        if (p->state() != QProcess::NotRunning) return true;
+    return false;
 }
 
 // ====== 属性访问器 ======
@@ -1019,8 +1241,9 @@ void BlackHoleCore::setDisplayMode(int mode) {
     if (m_idleTimer && m_idleTimer->isActive()) m_idleTimer->stop();
 #ifndef Q_OS_WIN
     if (m_gnomeIdle) m_gnomeIdle->stop();
+    if (m_mpris) m_mpris->stop();
 #endif
-    stopRenderer();
+    stopRendererWithReason("display mode changed");
     emit systemActiveChanged();
 }
 
@@ -1049,6 +1272,15 @@ void BlackHoleCore::setAutoStart(bool v)
         emit autoStartChanged();
         return;
     }
+#else
+    const AutoStartXdgResult result = AutoStart_XDG_Set(
+        v, QCoreApplication::applicationFilePath());
+    if (!result.success) {
+        m_autoStartStatus = tr("开机自启动更新失败: %1").arg(result.errorMessage);
+        emit autoStartStatusChanged();
+        emit autoStartChanged();
+        return;
+    }
 #endif
     m_autoStart = v;
     m_autoStartStatus = v ? tr("开机自启动已开启") : tr("开机自启动已关闭");
@@ -1061,7 +1293,16 @@ bool BlackHoleCore::launchMinimized() const          { return m_launchMinimized;
 void BlackHoleCore::setLaunchMinimized(bool v)     { if (m_launchMinimized == v) return; m_launchMinimized = v; emit launchMinimizedChanged(); }
 
 int BlackHoleCore::screenTarget() const { return m_screenTarget; }
-void BlackHoleCore::setScreenTarget(int v) { if (m_screenTarget == v) return; m_screenTarget = v; emit screenTargetChanged(); }
+void BlackHoleCore::setScreenTarget(int v) {
+    if (m_screenTarget == v) return;
+    m_screenTarget = v;
+#ifndef Q_OS_WIN
+    QStringList names; const auto screens = QGuiApplication::screens();
+    for (const QScreen *screen : screens) names.append(screen->name());
+    m_screenName = StableScreenNameForTarget(v, names, screens.indexOf(QGuiApplication::primaryScreen()));
+#endif
+    emit screenTargetChanged();
+}
 
 int BlackHoleCore::captureMode() const { return m_captureMode; }
 void BlackHoleCore::setCaptureMode(int v) { if (m_captureMode == v) return; m_captureMode = v; emit captureModeChanged(); }
@@ -1576,7 +1817,7 @@ check_foreground_done:
         : QStringLiteral("%1 · %2").arg(foregroundProcess, detectionReason);
     setIdleDetectionState(detectionSummary, blocked);
 
-    bool running = (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning);
+    bool running = rendererRunning();
 
     if (idleMs >= idleThresholdMs && !blocked) {
         if (!running) {
@@ -1586,7 +1827,7 @@ check_foreground_done:
     } else {
         if (running) {
             qDebug() << "BlackHoleCore: user active or blocked, stopping renderer";
-            stopRenderer();
+            stopRendererWithReason("Windows idle/activity policy blocked renderer");
         }
     }
 #else
@@ -1601,7 +1842,16 @@ check_foreground_done:
         if (m_gnomeIdle->state() == GnomeIdleMonitor::Degraded) {
             m_gnomeIdle->start();
         }
-        setIdleDetectionState(tr("等待用户空闲 %1 秒").arg(m_idleSeconds), false);
+        // MPRIS: start monitoring if not started
+        if (m_mpris) {
+            m_mpris->start();
+        }
+        // Check if media is playing (suppresses idle start)
+        if (m_mpris && m_mpris->isPlaying() && !m_videoAsIdle) {
+            setIdleDetectionState(tr("正在播放媒体，不启动黑洞"), false);
+        } else {
+            setIdleDetectionState(tr("等待用户空闲 %1 秒").arg(m_idleSeconds), false);
+        }
     }
 #endif
 }
@@ -2012,6 +2262,7 @@ void BlackHoleCore::saveSystemConfig()
     out << "closeHotkeyEnabled=" << (m_closeHotkeyEnabled ? 1 : 0) << "\n";
     out << "closeHotkeySequence=" << m_closeHotkeySequence << "\n";
     out << "customAvatarPath=" << QDir::toNativeSeparators(m_customAvatarPath) << "\n";
+    out << "screenName=" << m_screenName << "\n";
     file.close();
     qDebug() << "BlackHoleCore: saved system config";
 }
@@ -2042,6 +2293,7 @@ void BlackHoleCore::loadSystemConfig()
         else if (key == "closeHotkeyEnabled") m_closeHotkeyEnabled = (val.toInt() != 0);
         else if (key == "closeHotkeySequence") m_closeHotkeySequence = normalizedHotkeySequence(val);
         else if (key == "customAvatarPath") m_customAvatarPath = QDir::fromNativeSeparators(val);
+        else if (key == "screenName") m_screenName = val;
     }
     file.close();
     if (!AvatarStorage_FileUrl(m_customAvatarPath).isEmpty()) {

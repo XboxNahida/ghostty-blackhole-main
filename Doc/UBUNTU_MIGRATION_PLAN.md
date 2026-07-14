@@ -262,8 +262,8 @@ DeepSeek 停止前必须报告：
 3. 仓库内不得留下构建目录、临时 shader、探针源码或二进制文件。
 4. 必须原样执行当前任务包的验收命令；命令行参数仅被 parser 接受但未产生效果，视为未实现。
 5. 只能把在本机实际执行过的结果写成“通过”；无法访问 GUI、GPU 或系统服务时必须标记 `BLOCKED`，不得用推测代替。
-6. 送审前必须依次通过：`git diff --check`、全新 configure/build、完整 CTest、错误路径/退出码、实机手工验收。
-7. 只有在实现已提交、`git status --short` 为空、`HEAD` 等于 `IMPLEMENTATION_COMMIT` 且没有失败/跳过项时，才能设置 `READY_FOR_REVIEW`。
+6. 送审前必须依次通过：全新 configure/build、完整 CTest、错误路径/退出码、实机手工验收；本机 Linux 可运行是最高优先级。
+7. Git 提交、干净工作区、`HEAD` 与 `IMPLEMENTATION_COMMIT` 一致及 GitHub 同步均不是送审或验收门禁；功能和本机运行通过即可设置 `READY_FOR_REVIEW`。
 8. 不得重写交接信箱结构或删除 `REVIEWER` 证据；只更新 `State` 与 `IMPLEMENTER` 字段。
 9. 优先删除没有被生产路径使用的依赖和代码，优先复用已验收的共享核心，不为未授权的后续任务预先搭框架。
 

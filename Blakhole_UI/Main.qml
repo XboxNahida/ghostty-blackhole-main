@@ -72,14 +72,7 @@ ApplicationWindow {
         }
     }
 
-    Component.onCompleted: {
-        updateChecker.checkAutomatically()
-        if (root.launchMinimized && blackHoleCore) {
-            root.visible = false
-            systemTray.visible = true
-            blackHoleCore.applyAndStart()
-        }
-    }
+    Component.onCompleted: updateChecker.checkAutomatically()
 
     color: theme.primaryColor
 
@@ -890,7 +883,7 @@ ApplicationWindow {
                         Components.EDropDown {
                             id: screenTargetDrop
                             preferredWidth: 150
-                            model: ["\u4e3b\u5c4f\uff08\u9ed8\u8ba4\uff09", "\u526f\u5c4f", "\u8de8\u5c4f", "\u4e00\u5c4f\u4e00\u9ed1\u6d1e"]
+                            model: ["\u4e3b\u5c4f\uff08\u9ed8\u8ba4\uff09", "\u526f\u5c4f", "\u8de8\u5c4f\uff08Linux \u56de\u9000\u4e3b\u5c4f\uff09", "\u4e00\u5c4f\u4e00\u9ed1\u6d1e"]
                             currentIndex: root.screenTarget
                             onActivated: function(index) {
                                 root.screenTarget = index

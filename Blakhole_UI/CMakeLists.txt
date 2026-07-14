@@ -45,6 +45,9 @@ set(APP_SOURCES
     core/blackholepreviewfbo.cpp
     ../src/renderer_search_linux.cpp
     ../src/gnome_idle_monitor.cpp
+    ../src/mpris_monitor.cpp
+    ../src/autostart_xdg.cpp
+    ../src/screen_selection_linux.cpp
 )
 
 # Windows-only sources
@@ -62,6 +65,10 @@ endif()
 qt_add_executable(appBlakholeUI ${APP_SOURCES})
 
 target_include_directories(appBlakholeUI PRIVATE ../src "${BLACKHOLE_GENERATED_DIR}" ../src)
+
+if(NOT WIN32)
+    find_package(PkgConfig REQUIRED)
+endif()
 
 file(GLOB QML_COMPONENTS CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "components/*.qml")
 file(GLOB QML_PAGES CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "pages/*.qml")
@@ -103,6 +110,10 @@ if(WIN32)
 else()
     target_link_libraries(appBlakholeUI
         PRIVATE Qt6::DBus
+    )
+    # Install data directory for finding resources at runtime
+    target_compile_definitions(appBlakholeUI PRIVATE
+        BLACKHOLE_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/blackhole"
     )
 endif()
 
@@ -173,6 +184,26 @@ if(BUILD_TESTING)
     target_include_directories(gnome_idle_monitor_tests PRIVATE ../src)
     target_link_libraries(gnome_idle_monitor_tests PRIVATE Qt6::Core Qt6::DBus)
     add_test(NAME gnome_idle_monitor_tests COMMAND gnome_idle_monitor_tests)
+
+    add_executable(mpris_monitor_tests EXCLUDE_FROM_ALL
+        ../tests/mpris_monitor_tests.cpp
+        ../src/mpris_monitor.cpp
+    )
+    target_include_directories(mpris_monitor_tests PRIVATE ../src)
+    target_link_libraries(mpris_monitor_tests PRIVATE Qt6::Core Qt6::DBus)
+    add_test(NAME mpris_monitor_tests COMMAND mpris_monitor_tests)
+
+    if(NOT WIN32)
+        add_executable(ds09_linux_tests EXCLUDE_FROM_ALL
+            ../tests/ds09_linux_tests.cpp
+            ../src/autostart_xdg.cpp
+            ../src/screen_selection_linux.cpp
+            core/systemtray.cpp)
+        target_include_directories(ds09_linux_tests PRIVATE ../src core)
+        target_link_libraries(ds09_linux_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Quick)
+        add_test(NAME ds09_linux_tests COMMAND ds09_linux_tests)
+        set_tests_properties(ds09_linux_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
 endif()
 
 # MSYS2 UCRT64 运行时 + Qt 依赖打包 (与根 CMakeLists.txt 同款)
@@ -273,4 +304,25 @@ install(TARGETS appBlakholeUI
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install .desktop file
+install(FILES
+    "${CMAKE_SOURCE_DIR}/packaging/linux/io.github.xboxnahida.Blakhole.desktop"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+# Install AppStream metainfo
+install(FILES
+    "${CMAKE_SOURCE_DIR}/packaging/linux/io.github.xboxnahida.Blakhole.metainfo.xml"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
+)
+
+# Install hicolor icons (PNG)
+install(DIRECTORY
+    "${CMAKE_SOURCE_DIR}/packaging/linux/icons/hicolor/"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor
+    FILES_MATCHING
+    PATTERN "*.png"
+    PATTERN "*.svg"
 )

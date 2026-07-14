@@ -1,0 +1,7 @@
+{
+  "name": "Blackhole Desktop Effect",
+  "description": "GNOME Shell compositor-side blackhole desktop distortion",
+  "uuid": "blackhole@xboxnahida.github.com",
+  "shell-version": ["50"],
+  "version": 1
+}

@@ -1,5 +1,5 @@
 // blackhole-renderer  Linux OpenGL host for blackhole.glsl
-// MVP: generated background only (no desktop capture, no Bloom).
+// XDG Portal + PipeWire desktop background, with generated fallback.
 // Usage:
 //   ./blackhole-renderer --windowed --background generated \
 //       --config blackhole_presets.txt --resources ./ --diagnostic
@@ -11,10 +11,17 @@
 #include <cstring>
 #include <cerrno>
 #include <climits>
+#include <csignal>
+#include <limits>
 #include <string>
 #include <vector>
 #include <unistd.h>
+#include <QCoreApplication>
+#include "portal_capture.h"
+#define GLFW_EXPOSE_NATIVE_WAYLAND
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+#include "wayland_surface_export.h"
 
 #include "render/gl_funcs.h"
 #include "render/shader_source.h"
@@ -36,7 +43,7 @@ static const char* flagValue(int argc, char* argv[], const char* name) {
 
 // ── CLI validation ──
 static void printUsage(const char* program) {
-    fprintf(stderr, "Usage: %s --render [--windowed] --background generated\n", program);
+    fprintf(stderr, "Usage: %s --render [--windowed] --background desktop|generated\n", program);
     fprintf(stderr, "       [--config <path>] [--resources <dir>] [--display <N>] [--diagnostic]\n");
 }
 
@@ -84,25 +91,44 @@ static int validateArgs(int argc, char* argv[]) {
 
 // ── Input state ──
 static bool g_quit = false;
+static const char* g_quitReason = "window close";
 static double g_lastCursorX = 0.0, g_lastCursorY = 0.0;
 static bool g_cursorInitialized = false;
 static const double MOUSE_THRESHOLD = 10.0; // pixels
+static double g_mouseInputArmTime = std::numeric_limits<double>::infinity();
+static volatile sig_atomic_t g_exitSignal = 0;
+
+static void terminationSignalHandler(int signalNumber) {
+    g_exitSignal = signalNumber;
+}
+
+static void armMouseInputAfterStartup() {
+    g_cursorInitialized = false;
+    g_mouseInputArmTime = glfwGetTime() + 0.75;
+}
 
 static void keyCallback(GLFWwindow* win, int key, int, int action, int) {
     (void)win;
-    if (action == GLFW_PRESS || action == GLFW_REPEAT)
+    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+        fprintf(stderr, "[INPUT] keyboard key=%d action=%d\n", key, action);
+        g_quitReason = "keyboard input";
         g_quit = true;
+    }
 }
 
 static void mouseButtonCallback(GLFWwindow* win, int, int action, int) {
     (void)win;
-    if (action == GLFW_PRESS)
+    if (action == GLFW_PRESS && glfwGetTime() >= g_mouseInputArmTime) {
+        fprintf(stderr, "[INPUT] mouse button action=%d time=%.3f armTime=%.3f\n",
+                action, glfwGetTime(), g_mouseInputArmTime);
+        g_quitReason = "mouse button input";
         g_quit = true;
+    }
 }
 
 static void cursorPosCallback(GLFWwindow* win, double x, double y) {
     (void)win;
-    if (!g_cursorInitialized) {
+    if (!g_cursorInitialized || glfwGetTime() < g_mouseInputArmTime) {
         g_lastCursorX = x;
         g_lastCursorY = y;
         g_cursorInitialized = true;
@@ -112,8 +138,25 @@ static void cursorPosCallback(GLFWwindow* win, double x, double y) {
     double dy = y - g_lastCursorY;
     double dist = std::sqrt(dx * dx + dy * dy);
     if (dist >= MOUSE_THRESHOLD) {
+        fprintf(stderr, "[INPUT] mouse movement distance=%.2f from=(%.1f,%.1f) to=(%.1f,%.1f)\n",
+                dist, g_lastCursorX, g_lastCursorY, x, y);
+        g_quitReason = "mouse movement";
         g_quit = true;
     }
+}
+
+static void windowFocusCallback(GLFWwindow*, int focused) {
+    fprintf(stderr, "[WINDOW] focus=%d time=%.3f\n", focused, glfwGetTime());
+}
+
+static void windowIconifyCallback(GLFWwindow*, int iconified) {
+    fprintf(stderr, "[WINDOW] iconified=%d time=%.3f\n", iconified, glfwGetTime());
+}
+
+static void windowCloseCallback(GLFWwindow* win) {
+    fprintf(stderr, "[WINDOW] close requested time=%.3f\n", glfwGetTime());
+    g_quitReason = "window close callback";
+    glfwSetWindowShouldClose(win, GLFW_TRUE);
 }
 
 // ── Main ──
@@ -121,6 +164,8 @@ int main(int argc, char* argv[]) {
     bool windowed   = hasFlag(argc, argv, "--windowed");
     bool diagnostic = hasFlag(argc, argv, "--diagnostic");
     FILE* log = diagnostic ? stderr : nullptr;
+    std::signal(SIGTERM, terminationSignalHandler);
+    std::signal(SIGINT, terminationSignalHandler);
 
     // Validate CLI before any side effects
     {
@@ -140,11 +185,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // ── Validate --background (DS-03: must be "generated") ──
+    const char* background = flagValue(argc, argv, "--background");
     {
-        const char* bg = flagValue(argc, argv, "--background");
-        if (!bg || strcmp(bg, "generated") != 0) {
-            fprintf(stderr, "ERROR: --background must be 'generated' (DS-03)\n");
+        if (!background || (strcmp(background, "generated") != 0 && strcmp(background, "desktop") != 0)) {
+            fprintf(stderr, "ERROR: --background must be 'desktop' or 'generated'\n");
             return 2;
         }
     }
@@ -155,7 +199,26 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
+    QCoreApplication qtApplication(argc, argv);
+    PortalCapture portal;
+    const bool desktopCapture = strcmp(background, "desktop") == 0;
+    bool portalFailed = false;
+    QObject::connect(&portal, &PortalCapture::captureFailed, [&](const QString &reason) {
+        portalFailed = true;
+        fprintf(stderr, "[PORTAL] capture unavailable, using generated fallback: %s\n",
+                reason.toUtf8().constData());
+        armMouseInputAfterStartup();
+    });
+    QObject::connect(&portal, &PortalCapture::captureStarted, [&] {
+        fprintf(stderr, "[PORTAL] PipeWire desktop stream started\n");
+        armMouseInputAfterStartup();
+    });
     // ── GLFW init ──
+    // xdg-foreign must export the actual xdg_toplevel surface.  GLFW's
+    // libdecor backend exposes its child content surface via the native API,
+    // which Mutter correctly rejects as having an invalid role.
+    glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
     if (!glfwInit()) {
         fprintf(stderr, "FAILED: glfwInit\n");
         return EXIT_FAILURE;
@@ -207,6 +270,7 @@ int main(int argc, char* argv[]) {
 
     glfwMakeContextCurrent(win);
     glfwSwapInterval(1); // vsync
+    WaylandSurfaceExport surfaceExport;
 
     // ── Log GL info ──
     {
@@ -291,6 +355,7 @@ int main(int argc, char* argv[]) {
                  GL_RGBA, GL_UNSIGNED_BYTE, black);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int textureWidth = 1, textureHeight = 1;
 
     // ── Cache uniform locations ──
     GLint locRes  = gl_GetUniformLocation(program, "iResolution");
@@ -341,7 +406,39 @@ int main(int argc, char* argv[]) {
     glfwSetKeyCallback(win, keyCallback);
     glfwSetMouseButtonCallback(win, mouseButtonCallback);
     glfwSetCursorPosCallback(win, cursorPosCallback);
+    glfwSetWindowFocusCallback(win, windowFocusCallback);
+    glfwSetWindowIconifyCallback(win, windowIconifyCallback);
+    glfwSetWindowCloseCallback(win, windowCloseCallback);
+    if (!desktopCapture)
+        armMouseInputAfterStartup();
     glfwShowWindow(win);
+    fprintf(stderr,
+            "[WINDOW] show requested fullscreen=%d size=%dx%d focused=%d visible=%d iconified=%d\n",
+            monitor != nullptr, winW, winH,
+            glfwGetWindowAttrib(win, GLFW_FOCUSED),
+            glfwGetWindowAttrib(win, GLFW_VISIBLE),
+            glfwGetWindowAttrib(win, GLFW_ICONIFIED));
+    if (desktopCapture) {
+        // Showing the window assigns its xdg_toplevel role on Wayland; Mutter
+        // rejects an xdg-foreign export made before this point.
+        glfwPollEvents();
+        QObject::connect(&surfaceExport, &WaylandSurfaceExport::exported,
+                         &portal, [&portal](const QString &parent) { portal.startCapture(parent); });
+        QObject::connect(&surfaceExport, &WaylandSurfaceExport::exportFailed,
+                         &portal, [&portalFailed](const QString &reason) {
+            portalFailed = true;
+            fprintf(stderr, "[PORTAL] parent export failed, using generated fallback: %s\n",
+                    reason.toUtf8().constData());
+            armMouseInputAfterStartup();
+        });
+        if (!surfaceExport.init(glfwGetWaylandDisplay(), glfwGetWaylandWindow(win))) {
+            portalFailed = true;
+            fprintf(stderr, "[PORTAL] xdg-foreign v2 is unavailable, using generated fallback\n");
+            armMouseInputAfterStartup();
+        } else {
+            surfaceExport.exportSurface();
+        }
+    }
 
     // ── Determine actual framebuffer size and set viewport ──
     int fbW, fbH;
@@ -349,17 +446,58 @@ int main(int argc, char* argv[]) {
     if (fbW > 0 && fbH > 0)
         glViewport(0, 0, fbW, fbH);
 
+    if (log) {
+        fprintf(log, "[OK] Ready, entering main loop\n");
+        fflush(log);
+    }
+
     // ── Render loop ──
     double startTime = glfwGetTime();
     int frames = 0;
     double lastFps = startTime;
+    bool delayedActivationRequested = false;
 
     while (!glfwWindowShouldClose(win) && !g_quit) {
+        if (g_exitSignal != 0) {
+            static char signalReason[64];
+            snprintf(signalReason, sizeof(signalReason), "external signal %d", int(g_exitSignal));
+            g_quitReason = signalReason;
+            g_quit = true;
+            fprintf(stderr, "[SIGNAL] received signal=%d\n", int(g_exitSignal));
+            break;
+        }
         glfwPollEvents();
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 2);
+
+        PortalCapture::Frame captured;
+        if (desktopCapture && portal.takeLatestFrame(captured)) {
+            glBindTexture(GL_TEXTURE_2D, texID);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            if (captured.width != textureWidth || captured.height != textureHeight) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, captured.width, captured.height, 0,
+                             GL_BGRA, GL_UNSIGNED_BYTE, captured.pixels.constData());
+                textureWidth = captured.width; textureHeight = captured.height;
+                fprintf(stderr, "[PORTAL] rendering captured desktop frames at %dx%d\n",
+                        textureWidth, textureHeight);
+            } else {
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, textureWidth, textureHeight,
+                                GL_BGRA, GL_UNSIGNED_BYTE, captured.pixels.constData());
+            }
+        }
 
         double now = glfwGetTime();
         float t = (float)(now - startTime);
         float ep = (float)time(nullptr);
+
+        // The button release that launched this child can return focus to the
+        // Qt settings window after the fullscreen surface has already mapped.
+        // Re-request activation once that originating click has completed.
+        if (!windowed && !delayedActivationRequested && t >= 0.50f) {
+            delayedActivationRequested = true;
+            fprintf(stderr, "[WINDOW] requesting delayed fullscreen activation time=%.3f focused=%d\n",
+                    now, glfwGetWindowAttrib(win, GLFW_FOCUSED));
+            glfwFocusWindow(win);
+        }
 
         // Handle framebuffer size changes
         int newFbW, newFbH;
@@ -416,6 +554,7 @@ int main(int argc, char* argv[]) {
     }
 
     // ── Cleanup ──
+    portal.stopCapture();
     gl_DeleteProgram(program);
     gl_DeleteVertexArrays(1, &vao);
     gl_DeleteBuffers(1, &vbo);
@@ -424,7 +563,7 @@ int main(int argc, char* argv[]) {
     glfwTerminate();
 
     if (log) {
-        fprintf(log, "[OK] blackhole-renderer exiting cleanly\n");
+        fprintf(log, "[OK] blackhole-renderer exiting cleanly: %s\n", g_quitReason);
         fflush(log);
     }
     return EXIT_SUCCESS;
