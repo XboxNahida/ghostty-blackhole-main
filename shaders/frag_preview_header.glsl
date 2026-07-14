@@ -17,6 +17,8 @@ uniform float uSpeed      = -1.0;
 uniform float uStarGain   = -1.0;
 uniform float uDiskIncl   = -1.0;
 uniform float uBornProgress = 1.0;
+uniform float uSizeLevel = 0.55;
+uniform float uRotationSpeed = 0.08;
 // Demo preset overrides (negative = use hardcoded default)
 #define MAX_PRESETS 64
 uniform int   uPresetCount = 0;

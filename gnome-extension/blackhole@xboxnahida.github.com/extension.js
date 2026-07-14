@@ -1,6 +1,8 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -10,6 +12,7 @@ import {BlackholePrototypeEffect} from './effect.js';
 const BUS_NAME = 'io.github.xboxnahida.Blackhole';
 const OBJECT_PATH = '/io/github/xboxnahida/Blackhole';
 const EFFECT_NAME = 'blackhole-desktop-effect';
+const STOP_SHORTCUT = 'stop-shortcut';
 
 const DBUS_XML = `
 <node>
@@ -20,6 +23,12 @@ const DBUS_XML = `
     <method name="GetState">
       <arg name="running" type="b" direction="out"/>
     </method>
+    <method name="ConfigureShortcut">
+      <arg name="enabled" type="b" direction="in"/>
+      <arg name="accelerator" type="s" direction="in"/>
+      <arg name="success" type="b" direction="out"/>
+    </method>
+    <signal name="StopShortcutActivated"/>
     <property name="Running" type="b" access="read"/>
   </interface>
 </node>`;
@@ -28,6 +37,13 @@ export default class BlackholeExtension extends Extension {
     enable() {
         this._running = false;
         this._effects = [];
+        this._settings = this.getSettings();
+        this._shortcutRegistered = false;
+        this._shortcutSettingsChangedId = this._settings.connect(
+            'changed', (_settings, key) => {
+                if (key === 'shortcut-enabled' || key === STOP_SHORTCUT)
+                    this._registerStopShortcut();
+            });
 
         // Apply the effect to Mutter's real paint actors.  A Clutter.Clone
         // overlay only receives source damage intermittently and obscures the
@@ -49,10 +65,17 @@ export default class BlackholeExtension extends Extension {
             Gio.BusNameOwnerFlags.NONE,
             null,
             null);
+        this._registerStopShortcut();
         console.log(`[blackhole] enabled with ${this._effects.length} compositor effects`);
     }
 
     disable() {
+        this._unregisterStopShortcut();
+        if (this._settings && this._shortcutSettingsChangedId) {
+            this._settings.disconnect(this._shortcutSettingsChangedId);
+            this._shortcutSettingsChangedId = 0;
+        }
+        this._settings = null;
         this.Stop();
         for (const {actor, name} of this._effects ?? [])
             actor.remove_effect_by_name(name);
@@ -95,6 +118,55 @@ export default class BlackholeExtension extends Extension {
 
     GetState() {
         return this._running;
+    }
+
+    ConfigureShortcut(enabled, accelerator) {
+        if (!this._settings)
+            return false;
+
+        const value = accelerator.trim();
+        if (enabled && !value)
+            return false;
+
+        // Keep the selected accelerator while disabled so re-enabling does not
+        // silently reset the user's choice.
+        if (value)
+            this._settings.set_strv(STOP_SHORTCUT, [value]);
+        this._settings.set_boolean('shortcut-enabled', enabled);
+        return this._registerStopShortcut();
+    }
+
+    _registerStopShortcut() {
+        this._unregisterStopShortcut();
+        if (!this._settings?.get_boolean('shortcut-enabled'))
+            return true;
+
+        try {
+            const action = Main.wm.addKeybinding(
+                STOP_SHORTCUT,
+                this._settings,
+                Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+                Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+                () => {
+                    this.Stop();
+                    this._dbus?.emit_signal('StopShortcutActivated', null);
+                });
+            if (action === Meta.KeyBindingAction.NONE)
+                throw new Error('GNOME rejected the accelerator or it conflicts with another binding');
+            this._shortcutRegistered = true;
+            console.log(`[blackhole] registered stop shortcut: ${this._settings.get_strv(STOP_SHORTCUT).join(', ')}`);
+            return true;
+        } catch (error) {
+            console.error(`[blackhole] failed to register stop shortcut: ${error.message}`);
+            return false;
+        }
+    }
+
+    _unregisterStopShortcut() {
+        if (!this._shortcutRegistered)
+            return;
+        Main.wm.removeKeybinding(STOP_SHORTCUT);
+        this._shortcutRegistered = false;
     }
 
     get Running() {

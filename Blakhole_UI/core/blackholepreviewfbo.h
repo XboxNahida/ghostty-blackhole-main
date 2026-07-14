@@ -26,6 +26,11 @@ class BlackholePreviewFBO : public QQuickFramebufferObject {
     Q_PROPERTY(float diskSpeed READ diskSpeed WRITE setDiskSpeed NOTIFY diskSpeedChanged)
     Q_PROPERTY(float diskExpo  READ diskExpo  WRITE setDiskExpo  NOTIFY diskExpoChanged)
     Q_PROPERTY(float diskStar  READ diskStar  WRITE setDiskStar  NOTIFY diskStarChanged)
+    Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
+    Q_PROPERTY(float movementSpeed READ movementSpeed WRITE setMovementSpeed NOTIFY movementSpeedChanged)
+    Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
+    Q_PROPERTY(bool fixedSize READ fixedSize WRITE setFixedSize NOTIFY fixedSizeChanged)
+    Q_PROPERTY(float fixedLevel READ fixedLevel WRITE setFixedLevel NOTIFY fixedLevelChanged)
 
     // 动画控制
     Q_PROPERTY(bool running READ running WRITE setRunning NOTIFY runningChanged)
@@ -47,6 +52,11 @@ public:
     float diskSpeed() const;
     float diskExpo()  const;
     float diskStar()  const;
+    float holeSize() const;
+    float movementSpeed() const;
+    float animationSpeed() const;
+    bool fixedSize() const;
+    float fixedLevel() const;
     bool  running()   const;
 
     void setDiskTemp(float v);
@@ -63,6 +73,11 @@ public:
     void setDiskSpeed(float v);
     void setDiskExpo(float v);
     void setDiskStar(float v);
+    void setHoleSize(float v);
+    void setMovementSpeed(float v);
+    void setAnimationSpeed(float v);
+    void setFixedSize(bool v);
+    void setFixedLevel(float v);
     void setRunning(bool v);
 
     // 从 C++ 批量设置 (用于 BlackHoleCore 的信号连接)
@@ -83,6 +98,11 @@ signals:
     void diskSpeedChanged();
     void diskExpoChanged();
     void diskStarChanged();
+    void holeSizeChanged();
+    void movementSpeedChanged();
+    void animationSpeedChanged();
+    void fixedSizeChanged();
+    void fixedLevelChanged();
     void runningChanged();
 
 protected:
@@ -103,6 +123,11 @@ private:
     float m_diskSpeed = 5.0f;
     float m_diskExpo  = 1.40f;
     float m_diskStar  = 0.0f;
+    float m_holeSize = 1.0f;
+    float m_movementSpeed = 1.0f;
+    float m_animationSpeed = 1.0f;
+    bool m_fixedSize = false;
+    float m_fixedLevel = 1.0f;
     bool  m_running   = true;
 
     friend class BlackholePreviewRenderer;
@@ -148,6 +173,11 @@ private:
     float m_diskSpeed = 5.0f;
     float m_diskExpo  = 1.40f;
     float m_diskStar  = 0.0f;
+    float m_holeSize = 1.0f;
+    float m_movementSpeed = 1.0f;
+    float m_animationSpeed = 1.0f;
+    bool m_fixedSize = false;
+    float m_fixedLevel = 1.0f;
     bool  m_running   = true;
     QSize m_viewSize;
 };

@@ -1,8 +1,7 @@
-// AdvancedConfig.qml — 高级行为设置页面
+// AdvancedConfig.qml — settings consumed by the GNOME compositor path.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import ".." as Root
 import "../components" as Components
 
 Item {
@@ -12,23 +11,6 @@ Item {
     anchors.margins: 20
 
     property var bhCore: null
-
-    property bool videoAsIdle: bhCore ? bhCore.videoAsIdle : false
-    property bool followMouse: bhCore ? bhCore.followMouse : false
-    property real mouseInertia: bhCore ? bhCore.mouseInertia : 0.30
-    property bool limitMouseOvershoot: bhCore ? bhCore.limitMouseOvershoot : true
-    property int spawnPosition: bhCore ? bhCore.spawnPosition : 0
-    property real movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
-    property bool lightingEffect: bhCore ? bhCore.lightingEffect : false
-    property real distortion: bhCore ? bhCore.distortion : 1.0
-    property bool allowRecordingCapture: bhCore ? bhCore.allowRecordingCapture : false
-    property real holeSize: bhCore ? bhCore.holeSize : 1.0
-    property bool growEnabled: bhCore ? bhCore.growEnabled : false
-    property real initialSize: bhCore ? bhCore.initialSize : 0.3
-    // 新增：捕获方式 / 固定大小（对齐 ImGui UI / main.cpp 后端）
-    property int captureMode: bhCore ? bhCore.captureMode : -1  // -1=自动 0=WGC 1=DXGI
-    property bool fixedSize: bhCore ? bhCore.fixedSize : false
-    property real fixedLevel: bhCore ? bhCore.fixedLevel : 1.0   // 0.01~1.0
 
     Flickable {
         anchors.fill: parent
@@ -42,567 +24,217 @@ Item {
             width: parent.width
             spacing: 16
 
-        // === 标题 ===
-        RowLayout {
-            Layout.fillWidth: true
-            Text {
-                text: "\uf085"
-                font.family: iconFont.name
-                font.pixelSize: 22
-                color: theme.focusColor
-            }
-            Text {
-                text: "高级设置"
-                font.pixelSize: 22
-                font.bold: true
-                color: theme.focusColor
-            }
-            Item { Layout.fillWidth: true }
-        }
-
-        // === 空闲检测 ===
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: idleCol.implicitHeight + 24
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
-
-            ColumnLayout {
-                id: idleCol
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 4
+            RowLayout {
+                Layout.fillWidth: true
 
                 Text {
-                    text: "\uf017  空闲检测"
+                    text: "\uf085"
                     font.family: iconFont.name
-                    font.pixelSize: 14
+                    font.pixelSize: 22
                     color: theme.focusColor
+                }
+                Text {
+                    text: "GNOME 高级设置"
+                    font.pixelSize: 22
                     font.bold: true
+                    color: theme.focusColor
                 }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: theme.borderColor
-                    opacity: 0.2
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: "仅显示当前合成器路径中真正生效的选项"
+                    font.pixelSize: 12
+                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5)
                 }
+            }
 
-                // 视频检测
-                RowLayout {
-                    Layout.fillWidth: true
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: idleColumn.implicitHeight + 40
+                radius: 16
+                color: theme.secondaryColor
+                opacity: 0.85
+
+                ColumnLayout {
+                    id: idleColumn
+                    anchors.fill: parent
+                    anchors.margins: 20
                     spacing: 12
 
                     Text {
-                        text: "播放视频时视为空闲"
+                        text: "\uf028  媒体与空闲规则"
+                        font.family: iconFont.name
                         font.pixelSize: 14
-                        color: theme.textColor
+                        font.bold: true
+                        color: theme.focusColor
+                    }
+
+                    Rectangle {
                         Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: theme.borderColor
+                        opacity: 0.2
                     }
-                    Text {
-                        text: "检测到前景视频播放时不阻止黑洞触发"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: videoCheck
-                        checked: advPage.videoAsIdle
-                        onToggled: {
-                            advPage.videoAsIdle = checked
-                            if (bhCore) bhCore.videoAsIdle = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: videoCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: videoCheck.checked ? theme.focusColor : "transparent"
-                            border.color: videoCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+
                             Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: videoCheck.checked
+                                text: "媒体播放时仍允许空闲触发"
+                                font.pixelSize: 14
+                                color: theme.textColor
+                            }
+                            Text {
+                                text: "关闭时，MPRIS 播放中会抑制黑洞；开启后忽略媒体播放状态"
+                                font.pixelSize: 11
+                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5)
                             }
                         }
-                    }
-                }
 
-                // 跟随鼠标
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "跟随鼠标移动"
-                        font.pixelSize: 14
-                        color: theme.textColor
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "黑洞效果跟随光标位置偏移"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: mouseCheck
-                        checked: advPage.followMouse
-                        onToggled: {
-                            advPage.followMouse = checked
-                            if (bhCore) bhCore.followMouse = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: mouseCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: mouseCheck.checked ? theme.focusColor : "transparent"
-                            border.color: mouseCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: mouseCheck.checked
-                            }
-                        }
-                    }
-                }
-
-                Components.ESlider {
-                    label: "鼠标惯性"
-                    from: 0.0; to: 1.0; stepSize: 0.01; decimals: 2
-                    value: advPage.mouseInertia
-                    onValueChanged: {
-                        advPage.mouseInertia = value
-                        if (bhCore) bhCore.mouseInertia = value
-                    }
-                    visible: advPage.followMouse
-                    implicitHeight: advPage.followMouse ? 48 : 0
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    visible: advPage.followMouse
-
-                    Text {
-                        text: "限制冲出范围"
-                        font.pixelSize: 14
-                        color: theme.textColor
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "关闭后可被鼠标甩飞"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: overshootCheck
-                        checked: advPage.limitMouseOvershoot
-                        onToggled: {
-                            advPage.limitMouseOvershoot = checked
-                            if (bhCore) bhCore.limitMouseOvershoot = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: overshootCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: overshootCheck.checked ? theme.focusColor : "transparent"
-                            border.color: overshootCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: overshootCheck.checked
-                            }
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "允许截屏/录屏捕获黑洞"
-                        font.pixelSize: 14
-                        color: theme.textColor
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "开启后冻结桌面纹理以避免递归残影"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: recordingCaptureCheck
-                        checked: advPage.allowRecordingCapture
-                        onToggled: {
-                            advPage.allowRecordingCapture = checked
-                            if (bhCore) bhCore.allowRecordingCapture = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: recordingCaptureCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: recordingCaptureCheck.checked ? theme.focusColor : "transparent"
-                            border.color: recordingCaptureCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: recordingCaptureCheck.checked
+                        Components.ESwitchButton {
+                            size: "xs"
+                            text: checked ? "已允许" : "已抑制"
+                            checked: advPage.bhCore ? advPage.bhCore.videoAsIdle : false
+                            onToggled: function(value) {
+                                if (advPage.bhCore) advPage.bhCore.videoAsIdle = value
                             }
                         }
                     }
                 }
             }
-        }
 
-        // === 视觉效果 ===
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: visualCol.implicitHeight + 24
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: effectColumn.implicitHeight + 40
+                radius: 16
+                color: theme.secondaryColor
+                opacity: 0.85
 
-            ColumnLayout {
-                id: visualCol
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 4
-
-                Text {
-                    text: "\uf06e  视觉效果"
-                    font.family: iconFont.name
-                    font.pixelSize: 14
-                    color: theme.focusColor
-                    font.bold: true
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: theme.borderColor
-                    opacity: 0.2
-                }
-
-                // 吸积盘光影
-                RowLayout {
-                    Layout.fillWidth: true
+                ColumnLayout {
+                    id: effectColumn
+                    anchors.fill: parent
+                    anchors.margins: 20
                     spacing: 12
 
                     Text {
-                        text: "吸积盘光影效果"
+                        text: "\uf06e  合成器效果"
+                        font.family: iconFont.name
                         font.pixelSize: 14
-                        color: theme.textColor
+                        font.bold: true
+                        color: theme.focusColor
+                    }
+
+                    Rectangle {
                         Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: theme.borderColor
+                        opacity: 0.2
                     }
-                    Text {
-                        text: "分层吸积盘、冷暖双色照明与辉光"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: lightingCheck
-                        checked: advPage.lightingEffect
-                        onToggled: {
-                            advPage.lightingEffect = checked
-                            if (bhCore) bhCore.lightingEffect = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: lightingCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: lightingCheck.checked ? theme.focusColor : "transparent"
-                            border.color: lightingCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: lightingCheck.checked
-                            }
-                        }
-                    }
-                }
-
-                // 扭曲程度
-                Components.ESlider {
-                    label: "扭曲程度"
-                    from: 0; to: 1; stepSize: 0.01; decimals: 2
-                    value: advPage.distortion
-                    onValueChanged: {
-                        advPage.distortion = value
-                        if (bhCore) bhCore.distortion = value
-                    }
-                }
-
-                // 黑洞大小 + 大小模式
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
 
                     Components.ESlider {
-                        label: "黑洞大小"
-                        from: 0.2; to: 3.0; stepSize: 0.1; decimals: 1
-                        value: advPage.holeSize
-                        onValueChanged: {
-                            advPage.holeSize = value
-                            if (bhCore) bhCore.holeSize = value
-                        }
                         Layout.fillWidth: true
-                    }
-
-                    ColumnLayout {
-                        spacing: 2
-                        Layout.alignment: Qt.AlignBottom
-                        Layout.bottomMargin: 4
-
-                        Text {
-                            text: "自定义渐变"
-                            font.pixelSize: 11
-                            color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.50)
-                        }
-                        CheckBox {
-                            id: growCheck
-                            checked: advPage.growEnabled
-                            onToggled: {
-                                advPage.growEnabled = checked
-                                if (bhCore) bhCore.growEnabled = checked
-                                // 互斥: 启用自定义渐变时关闭固定大小
-                                if (checked && advPage.fixedSize) {
-                                    advPage.fixedSize = false
-                                    if (bhCore) bhCore.fixedSize = false
-                                }
-                            }
-                            indicator: Rectangle {
-                                implicitWidth: 20; implicitHeight: 20
-                                x: growCheck.leftPadding
-                                y: parent.height / 2 - height / 2
-                                radius: 4
-                                color: growCheck.checked ? theme.focusColor : "transparent"
-                                border.color: growCheck.checked ? theme.focusColor : theme.borderColor
-                                border.width: 2
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                                Text {
-                                    anchors.centerIn: parent; text: "\uf00c"
-                                    font.family: iconFont.name; font.pixelSize: 12
-                                    color: "#ffffff"; visible: growCheck.checked
-                                }
-                            }
+                        label: "黑洞半径系数"
+                        from: 0.2
+                        to: 3.0
+                        stepSize: 0.1
+                        decimals: 1
+                        externalValue: advPage.bhCore ? advPage.bhCore.holeSize : 1.0
+                        onUserChanged: function(value) {
+                            if (advPage.bhCore) advPage.bhCore.holeSize = value
                         }
                     }
-                }
 
-                Text {
-                    text: "大小模式: 两者都不选时使用默认出生动画; 自定义渐变可设置初始大小; 固定大小会覆盖所有增长动画。"
-                    font.pixelSize: 11
-                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-
-                // 初始大小(仅勾选自定义渐变时显示)
-                Components.ESlider {
-                    label: "初始大小"
-                    from: 0.05; to: 1.5; stepSize: 0.05; decimals: 2
-                    value: advPage.initialSize
-                    onValueChanged: { advPage.initialSize = value; if (bhCore) bhCore.initialSize = value }
-                    visible: advPage.growEnabled
-                    implicitHeight: advPage.growEnabled ? 48 : 0
-                }
-
-                // === 固定大小 (与自定义渐变互斥; 对接 main.cpp uFixedSize/uFixedLevel) ===
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "固定大小"
-                        font.pixelSize: 14
-                        color: theme.textColor
+                    Components.ESlider {
                         Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "黑洞保持固定大小,不再随时间增长(覆盖自定义渐变和默认出生动画)"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    CheckBox {
-                        id: fixedSizeCheck
-                        checked: advPage.fixedSize
-                        onToggled: {
-                            advPage.fixedSize = checked
-                            if (bhCore) bhCore.fixedSize = checked
-                            // 互斥: 启用固定大小时关闭自定义渐变
-                            if (checked && advPage.growEnabled) {
-                                advPage.growEnabled = false
-                                if (bhCore) bhCore.growEnabled = false
-                            }
+                        label: "自由移动速度"
+                        from: 0.1
+                        to: 3.0
+                        stepSize: 0.1
+                        decimals: 1
+                        externalValue: advPage.bhCore ? advPage.bhCore.movementSpeed : 1.0
+                        onUserChanged: function(value) {
+                            if (advPage.bhCore) advPage.bhCore.movementSpeed = value
                         }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: fixedSizeCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: fixedSizeCheck.checked ? theme.focusColor : "transparent"
-                            border.color: fixedSizeCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+
+                    Components.ESlider {
+                        Layout.fillWidth: true
+                        label: "吸积盘旋转速度"
+                        from: 1
+                        to: 10
+                        stepSize: 1
+                        decimals: 0
+                        externalValue: advPage.bhCore ? advPage.bhCore.animationSpeed : 1
+                        onUserChanged: function(value) {
+                            if (advPage.bhCore) advPage.bhCore.animationSpeed = Math.round(value)
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: theme.borderColor
+                        opacity: 0.2
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+
                             Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: fixedSizeCheck.checked
+                                text: "固定黑洞大小"
+                                font.pixelSize: 14
+                                color: theme.textColor
+                            }
+                            Text {
+                                text: "由 GNOME 合成器使用固定级别，不再随时间增长"
+                                font.pixelSize: 11
+                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5)
+                            }
+                        }
+
+                        Components.ESwitchButton {
+                            size: "xs"
+                            text: checked ? "已固定" : "动态"
+                            checked: advPage.bhCore ? advPage.bhCore.fixedSize : false
+                            onToggled: function(value) {
+                                if (advPage.bhCore) advPage.bhCore.fixedSize = value
                             }
                         }
                     }
-                }
 
-                // 固定大小级别(仅勾选固定大小时显示)
-                Components.ESlider {
-                    label: "固定大小级别"
-                    from: 0.01; to: 1.0; stepSize: 0.01; decimals: 2
-                    value: advPage.fixedLevel
-                    onValueChanged: { advPage.fixedLevel = value; if (bhCore) bhCore.fixedLevel = value }
-                    visible: advPage.fixedSize
-                    implicitHeight: advPage.fixedSize ? 48 : 0
-                }
-            }
-        }
-
-        // === 路径与动画 ===
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: pathCol.implicitHeight + 24
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
-
-            ColumnLayout {
-                id: pathCol
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 4
-
-                Text {
-                    text: "\uf140  路径与动画"
-                    font.family: iconFont.name
-                    font.pixelSize: 14
-                    color: theme.focusColor
-                    font.bold: true
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: theme.borderColor
-                    opacity: 0.2
-                }
-
-                // 黑洞出现位置
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "黑洞出现位置"
-                        font.pixelSize: 14
-                        color: theme.textColor
+                    Components.ESlider {
                         Layout.fillWidth: true
-                    }
-                    Components.EDropDown {
-                        preferredWidth: 150
-                        model: ["随机", "左上", "右上", "左下", "右下"]
-                        currentIndex: advPage.spawnPosition
-                        onActivated: function(index) {
-                            advPage.spawnPosition = index
-                            if (bhCore) bhCore.spawnPosition = index
-                        }
-                    }
-                }
-
-                // 黑洞移动速度
-                Components.ESlider {
-                    label: "黑洞移动速度"
-                    from: 0.1; to: 3.0; stepSize: 0.1; decimals: 1
-                    value: advPage.movementSpeed
-                    onValueChanged: { advPage.movementSpeed = value; if (bhCore) bhCore.movementSpeed = value }
-                }
-
-
-            }
-        }
-
-        // === 捕获与显示 ===
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: captureCol.implicitHeight + 24
-            radius: 16
-            color: theme.secondaryColor
-            opacity: 0.85
-
-            ColumnLayout {
-                id: captureCol
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 4
-
-                Text {
-                    text: "\uf030  捕获与显示"
-                    font.family: iconFont.name
-                    font.pixelSize: 14
-                    color: theme.focusColor
-                    font.bold: true
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: theme.borderColor
-                    opacity: 0.2
-                }
-
-                // 捕获方式 (WGC/DXGI/自动; 对接 main.cpp cfg.captureMode)
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "捕获方式"
-                        font.pixelSize: 14
-                        color: theme.textColor
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "Win11 22H2+ 用 WGC,旧系统回退 DXGI"
-                        font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
-                    }
-                    Components.EDropDown {
-                        id: captureModeDrop
-                        preferredWidth: 180
-                        // UI 索引 0=自动检测 1=WGC 2=DXGI; cfg.captureMode -1=auto 0=WGC 1=DXGI
-                        model: ["自动检测", "WGC (Win11 22H2+)", "DXGI (兼容 Win10)"]
-                        currentIndex: (advPage.captureMode === 0) ? 1 : (advPage.captureMode === 1) ? 2 : 0
-                        onActivated: function(index) {
-                            var m = (index === 1) ? 0 : (index === 2) ? 1 : -1
-                            advPage.captureMode = m
-                            if (bhCore) bhCore.captureMode = m
+                        visible: advPage.bhCore ? advPage.bhCore.fixedSize : false
+                        implicitHeight: visible ? 48 : 0
+                        label: "固定大小级别"
+                        from: 0.01
+                        to: 1.0
+                        stepSize: 0.01
+                        decimals: 2
+                        externalValue: advPage.bhCore ? advPage.bhCore.fixedLevel : 1.0
+                        onUserChanged: function(value) {
+                            if (advPage.bhCore) advPage.bhCore.fixedLevel = value
                         }
                     }
                 }
             }
-        }
+
+            Text {
+                Layout.fillWidth: true
+                text: "更改后点击“启动黑洞”会保存配置并让 GNOME 扩展重新读取。"
+                wrapMode: Text.WordWrap
+                font.pixelSize: 12
+                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.55)
+            }
 
             Item { Layout.preferredHeight: 4 }
         }

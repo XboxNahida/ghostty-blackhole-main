@@ -272,6 +272,11 @@ Item {
                         diskSpeed: configPage.diskSpeed
                         diskExpo:  configPage.diskExpo
                         diskStar:  configPage.diskStar
+                        holeSize: bhCore ? bhCore.holeSize : 1.0
+                        movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
+                        animationSpeed: bhCore ? bhCore.animationSpeed : 1.0
+                        fixedSize: bhCore ? bhCore.fixedSize : false
+                        fixedLevel: bhCore ? bhCore.fixedLevel : 1.0
                         running:   true
 
                         onEnlargeRequested: largePreview.open()
@@ -729,5 +734,10 @@ Item {
         diskSpeed: configPage.diskSpeed
         diskExpo:  configPage.diskExpo
         diskStar:  configPage.diskStar
+        holeSize: bhCore ? bhCore.holeSize : 1.0
+        movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
+        animationSpeed: bhCore ? bhCore.animationSpeed : 1.0
+        fixedSize: bhCore ? bhCore.fixedSize : false
+        fixedLevel: bhCore ? bhCore.fixedLevel : 1.0
     }
 }

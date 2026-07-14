@@ -38,7 +38,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "关于 Blakhole UI"
+                text: "关于 Blakhole Ubuntu Local"
                 font.pixelSize: 42
                 font.bold: true
                 color: root.theme.focusColor
@@ -50,6 +50,14 @@ Item {
                 font.pixelSize: 24
                 color: root.theme.textColor
                 opacity: 0.78
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "版本 " + Qt.application.version
+                font.pixelSize: 15
+                font.bold: true
+                color: root.theme.focusColor
             }
 
             Components.EAvatar {
@@ -88,7 +96,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "Blakhole UI 是一款 Windows 黑洞可视化工具，可根据空闲状态、媒体播放和游戏运行状态自动控制黑洞显示。"
+                text: "Blakhole Ubuntu Local 是面向当前 Ubuntu 26.04、GNOME 50、Wayland 单显示器主机的本地桌面黑洞。Qt UI 通过会话 D-Bus 控制 GNOME Shell 合成器扩展，并提供预设、空闲触发、MPRIS 媒体抑制和全局停止快捷键。"
                 wrapMode: Text.WordWrap
                 font.pixelSize: 15
                 lineHeight: 1.3
@@ -105,7 +113,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "先在主界面调整黑洞外观、动画和显示模式；需要自动触发时，请配置空闲时间及相关名单。遇到未识别的视频软件或游戏，可在空闲名单中手动添加。"
+                text: "在主界面调整预设、播放模式和空闲时间，在高级页调整 GNOME 扩展实际读取的大小与速度。点击“启动黑洞”会保存配置并重新加载合成器效果；默认可随时按 Ctrl+Alt+B 停止。"
                 wrapMode: Text.WordWrap
                 font.pixelSize: 14
                 lineHeight: 1.3
@@ -123,7 +131,7 @@ Item {
                     id: pendingText
                     anchors.fill: parent
                     anchors.margins: 12
-                    text: "待完善：黑洞吞噬效果选项仍在开发和优化中，当前版本的相关行为可能不完整。"
+                    text: "本机变体不维护 Windows、多显示器、Xorg、Portal 捕获或上游在线更新。黑洞 shader 算法已冻结，后续只修复当前主机核心链路的真实缺陷。"
                     wrapMode: Text.WordWrap
                     font.pixelSize: 14
                     color: root.theme.focusColor
@@ -132,7 +140,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "项目开源地址：<a href=\"https://github.com/XboxNahida/ghostty-blackhole-main\">github.com/XboxNahida/ghostty-blackhole-main</a>"
+                text: "上游源码参考：<a href=\"https://github.com/XboxNahida/ghostty-blackhole-main\">github.com/XboxNahida/ghostty-blackhole-main</a>"
                 textFormat: Text.RichText
                 wrapMode: Text.WordWrap
                 font.pixelSize: 14

@@ -76,7 +76,7 @@ const float TOKEN_RUSH    = 1.1000; // MODE_TOKENS: drift speed at 100% context 
 #define MODE_POMODORO 0   // wall-clock 55/5 work/break cycle + typing detector
 #define MODE_TOKENS   1   // Claude Code context-window fill (live; see README)
 #define MODE_DEMO     2   // self-running 42 s showcase loop for recording (see below)
-#define SIZE_MODE MODE_POMODORO
+#define SIZE_MODE MODE_TOKENS
 
 // Live state for MODE_TOKENS rides in on the *cursor color*: claude-token.py
 // encodes the context fill into an OSC 12 cursor color and the shader decodes
@@ -300,6 +300,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // disk look: the tunables verbatim, or the demo tour's current blend
     DiskLook L = LOOK_DEFAULT;
     if (SIZE_MODE == MODE_DEMO) L = demoLook();
+    L.roll += iTime * uRotationSpeed;
 
     // disk extent in r_s, sanitized: the inner edge stays outside the photon
     // sphere (1.5 r_s) where circular orbits stop making sense
@@ -351,7 +352,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         // ---- token mode: Claude Code context-window fill ----
         // (also MODE_DEMO, which substitutes its own looping level)
         // A negative level means "no session" — show nothing, just the terminal.
-        float live = tokenLevel();
+        float live = uSizeLevel;
         float lvl = (SIZE_MODE == MODE_DEMO)
                   ? min(mod(iTime, DEMO_SEC) / DEMO_GROW_SEC, 1.0)
                   : (live >= 0.0 ? live : TOKEN_LEVEL);
@@ -405,6 +406,10 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         vec2  wander = mix(lissa(t * TOKEN_CALM), lissa(t * TOKEN_RUSH), g);
         center = (lo + hi) * 0.5 + wander * ampEff
                + wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));
+        // t already contains uSpeed, which is the user-facing multiplier.
+        // Keep the original 0.16 ambient base frequency so 1.0 means the
+        // calibrated normal pace and lower settings remain genuinely calm.
+        center = vec2(0.5) + vec2(0.28, 0.24) * lissa(t * 0.16 + 1.7);
     }
     float vis = smoothstep(0.0, 0.10, I);  // hole vanishes entirely when rested
     if (vis <= 0.0) {

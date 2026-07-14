@@ -20,7 +20,7 @@ BEGIN
             VALUE "LegalCopyright", "Copyright (C) 2026 XboxNahida"
             VALUE "OriginalFilename", "appBlakholeUI.exe"
             VALUE "ProductName", "Blakhole UI"
-            VALUE "ProductVersion", "@BLACKHOLE_VERSION@"
+            VALUE "ProductVersion", "@BLACKHOLE_DISPLAY_VERSION@"
         END
     END
     BLOCK "VarFileInfo"

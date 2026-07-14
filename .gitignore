@@ -26,6 +26,12 @@ Blakhole_UI/test_clean.cpp
 
 # Release (large binaries)
 release/
+_CPack_Packages/
+*.deb
+
+# Local upstream investigation inputs and machine handoffs
+update-*/
+REBOOT_HANDOFF_*.md
 
 # Qt Creator
 *.pro.user

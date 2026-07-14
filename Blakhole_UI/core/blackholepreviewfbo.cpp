@@ -38,6 +38,11 @@ float BlackholePreviewFBO::diskWind()  const { return m_diskWind; }
 float BlackholePreviewFBO::diskSpeed() const { return m_diskSpeed; }
 float BlackholePreviewFBO::diskExpo()  const { return m_diskExpo; }
 float BlackholePreviewFBO::diskStar()  const { return m_diskStar; }
+float BlackholePreviewFBO::holeSize() const { return m_holeSize; }
+float BlackholePreviewFBO::movementSpeed() const { return m_movementSpeed; }
+float BlackholePreviewFBO::animationSpeed() const { return m_animationSpeed; }
+bool BlackholePreviewFBO::fixedSize() const { return m_fixedSize; }
+float BlackholePreviewFBO::fixedLevel() const { return m_fixedLevel; }
 bool  BlackholePreviewFBO::running()   const { return m_running; }
 
 void BlackholePreviewFBO::setDiskTemp(float v)  { if (m_diskTemp  != v) { m_diskTemp  = v; emit diskTempChanged();  update(); } }
@@ -54,6 +59,11 @@ void BlackholePreviewFBO::setDiskWind(float v)  { if (m_diskWind  != v) { m_disk
 void BlackholePreviewFBO::setDiskSpeed(float v) { if (m_diskSpeed != v) { m_diskSpeed = v; emit diskSpeedChanged(); update(); } }
 void BlackholePreviewFBO::setDiskExpo(float v)  { if (m_diskExpo  != v) { m_diskExpo  = v; emit diskExpoChanged();  update(); } }
 void BlackholePreviewFBO::setDiskStar(float v)  { if (m_diskStar  != v) { m_diskStar  = v; emit diskStarChanged();  update(); } }
+void BlackholePreviewFBO::setHoleSize(float v) { if (!qFuzzyCompare(m_holeSize, v)) { m_holeSize = v; emit holeSizeChanged(); update(); } }
+void BlackholePreviewFBO::setMovementSpeed(float v) { if (!qFuzzyCompare(m_movementSpeed, v)) { m_movementSpeed = v; emit movementSpeedChanged(); update(); } }
+void BlackholePreviewFBO::setAnimationSpeed(float v) { if (!qFuzzyCompare(m_animationSpeed, v)) { m_animationSpeed = v; emit animationSpeedChanged(); update(); } }
+void BlackholePreviewFBO::setFixedSize(bool v) { if (m_fixedSize != v) { m_fixedSize = v; emit fixedSizeChanged(); update(); } }
+void BlackholePreviewFBO::setFixedLevel(float v) { if (!qFuzzyCompare(m_fixedLevel, v)) { m_fixedLevel = v; emit fixedLevelChanged(); update(); } }
 
 void BlackholePreviewFBO::setRunning(bool v)
 {
@@ -82,6 +92,11 @@ void BlackholePreviewFBO::syncFromCore(QObject *core)
     setDiskSpeed(bh->diskSpeed());
     setDiskExpo(bh->diskExpo());
     setDiskStar(bh->diskStar());
+    setHoleSize(bh->holeSize());
+    setMovementSpeed(bh->movementSpeed());
+    setAnimationSpeed(bh->animationSpeed());
+    setFixedSize(bh->fixedSize());
+    setFixedLevel(bh->fixedLevel());
 }
 
 QQuickFramebufferObject::Renderer *BlackholePreviewFBO::createRenderer() const
@@ -130,6 +145,11 @@ void BlackholePreviewRenderer::synchronize(QQuickFramebufferObject *item)
     m_diskSpeed = fboItem->m_diskSpeed;
     m_diskExpo  = fboItem->m_diskExpo;
     m_diskStar  = fboItem->m_diskStar;
+    m_holeSize = fboItem->m_holeSize;
+    m_movementSpeed = fboItem->m_movementSpeed;
+    m_animationSpeed = fboItem->m_animationSpeed;
+    m_fixedSize = fboItem->m_fixedSize;
+    m_fixedLevel = fboItem->m_fixedLevel;
     m_running   = fboItem->m_running;
     m_viewSize  = QSize(fboItem->width(), fboItem->height());
 }
@@ -137,10 +157,16 @@ void BlackholePreviewRenderer::synchronize(QQuickFramebufferObject *item)
 void BlackholePreviewRenderer::resolveShaderPath(QString &vertPath, QString &fragHeaderPath, QString &fragBodyPath)
 {
     QStringList searchDirs;
+    const QString appDir = QCoreApplication::applicationDirPath();
+
+    // Installed packages place the executable in <prefix>/bin and shaders in
+    // <prefix>/share/blackhole. Derive that path at runtime so Debian's /usr
+    // prefix and local /usr/local installs both work even when CMake was
+    // configured with a different packaging prefix.
+    searchDirs << QDir(appDir).absoluteFilePath(QStringLiteral("../share/blackhole"));
 #ifdef BLACKHOLE_INSTALL_DATADIR
     searchDirs << QStringLiteral(BLACKHOLE_INSTALL_DATADIR);
 #endif
-    QString appDir = QCoreApplication::applicationDirPath();
     searchDirs << appDir;
     searchDirs << QDir(appDir).filePath("..");
     searchDirs << QDir::currentPath();
@@ -348,11 +374,18 @@ void BlackholePreviewRenderer::render()
     m_program->setUniformValue("iPreviousCursorColor", QVector4D(0,0,0,0));
     m_program->setUniformValue("iTimeCursorChange", 0.0f);
 
-    m_program->setUniformValue("uHoleRadius", -1.0f);
+    // Match the advanced settings consumed by the installed GNOME extension.
+    // Keep this identical to effect.js: holeSize is a multiplier around the
+    // compositor's 0.02 base radius. 0.08 is only the token shader's internal
+    // calibration point and using it here made the preview four times too big.
+    m_program->setUniformValue("uHoleRadius", 0.02f * m_holeSize);
     m_program->setUniformValue("uDiskGain",   m_diskGain);
     m_program->setUniformValue("uDiskTemp",   m_diskTemp);
     m_program->setUniformValue("uExposure",   m_diskExpo);
-    m_program->setUniformValue("uSpeed",      m_diskSpeed);
+    m_program->setUniformValue("uSpeed",      m_movementSpeed);
+    m_program->setUniformValue("uRotationSpeed", 0.08f * m_animationSpeed);
+    m_program->setUniformValue("uSizeLevel",
+        m_fixedSize ? m_fixedLevel : qMin(t / 40.0f, 1.0f));
     m_program->setUniformValue("uStarGain",   m_diskStar);
     m_program->setUniformValue("uDiskIncl",   m_diskIncl);
     m_program->setUniformValue("uBornProgress", 1.0f);

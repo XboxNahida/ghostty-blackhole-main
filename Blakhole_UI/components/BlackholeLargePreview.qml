@@ -29,6 +29,11 @@ Popup {
     property alias diskSpeed: fbo.diskSpeed
     property alias diskExpo:  fbo.diskExpo
     property alias diskStar:  fbo.diskStar
+    property alias holeSize: fbo.holeSize
+    property alias movementSpeed: fbo.movementSpeed
+    property alias animationSpeed: fbo.animationSpeed
+    property alias fixedSize: fbo.fixedSize
+    property alias fixedLevel: fbo.fixedLevel
 
     background: Rectangle {
         radius: 16

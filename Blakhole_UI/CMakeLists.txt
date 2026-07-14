@@ -5,7 +5,10 @@ project(BlakholeUI VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL Network)
+find_package(Qt6 REQUIRED COMPONENTS Quick Widgets OpenGL)
+if(WIN32 OR BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Network)
+endif()
 if(NOT WIN32)
     find_package(Qt6 REQUIRED COMPONENTS DBus)
 endif()
@@ -33,8 +36,6 @@ set(APP_SOURCES
     ../src/movement_settings.cpp
     core/application_catalog.cpp
     core/avatar_storage.cpp
-    core/update_release.cpp
-    core/update_checker.cpp
     core/renderer_startup_diagnostics.h
     core/renderer_startup_diagnostics.cpp
     core/systemtray.h
@@ -55,6 +56,8 @@ if(WIN32)
     list(APPEND APP_SOURCES
         app.rc
         "${BLACKHOLE_GENERATED_DIR}/app_version.rc"
+        core/update_release.cpp
+        core/update_checker.cpp
         ../src/autostart_registry.cpp
         ../src/foreground_window.cpp
         ../src/game_detection.cpp
@@ -72,6 +75,12 @@ endif()
 
 file(GLOB QML_COMPONENTS CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "components/*.qml")
 file(GLOB QML_PAGES CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "pages/*.qml")
+if(NOT WIN32)
+    list(FILTER QML_COMPONENTS EXCLUDE REGEX
+        "^components/(IdleListPanel|RunningApplicationPicker|UpdateDialog)\\.qml$")
+    list(FILTER QML_PAGES EXCLUDE REGEX
+        "^pages/(IdleListConfig|ScheduleConfig)\\.qml$")
+endif()
 
 qt_add_qml_module(appBlakholeUI
     URI BlakholeUI
@@ -96,7 +105,7 @@ set_target_properties(appBlakholeUI PROPERTIES
 )
 
 target_link_libraries(appBlakholeUI
-    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL Qt6::Network
+    PRIVATE Qt6::Quick Qt6::Widgets Qt6::OpenGL
 )
 
 if(NOT WIN32)
@@ -105,7 +114,7 @@ endif()
 
 if(WIN32)
     target_link_libraries(appBlakholeUI
-        PRIVATE advapi32 dwmapi ole32 runtimeobject version
+        PRIVATE Qt6::Network advapi32 dwmapi ole32 runtimeobject version
     )
 else()
     target_link_libraries(appBlakholeUI
@@ -200,7 +209,7 @@ if(BUILD_TESTING)
             ../src/screen_selection_linux.cpp
             core/systemtray.cpp)
         target_include_directories(ds09_linux_tests PRIVATE ../src core)
-        target_link_libraries(ds09_linux_tests PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Quick)
+        target_link_libraries(ds09_linux_tests PRIVATE Qt6::Core Qt6::DBus Qt6::Gui Qt6::Widgets Qt6::Quick)
         add_test(NAME ds09_linux_tests COMMAND ds09_linux_tests)
         set_tests_properties(ds09_linux_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()
@@ -274,30 +283,28 @@ if(MINGW)
         )
     endif()
 
-    # 3) 黑洞着色器 — FBO 预览在运行时加载,必须拷到 exe 同级目录
-    #    blackholepreviewfbo.cpp resolveShaderPath() 搜索 <exe_dir>/shaders/vert.glsl,
-    #    <exe_dir>/shaders/frag_preview_header.glsl, <exe_dir>/blackhole_preview.glsl.
-    #    源文件位于 Blakhole_UI/../shaders/ 和 Blakhole_UI/../blackhole.glsl
-    #    若 initShaders() 失败,预览回退到 glClearColor(1,0,0,1) 红屏错误指示.
-    set(BH_SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../shaders")
-    set(BH_SHADER_DST_DIR "$<TARGET_FILE_DIR:appBlakholeUI>/shaders")
-    add_custom_command(TARGET appBlakholeUI POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${BH_SHADER_DST_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${BH_SHADER_SRC_DIR}/vert.glsl"
-                "${BH_SHADER_DST_DIR}/vert.glsl"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${BH_SHADER_SRC_DIR}/frag_preview_header.glsl"
-                "${BH_SHADER_DST_DIR}/frag_preview_header.glsl"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${BH_SHADER_SRC_DIR}/blackhole_preview.glsl"
-                "$<TARGET_FILE_DIR:appBlakholeUI>/blackhole_preview.glsl"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${CMAKE_CURRENT_SOURCE_DIR}/../blackhole.glsl"
-                "$<TARGET_FILE_DIR:appBlakholeUI>/blackhole.glsl"
-        COMMENT "Copying black hole shaders to output directory"
-    )
 endif()
+
+# FBO preview shaders are runtime resources for every desktop build, not only
+# the historical Windows deployment path.
+set(BH_SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../shaders")
+set(BH_SHADER_DST_DIR "$<TARGET_FILE_DIR:appBlakholeUI>/shaders")
+add_custom_command(TARGET appBlakholeUI POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${BH_SHADER_DST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${BH_SHADER_SRC_DIR}/vert.glsl"
+            "${BH_SHADER_DST_DIR}/vert.glsl"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${BH_SHADER_SRC_DIR}/frag_preview_header.glsl"
+            "${BH_SHADER_DST_DIR}/frag_preview_header.glsl"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${BH_SHADER_SRC_DIR}/blackhole_preview.glsl"
+            "$<TARGET_FILE_DIR:appBlakholeUI>/blackhole_preview.glsl"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../blackhole.glsl"
+            "$<TARGET_FILE_DIR:appBlakholeUI>/blackhole.glsl"
+    COMMENT "Copying black hole shaders to output directory"
+)
 
 include(GNUInstallDirs)
 install(TARGETS appBlakholeUI

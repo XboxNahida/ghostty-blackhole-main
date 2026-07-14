@@ -148,6 +148,7 @@ Item {
                 }
 
                 Components.EButton {
+                    visible: dialogRoot.failureLogPath.length > 0
                     size: "xs"
                     text: "打开日志目录"
                     iconCharacter: "\uf07c"

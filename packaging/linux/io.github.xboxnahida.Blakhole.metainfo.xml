@@ -3,23 +3,21 @@
   <id>io.github.xboxnahida.Blakhole</id>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
-  <name>Blakhole</name>
-  <name xml:lang="zh_CN">黑洞</name>
-  <summary>Black hole screensaver</summary>
-  <summary xml:lang="zh_CN">黑洞屏保</summary>
+  <name>Blakhole Ubuntu Local</name>
+  <name xml:lang="zh_CN">黑洞 Ubuntu 本机版</name>
+  <summary>GNOME compositor black hole effect</summary>
+  <summary xml:lang="zh_CN">GNOME 合成器桌面黑洞效果</summary>
   <description>
     <p>
-      Blakhole is a GPU-accelerated black hole simulation screensaver for
-      GNOME Wayland on Ubuntu Linux. It renders real-time gravitational
-      lensing effects using OpenGL 3.3 shaders, supports XDG Desktop Portal
-      screen capture for desktop background texture, and automatically starts
-      during idle periods via Mutter IdleMonitor D-Bus integration.
+      This Ubuntu-local build renders a GPU-accelerated black hole directly in
+      GNOME Shell 50 on Wayland. The Qt interface controls the compositor
+      extension over session D-Bus and supports presets, idle activation,
+      MPRIS media suppression, and a native global stop shortcut.
     </p>
     <p xml:lang="zh_CN">
-      黑洞屏保是一个 GPU 加速的黑洞模拟屏保程序，适用于 Ubuntu Linux 的
-      GNOME Wayland 桌面环境。它使用 OpenGL 3.3 着色器实时渲染引力透镜效应，
-      支持通过 XDG Desktop Portal 屏幕捕获获取桌面背景纹理，
-      并通过 Mutter IdleMonitor D-Bus 集成在空闲期间自动启动。
+      这是面向当前 Ubuntu 主机的本地变体，通过 GNOME Shell 50 在 Wayland 合成器中
+      直接渲染 GPU 加速的黑洞。Qt 界面通过会话 D-Bus 控制扩展，并支持预设、
+      空闲触发、MPRIS 媒体抑制和 GNOME 原生全局停止快捷键。
     </p>
   </description>
   <url type="homepage">https://github.com/XboxNahida/blackhole</url>
@@ -32,12 +30,11 @@
   </screenshots>
   <provides>
     <binary>appBlakholeUI</binary>
-    <binary>blackhole-renderer</binary>
   </provides>
   <categories>
     <category>Utility</category>
   </categories>
   <releases>
-    <release version="1.2.0" date="2025-02-01"/>
+    <release version="1.2.1-ubuntu-local" date="2026-07-14"/>
   </releases>
 </component>

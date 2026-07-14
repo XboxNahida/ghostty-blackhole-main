@@ -19,6 +19,7 @@ uniform float uSpeed;
 uniform float uStarGain;
 uniform float uDiskIncl;
 uniform float uBornProgress;
+uniform float uTransition;
 
 uniform int uFixedSize;
 uniform float uFixedLevel;

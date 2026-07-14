@@ -17,6 +17,10 @@ option(BLACKHOLE_BUILD_RENDERER "Build the blackhole-renderer (glfw+OpenGL)" ON)
 option(BLACKHOLE_ENABLE_PORTAL_CAPTURE "Enable XDG Desktop Portal screen capture (Linux)" ON)
 include(CTest)
 include(GNUInstallDirs)
+set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS
+    OWNER_READ OWNER_WRITE OWNER_EXECUTE
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE)
 
 # ---- Generated version header (platform neutral) ----
 set(BLACKHOLE_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
@@ -190,37 +194,49 @@ if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
         COMMENT "Copying runtime resources for blackhole-renderer"
     )
 
-    # Install rules for blackhole-renderer (Linux)
-    # Layout expected by the renderer at runtime:
-    # <resources root>/blackhole.glsl
-    # <resources root>/shaders/vert.glsl
-    # <resources root>/shaders/frag_desktop_header.glsl
-    install(TARGETS blackhole-renderer
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-    # Shared shaders and config — both renderer and UI preview use these
-    install(FILES
-        "${CMAKE_SOURCE_DIR}/shaders/vert.glsl"
-        "${CMAKE_SOURCE_DIR}/shaders/frag_desktop_header.glsl"
-        "${CMAKE_SOURCE_DIR}/shaders/frag_preview_header.glsl"
-        "${CMAKE_SOURCE_DIR}/shaders/blackhole_preview.glsl"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole/shaders
-    )
-    install(FILES
-        "${CMAKE_SOURCE_DIR}/blackhole.glsl"
-        "${CMAKE_SOURCE_DIR}/blackhole_presets.txt"
-        "${CMAKE_SOURCE_DIR}/blackhole_advanced.txt"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole
-    )
-    install(DIRECTORY
-        "${CMAKE_SOURCE_DIR}/gnome-extension/blackhole@xboxnahida.github.com/"
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/gnome-shell/extensions/blackhole@xboxnahida.github.com
-    )
-
     # Pass the install data dir as a compile definition so the UI can find
     # installed resources at runtime (dev tree falls back to projectRoot).
     target_compile_definitions(blackhole-renderer PRIVATE
         BLACKHOLE_INSTALL_DATADIR="${CMAKE_INSTALL_FULL_DATADIR}/blackhole"
+    )
+endif()
+
+# Linux packages install only the active GNOME compositor product path.  The
+# standalone renderer remains buildable for historical tests, but is not a
+# runtime component of the Ubuntu-local variant.
+if(NOT WIN32)
+    install(FILES
+        "${CMAKE_SOURCE_DIR}/shaders/vert.glsl"
+        "${CMAKE_SOURCE_DIR}/shaders/frag_preview_header.glsl"
+        "${CMAKE_SOURCE_DIR}/shaders/blackhole_preview.glsl"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole/shaders
+    )
+
+    # GNOME extensions load local schemas from a compiled database inside the
+    # extension directory. Stage the extension in the build tree so generated
+    # gschemas.compiled is packaged without polluting the source tree.
+    find_program(GLIB_COMPILE_SCHEMAS glib-compile-schemas REQUIRED)
+    set(BLACKHOLE_EXTENSION_SOURCE
+        "${CMAKE_SOURCE_DIR}/gnome-extension/blackhole@xboxnahida.github.com")
+    set(BLACKHOLE_EXTENSION_BUILD
+        "${CMAKE_CURRENT_BINARY_DIR}/gnome-extension/blackhole@xboxnahida.github.com")
+    file(GLOB_RECURSE BLACKHOLE_EXTENSION_FILES CONFIGURE_DEPENDS
+        "${BLACKHOLE_EXTENSION_SOURCE}/*")
+    add_custom_command(
+        OUTPUT "${BLACKHOLE_EXTENSION_BUILD}/schemas/gschemas.compiled"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "${BLACKHOLE_EXTENSION_BUILD}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${BLACKHOLE_EXTENSION_SOURCE}" "${BLACKHOLE_EXTENSION_BUILD}"
+        COMMAND "${GLIB_COMPILE_SCHEMAS}" "${BLACKHOLE_EXTENSION_BUILD}/schemas"
+        DEPENDS ${BLACKHOLE_EXTENSION_FILES}
+        COMMENT "Staging GNOME extension and compiling its GSettings schema"
+        VERBATIM
+    )
+    add_custom_target(blackhole-gnome-extension ALL
+        DEPENDS "${BLACKHOLE_EXTENSION_BUILD}/schemas/gschemas.compiled")
+    install(DIRECTORY
+        "${BLACKHOLE_EXTENSION_BUILD}/"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/gnome-shell/extensions/blackhole@xboxnahida.github.com
     )
 endif()
 
@@ -265,7 +281,7 @@ if(BUILD_TESTING)
             --target render_core_syntax_check
     )
 
-    if(NOT WIN32)
+    if(NOT WIN32 AND BLACKHOLE_BUILD_RENDERER)
         find_package(Qt6 REQUIRED COMPONENTS Core DBus Test)
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
@@ -286,19 +302,20 @@ endif()
 # ══════════════════════════════════════════════════════════════
 include(GNUInstallDirs)
 set(CPACK_PACKAGE_NAME "blackhole")
-set(CPACK_PACKAGE_VERSION "${BLACKHOLE_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Black hole screensaver for GNOME Wayland")
+set(CPACK_PACKAGE_VERSION "${BLACKHOLE_DEBIAN_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ubuntu-local black hole compositor effect for GNOME Wayland")
 set(CPACK_PACKAGE_VENDOR "XboxNahida")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/XboxNahida/blackhole")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/XboxNahida/ghostty-blackhole-main")
 set(CPACK_PACKAGE_CONTACT "XboxNahida")
-set(CPACK_PACKAGE_FILE_NAME "blackhole-${BLACKHOLE_VERSION}-linux-amd64")
+set(CPACK_PACKAGE_FILE_NAME "blackhole-${BLACKHOLE_DISPLAY_VERSION}-linux-amd64")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
 
 set(CPACK_DEBIAN_PACKAGE_NAME "blackhole")
-set(CPACK_DEBIAN_PACKAGE_SECTION "x11")
+set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/XboxNahida/blackhole")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "gnome-shell (>= 50)")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/XboxNahida/ghostty-blackhole-main")
 set(CPACK_GENERATOR "DEB")
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};blackhole-standalone;ALL;/")
 

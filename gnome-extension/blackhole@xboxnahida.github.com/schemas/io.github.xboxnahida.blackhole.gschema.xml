@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="io.github.xboxnahida.blackhole" path="/io/github/xboxnahida/blackhole/">
+    <key name="shortcut-enabled" type="b">
+      <default>true</default>
+      <summary>Enable the global stop shortcut</summary>
+    </key>
+    <key name="stop-shortcut" type="as">
+      <default>['&lt;Control&gt;&lt;Alt&gt;b']</default>
+      <summary>Global shortcut that stops the compositor effect</summary>
+    </key>
+  </schema>
+</schemalist>

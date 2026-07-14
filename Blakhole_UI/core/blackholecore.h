@@ -478,8 +478,13 @@ private:
     RendererDiagnostic consumeRendererStartupLog(qint64 maxTotalBytes);
     void pollRendererStartup();
     void publishRendererDiagnostic(const RendererDiagnostic &diagnostic);
+#ifndef Q_OS_WIN
+    void publishCompositorFailure(const QString &operation,
+                                  const QString &error,
+                                  bool latchAutomaticStarts);
+#endif
     void terminateRendererProcess();
-    void stopRendererWithReason(const char *reason);
+    void stopRendererWithReason(const char *reason, bool reportFailure = false);
 
     PresetModel *m_presetModel;
 
@@ -588,4 +593,7 @@ private:
 
 private slots:
     void checkIdle();
+#ifndef Q_OS_WIN
+    void handleGlobalStopShortcut();
+#endif
 };

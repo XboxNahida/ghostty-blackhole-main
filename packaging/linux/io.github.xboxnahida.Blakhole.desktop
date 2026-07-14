@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Blakhole
-Name[zh_CN]=黑洞
-Comment=Black hole screensaver
-Comment[zh_CN]=黑洞屏保
+Name=Blakhole Ubuntu Local
+Name[zh_CN]=黑洞 Ubuntu 本机版
+Comment=GNOME compositor black hole effect
+Comment[zh_CN]=GNOME 合成器桌面黑洞效果
 Exec=appBlakholeUI
 Icon=io.github.xboxnahida.Blakhole
 Terminal=false

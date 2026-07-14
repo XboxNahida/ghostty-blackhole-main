@@ -5,15 +5,57 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
+#ifndef Q_OS_WIN
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
+#endif
 #include "app_version.h"
 #include "core/systemtray.h"
 #include "core/blackholecore.h"
 #include "core/blackholepreviewfbo.h"
-#include "core/update_checker.h"
 
 #ifdef Q_OS_WIN
+#include "core/update_checker.h"
 #include <windows.h>
 #include <dwmapi.h>
+#endif
+
+#ifndef Q_OS_WIN
+namespace {
+
+constexpr auto kUiService = "io.github.xboxnahida.Blakhole.UI";
+constexpr auto kUiPath = "/io/github/xboxnahida/Blakhole/UI";
+constexpr auto kUiInterface = "io.github.xboxnahida.Blakhole.UI";
+
+class ApplicationInstance final : public QObject
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "io.github.xboxnahida.Blakhole.UI")
+
+public:
+    ApplicationInstance(QQuickWindow *window, SystemTray *tray, QObject *parent = nullptr)
+        : QObject(parent), m_window(window), m_tray(tray)
+    {}
+
+public slots:
+    void Activate()
+    {
+        if (m_tray)
+            m_tray->hide();
+        else if (m_window) {
+            m_window->show();
+            m_window->raise();
+            m_window->requestActivate();
+        }
+    }
+
+private:
+    QQuickWindow *m_window;
+    SystemTray *m_tray;
+};
+
+} // namespace
 #endif
 
 int main(int argc, char *argv[])
@@ -38,6 +80,18 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("XboxNahida"));
     QCoreApplication::setApplicationVersion(QStringLiteral(APP_VERSION_STRING));
 
+#ifndef Q_OS_WIN
+    QDBusConnection sessionBus = QDBusConnection::sessionBus();
+    if (!sessionBus.registerService(QString::fromLatin1(kUiService))) {
+        QDBusInterface existing(
+            QString::fromLatin1(kUiService),
+            QString::fromLatin1(kUiPath),
+            QString::fromLatin1(kUiInterface), sessionBus);
+        existing.call(QStringLiteral("Activate"));
+        return 0;
+    }
+#endif
+
     QIcon appIcon(":/new/prefix1/fonts/icon.ico");
     if (appIcon.isNull())
         appIcon = QIcon::fromTheme(QStringLiteral("application-x-executable"));
@@ -49,9 +103,13 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     BlackHoleCore blackHoleCore;
+#ifdef Q_OS_WIN
     UpdateChecker updateChecker(QStringLiteral(APP_VERSION_STRING));
+#endif
     engine.rootContext()->setContextProperty("blackHoleCore", &blackHoleCore);
+#ifdef Q_OS_WIN
     engine.rootContext()->setContextProperty("updateChecker", &updateChecker);
+#endif
     blackHoleCore.loadConfig();
 
     // MSYS2 的 Qt6 编译时硬编码 QML 导入路径为 <exe_dir>/share/qt6/qml/,
@@ -84,14 +142,34 @@ int main(int argc, char *argv[])
             if (tray) {
                 tray->setWindow(window);
 
-                // 启动后自动隐藏界面并启动黑洞
+#ifndef Q_OS_WIN
+                ApplicationInstance instance(window, tray, &app);
+                if (!sessionBus.registerObject(
+                        QString::fromLatin1(kUiPath), &instance,
+                        QDBusConnection::ExportAllSlots)) {
+                    qWarning() << "Cannot export single-instance activation object:"
+                               << sessionBus.lastError().message();
+                    return 1;
+                }
+#endif
+
+                // XDG autostart/minimized startup resumes the saved lifecycle
+                // policy. In always-on mode this starts the effect immediately;
+                // in idle mode it arms GNOME IdleMonitor and waits for the
+                // configured threshold.
                 if (minimizedArgument || blackHoleCore.launchMinimized()) {
                     tray->show();
                     blackHoleCore.applyAndStart();
                 }
+
+                return app.exec();
             }
         }
     }
 
     return app.exec();
 }
+
+#ifndef Q_OS_WIN
+#include "main.moc"
+#endif

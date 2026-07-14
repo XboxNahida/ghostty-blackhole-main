@@ -14,8 +14,15 @@ ApplicationWindow {
     height: 800
     minimumWidth: 1400
     minimumHeight: 800
-    title: "Blakhole UI"
+    title: "Blakhole UI — Ubuntu Local " + Qt.application.version
     flags: Qt.Window | Qt.FramelessWindowHint
+
+    onActiveChanged: {
+        if (!active && settingsDrawer.opened) {
+            root.recordingHotkey = false
+            settingsDrawer.close()
+        }
+    }
 
     FontLoader {
         id: iconFont
@@ -24,12 +31,6 @@ ApplicationWindow {
 
     Components.ETheme {
         id: theme
-    }
-
-    Components.UpdateDialog {
-        id: updateDialog
-        theme: theme
-        checker: updateChecker
     }
 
     Components.RendererErrorDialog {
@@ -65,26 +66,16 @@ ApplicationWindow {
         }
     }
 
-    Connections {
-        target: updateChecker
-        function onManualResultReady() {
-            updateDialog.open()
-        }
-    }
-
-    Component.onCompleted: updateChecker.checkAutomatically()
-
     color: theme.primaryColor
 
     readonly property int resizeMargin: 6
     property int currentPageIndex: 0
     property int previousPageIndex: 0
-    readonly property int aboutPageIndex: 4
+    readonly property int aboutPageIndex: 2
     property bool skipExitDialog: blackHoleCore ? blackHoleCore.skipExitDialog : false
     property int defaultCloseAction: blackHoleCore ? blackHoleCore.defaultCloseAction : 0
     property bool autoStart: blackHoleCore ? blackHoleCore.autoStart : false
     property bool launchMinimized: blackHoleCore ? blackHoleCore.launchMinimized : false
-    property int screenTarget: blackHoleCore ? blackHoleCore.screenTarget : 0
     property bool closeHotkeyEnabled: blackHoleCore ? blackHoleCore.closeHotkeyEnabled : true
     property string closeHotkeySequence: blackHoleCore ? blackHoleCore.closeHotkeySequence : "Ctrl+Alt+B"
     property string closeHotkeyStatus: blackHoleCore ? blackHoleCore.closeHotkeyStatus : ""
@@ -122,6 +113,10 @@ ApplicationWindow {
     Item {
         id: contentWrapper
         anchors.fill: parent
+        // While the settings drawer is open, keep its outside-click catcher
+        // above the custom title buttons so the window close button cannot be
+        // mistaken for a drawer close button.
+        z: settingsDrawer.opened ? 1100 : 0
 
         Item {
             id: hotkeyRecorder
@@ -336,7 +331,7 @@ ApplicationWindow {
                 backgroundVisible: false
                 radius: 16
                 width: parent.width - 40
-                height: 210
+                height: 120
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.topMargin: 380
@@ -345,8 +340,6 @@ ApplicationWindow {
                 model: ListModel {
                     ListElement { display: "\u9ed1\u6d1e\u914d\u7f6e"; iconChar: "\uf661" }
                     ListElement { display: "\u9ad8\u7ea7\u8bbe\u7f6e"; iconChar: "\uf085" }
-                    ListElement { display: "\u5b9a\u65f6\u663e\u793a"; iconChar: "\uf017" }
-                    ListElement { display: "\u7a7a\u95f2\u540d\u5355"; iconChar: "\uf502" }
                 }
 
                 onItemClicked: function(index, data) {
@@ -368,20 +361,6 @@ ApplicationWindow {
                     settingsDrawer.toggle()
                 }
 
-                Rectangle {
-                    id: settingsUpdateBadge
-                    width: 10
-                    height: 10
-                    radius: 5
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.topMargin: 5
-                    anchors.rightMargin: 5
-                    color: "#e53935"
-                    border.width: 1
-                    border.color: theme.isDark ? "#ffffff" : "#8b0000"
-                    visible: updateChecker.updateAvailable
-                }
             }
 
             // 主题切换
@@ -435,20 +414,6 @@ ApplicationWindow {
                 visible: root.currentPageIndex === 1
             }
 
-            // 定时显示页面
-            Pages.ScheduleConfig {
-                bhCore: blackHoleCore
-                anchors.fill: parent
-                visible: root.currentPageIndex === 2
-            }
-
-            // 空闲检测名单页面
-            Pages.IdleListConfig {
-                bhCore: blackHoleCore
-                anchors.fill: parent
-                visible: root.currentPageIndex === 3
-            }
-
             Pages.AboutPage {
                 theme: theme
                 bhCore: blackHoleCore
@@ -458,9 +423,26 @@ ApplicationWindow {
             }
         }
 
+        // Clicking anywhere outside the settings panel dismisses it. The
+        // drawer itself is stacked above this catcher and remains interactive.
+        MouseArea {
+            anchors.fill: parent
+            visible: settingsDrawer.opened
+            enabled: visible
+            z: 1
+            acceptedButtons: Qt.AllButtons
+            onPressed: function(mouse) {
+                mouse.accepted = true
+                root.recordingHotkey = false
+                settingsDrawer.close()
+            }
+            onWheel: function(wheel) { wheel.accepted = true }
+        }
+
         // === 右侧设置抽屉 ===
         Components.EDrawer {
             id: settingsDrawer
+            z: 2
             panelWidth: 400
             opened: false
             backgroundVisible: true
@@ -484,69 +466,6 @@ ApplicationWindow {
                     height: 1
                     color: theme.borderColor
                     opacity: 0.3
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 76
-                    radius: 12
-                    color: theme.secondaryColor
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 12
-
-                        Text {
-                            text: "\uf021"
-                            font.family: iconFont.name
-                            font.pixelSize: 18
-                            color: theme.focusColor
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 3
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "检查更新"
-                                font.pixelSize: 15
-                                color: theme.textColor
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "当前版本 v" + Qt.application.version
-                                font.pixelSize: 11
-                                color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.52)
-                                elide: Text.ElideRight
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: updateChecker.statusText
-                                font.pixelSize: 11
-                                color: updateChecker.updateAvailable
-                                       ? theme.focusColor
-                                       : Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.52)
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        Components.EButton {
-                            size: "xs"
-                            radius: 8
-                            backgroundVisible: true
-                            enabled: !updateChecker.checking
-                            opacity: enabled ? 1.0 : 0.55
-                            text: updateChecker.checking ? "检查中" : "检查"
-                            Layout.preferredWidth: 86
-                            Layout.preferredHeight: 32
-                            iconCharacter: "\uf021"
-                            onClicked: updateChecker.checkManually()
-                        }
-                    }
                 }
 
                 Rectangle {
@@ -610,6 +529,10 @@ ApplicationWindow {
 
                         CheckBox {
                             id: exitAskCheck
+                            padding: 0
+                            Layout.preferredWidth: 20
+                            Layout.preferredHeight: 20
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                             checked: !root.skipExitDialog
                             onToggled: { root.skipExitDialog = !checked; if (blackHoleCore) blackHoleCore.skipExitDialog = !checked }
 
@@ -678,6 +601,10 @@ ApplicationWindow {
 
                         CheckBox {
                             id: autoStartCheck
+                            padding: 0
+                            Layout.preferredWidth: 20
+                            Layout.preferredHeight: 20
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                             checked: root.autoStart
                             onToggled: { if (blackHoleCore) blackHoleCore.autoStart = checked }
 
@@ -733,6 +660,10 @@ ApplicationWindow {
                         }
                         CheckBox {
                             id: launchMinimizedCheck
+                            padding: 0
+                            Layout.preferredWidth: 20
+                            Layout.preferredHeight: 20
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                             checked: root.launchMinimized
                             onToggled: { root.launchMinimized = checked; if (blackHoleCore) blackHoleCore.launchMinimized = checked }
 
@@ -785,7 +716,7 @@ ApplicationWindow {
                             }
 
                             Text {
-                                text: "关闭渲染快捷键"
+                                text: "启用关闭渲染快捷键"
                                 font.pixelSize: 15
                                 color: theme.textColor
                                 Layout.fillWidth: true
@@ -793,6 +724,10 @@ ApplicationWindow {
 
                             CheckBox {
                                 id: hotkeyEnabledCheck
+                                padding: 0
+                                Layout.preferredWidth: 20
+                                Layout.preferredHeight: 20
+                                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                                 checked: root.closeHotkeyEnabled
                                 onToggled: {
                                     root.closeHotkeyEnabled = checked
@@ -854,46 +789,6 @@ ApplicationWindow {
                         }
                     }
                 }
-                // 多显示器选择
-                Rectangle {
-                    width: parent.width
-                    height: 56
-                    radius: 12
-                    color: theme.secondaryColor
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 12
-
-                        Text {
-                            text: "\uf108"
-                            font.family: iconFont.name
-                            font.pixelSize: 18
-                            color: theme.focusColor
-                        }
-
-                        Text {
-                            text: "\u591a\u663e\u793a\u5668"
-                            font.pixelSize: 15
-                            color: theme.textColor
-                            Layout.fillWidth: true
-                        }
-
-                        Components.EDropDown {
-                            id: screenTargetDrop
-                            preferredWidth: 150
-                            model: ["\u4e3b\u5c4f\uff08\u9ed8\u8ba4\uff09", "\u526f\u5c4f", "\u8de8\u5c4f\uff08Linux \u56de\u9000\u4e3b\u5c4f\uff09", "\u4e00\u5c4f\u4e00\u9ed1\u6d1e"]
-                            currentIndex: root.screenTarget
-                            onActivated: function(index) {
-                                root.screenTarget = index
-                                if (blackHoleCore) blackHoleCore.screenTarget = index
-                            }
-                        }
-                    }
-                }
-
-
                 Rectangle {
                     width: parent.width
                     height: 50

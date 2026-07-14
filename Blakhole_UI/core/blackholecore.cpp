@@ -84,6 +84,31 @@ bool callCompositor(const QString &method, QString *error = nullptr)
     }
     return true;
 }
+
+QString gnomeAccelerator(const QString &sequence)
+{
+    QString accelerator;
+    QString key;
+    const QStringList parts = sequence.split('+', Qt::SkipEmptyParts);
+    for (QString part : parts) {
+        part = part.trimmed();
+        const QString lower = part.toLower();
+        if (lower == "ctrl" || lower == "control") accelerator += QStringLiteral("<Control>");
+        else if (lower == "alt") accelerator += QStringLiteral("<Alt>");
+        else if (lower == "shift") accelerator += QStringLiteral("<Shift>");
+        else if (lower == "win" || lower == "meta" || lower == "super") accelerator += QStringLiteral("<Super>");
+        else if (part.length() == 1 && part.at(0).isLetterOrNumber()) key = part.toLower();
+        else if (lower.startsWith('f')) {
+            bool ok = false;
+            const int number = lower.mid(1).toInt(&ok);
+            if (ok && number >= 1 && number <= 24) key = QStringLiteral("F%1").arg(number);
+        } else if (lower == "escape" || lower == "esc") key = QStringLiteral("Escape");
+        else if (lower == "space") key = QStringLiteral("space");
+        else if (lower == "delete" || lower == "del") key = QStringLiteral("Delete");
+    }
+    if (accelerator.isEmpty() || key.isEmpty()) return {};
+    return accelerator + key;
+}
 }
 #endif
 
@@ -305,6 +330,15 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
             stopRendererWithReason("MPRIS player entered Playing state");
         }
     });
+    if (!QDBusConnection::sessionBus().connect(
+            QString::fromLatin1(kBlackholeBus),
+            QString::fromLatin1(kBlackholePath),
+            QString::fromLatin1(kBlackholeInterface),
+            QStringLiteral("StopShortcutActivated"),
+            this,
+            SLOT(handleGlobalStopShortcut()))) {
+        qWarning() << "BlackHoleCore: failed to subscribe to the GNOME stop shortcut signal";
+    }
 #endif
 
     // 空闲检测定时器
@@ -814,14 +848,21 @@ constexpr qint64 kRendererLogBoundaryProbeBytes = 64;
 void BlackHoleCore::startRendererInternal(bool userInitiated)
 {
     if (!userInitiated && m_rendererFailureLatched) return;
+    if (userInitiated) m_rendererFailureLatched = false;
 
 #ifndef Q_OS_WIN
+    // Re-sync the UI-owned setting after an extension restart before starting
+    // the effect. The extension's own GSettings copy handles normal restarts.
+    updateCloseHotkeyRegistration();
     QString error;
     if (!callCompositor(QStringLiteral("Start"), &error)) {
-        emit rendererError(tr("无法启动 GNOME 黑洞扩展：%1").arg(error));
+        publishCompositorFailure(QStringLiteral("Start"), error, true);
+        if (!userInitiated)
+            setIdleDetectionState(tr("GNOME 黑洞扩展不可用，已暂停自动重试"), true);
         qWarning() << "BlackHoleCore: compositor Start failed:" << error;
         return;
     }
+    m_rendererFailureLatched = false;
     emit rendererStarted();
     emit rendererRunningChanged();
     emit systemActiveChanged();
@@ -845,8 +886,6 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
             return;
         }
     }
-
-    if (userInitiated) m_rendererFailureLatched = false;
 
     // 先保存配置到文件（blackhole.exe --render 从文件读取配置）
     saveConfig();
@@ -1119,6 +1158,43 @@ void BlackHoleCore::publishRendererDiagnostic(const RendererDiagnostic &diagnost
     emit rendererError(diagnostic.summary);
 }
 
+#ifndef Q_OS_WIN
+void BlackHoleCore::publishCompositorFailure(const QString &operation,
+                                             const QString &error,
+                                             bool latchAutomaticStarts)
+{
+    if (latchAutomaticStarts)
+        m_rendererFailureLatched = true;
+
+    const QString reason = error.trimmed().isEmpty()
+        ? tr("会话 D-Bus 未返回具体错误")
+        : error.trimmed();
+    const QString summary = tr("GNOME 黑洞扩展无法执行 %1：%2")
+        .arg(operation, reason);
+    const QString details = tr(
+        "操作：%1\n"
+        "D-Bus 服务：%2\n"
+        "对象路径：%3\n"
+        "接口：%4\n"
+        "错误：%5\n\n"
+        "请确认扩展已启用且状态为 ACTIVE：\n"
+        "gnome-extensions info blackhole@xboxnahida.github.com\n\n"
+        "查看 GNOME Shell 日志：\n"
+        "journalctl -b /usr/bin/gnome-shell --no-pager")
+        .arg(operation,
+             QString::fromLatin1(kBlackholeBus),
+             QString::fromLatin1(kBlackholePath),
+             QString::fromLatin1(kBlackholeInterface),
+             reason);
+
+    emit rendererStartupFailed(tr("GNOME 扩展控制失败"),
+                               summary,
+                               details,
+                               QString());
+    emit rendererError(summary);
+}
+#endif
+
 void BlackHoleCore::openRendererLogDirectory() const
 {
     const QFileInfo logInfo(m_rendererLogPath);
@@ -1128,10 +1204,10 @@ void BlackHoleCore::openRendererLogDirectory() const
 
 void BlackHoleCore::stopRenderer()
 {
-    stopRendererWithReason("public stopRenderer request");
+    stopRendererWithReason("public stopRenderer request", true);
 }
 
-void BlackHoleCore::stopRendererWithReason(const char *reason)
+void BlackHoleCore::stopRendererWithReason(const char *reason, bool reportFailure)
 {
     qWarning().noquote()
         << QStringLiteral("BlackHoleCore: stopRenderer requested reason=\"%1\" running=%2 diagnosticsState=%3 elapsedMs=%4")
@@ -1141,8 +1217,11 @@ void BlackHoleCore::stopRendererWithReason(const char *reason)
                .arg(m_rendererStartupElapsed.isValid() ? m_rendererStartupElapsed.elapsed() : -1);
 #ifndef Q_OS_WIN
     QString error;
-    if (!callCompositor(QStringLiteral("Stop"), &error))
+    if (!callCompositor(QStringLiteral("Stop"), &error)) {
         qWarning() << "BlackHoleCore: compositor Stop failed:" << error;
+        if (reportFailure)
+            publishCompositorFailure(QStringLiteral("Stop"), error, false);
+    }
     emit rendererStopped();
     emit rendererRunningChanged();
     emit systemActiveChanged();
@@ -1205,7 +1284,7 @@ void BlackHoleCore::stopAll()
     if (m_gnomeIdle) m_gnomeIdle->stop();
     if (m_mpris) m_mpris->stop();
 #endif
-    stopRendererWithReason("stopAll request");
+    stopRendererWithReason("stopAll request", true);
     emit systemActiveChanged();
 }
 
@@ -2585,10 +2664,41 @@ void BlackHoleCore::updateCloseHotkeyRegistration()
     }
     emit closeHotkeyStatusChanged();
 #else
-    m_closeHotkeyStatus = QStringLiteral("当前系统不支持全局快捷键");
+    const QString accelerator = gnomeAccelerator(m_closeHotkeySequence);
+    if (m_closeHotkeyEnabled && accelerator.isEmpty()) {
+        m_closeHotkeyStatus = QStringLiteral("快捷键无效");
+        emit closeHotkeyStatusChanged();
+        return;
+    }
+
+    QDBusInterface iface = compositorInterface();
+    if (!iface.isValid()) {
+        m_closeHotkeyStatus = QStringLiteral("GNOME 黑洞扩展未运行，暂时无法绑定");
+        emit closeHotkeyStatusChanged();
+        return;
+    }
+
+    const QDBusReply<bool> reply = iface.call(
+        QStringLiteral("ConfigureShortcut"), m_closeHotkeyEnabled, accelerator);
+    if (!reply.isValid() || !reply.value()) {
+        m_closeHotkeyStatus = QStringLiteral("快捷键注册失败：%1")
+                                  .arg(reply.isValid() ? QStringLiteral("扩展拒绝了配置")
+                                                       : reply.error().message());
+    } else if (m_closeHotkeyEnabled) {
+        m_closeHotkeyStatus = QStringLiteral("已由 GNOME 绑定 ") + m_closeHotkeySequence;
+    } else {
+        m_closeHotkeyStatus = QStringLiteral("已禁用");
+    }
     emit closeHotkeyStatusChanged();
 #endif
 }
+
+#ifndef Q_OS_WIN
+void BlackHoleCore::handleGlobalStopShortcut()
+{
+    stopAll();
+}
+#endif
 
 void BlackHoleCore::unregisterCloseHotkey()
 {

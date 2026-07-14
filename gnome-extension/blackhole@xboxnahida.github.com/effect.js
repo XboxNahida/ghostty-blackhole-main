@@ -3,6 +3,8 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
 
+const TRANSITION_DURATION_US = 650000;
+
 function loadShader(extensionPath) {
     const shaderDir = GLib.build_filenamev([extensionPath, 'shaders']);
     const header = Shell.get_file_contents_utf8_sync(
@@ -29,13 +31,27 @@ function loadShader(extensionPath) {
         .replace(
             '+ wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));',
             `+ wobAmp * vec2(cos(t * 0.8), sin(t * 1.0));
-        center = vec2(0.5) + vec2(0.38, 0.34) * lissa(t * 0.16 + 1.7);`);
+        // Preserve the original ambient pace. DRIFT_SPEED remains the user's
+        // multiplier, while 0.16 is the calibrated base frequency.
+        center = vec2(0.5) + vec2(0.28, 0.24) * lissa(t * 0.16 + 1.7);`)
+        // GNOME owns the lifecycle transition. Keep the configured final
+        // size intact while giving every start a small-to-large entrance and
+        // every stop the exact reverse motion.
+        .replace('float rh = HOLE_RADIUS * sz;',
+            'float rh = HOLE_RADIUS * sz * mix(0.08, 1.0, uTransition);')
+        // The settings preview is the speed reference. Do not apply an extra
+        // size-dependent time-dilation multiplier in the compositor, or the
+        // configured accretion-disk speed falls to 18% at full size.
+        .replace('float dil = mix(1.0, DILATION_MIN, I);',
+            'float dil = 1.0; // match the real-time preview speed');
     const wrapper = `
 void main() {
     vec2 uv = cogl_tex_coord_in[0].st;
+    vec4 desktop = texture2D(iChannel0, uv);
     vec4 color;
     mainImage(color, uv * vec2(uResolutionX, uResolutionY));
-    cogl_color_out = color;
+    float transition = smoothstep(0.0, 1.0, uTransition);
+    cogl_color_out = mix(desktop, color, transition);
 }
 `;
     return `${header}\n${body}\n${wrapper}`;
@@ -52,8 +68,11 @@ function readConfig() {
     const config = {
         slotSec: 5.25,
         playMode: 1,
-        fixedLevel: 0.55,
-        fixedSize: true,
+        // Match the upstream 1.2.1 defaults. The compositor-specific 0.55
+        // synthetic level was an earlier local tuning, not the author's
+        // default configuration.
+        fixedLevel: 1.0,
+        fixedSize: false,
         holeRadius: 0.02,
         movementSpeed: 1.0,
         rotationSpeed: 0.08,
@@ -141,13 +160,20 @@ DiskLook demoLook() {
 
 function loadConfiguredShader(extensionPath) {
     const config = readConfig();
+    const levelExpression = config.fixedSize
+        ? config.fixedLevel.toFixed(4)
+        : 'min(iTime / DEMO_GROW_SEC, 1.0)';
+    console.log(`[blackhole] config: holeRadius=${config.holeRadius.toFixed(4)} ` +
+        `movementSpeed=${config.movementSpeed.toFixed(1)} ` +
+        `rotationSpeed=${config.rotationSpeed.toFixed(2)} ` +
+        `size=${config.fixedSize ? `fixed:${config.fixedLevel.toFixed(2)}` : 'grow:40s'}`);
     let shader = loadShader(extensionPath)
         .replace(/const float HOLE_RADIUS\s*=\s*[-+0-9.]+;/,
             `const float HOLE_RADIUS = ${config.holeRadius.toFixed(4)};`)
         .replace(/const float DRIFT_SPEED\s*=\s*[-+0-9.]+;/,
             `const float DRIFT_SPEED = ${config.movementSpeed.toFixed(4)};`)
         .replace('#define TOKEN_LEVEL 0.55 // compositor-level',
-            `#define TOKEN_LEVEL ${config.fixedLevel.toFixed(4)} // compositor-level`)
+            `#define TOKEN_LEVEL (${levelExpression}) // compositor-level`)
         .replace('L.roll += iTime * 0.08;',
             `L.roll += iTime * ${config.rotationSpeed.toFixed(4)};`);
     const lookSource = configuredLookSource(config);
@@ -164,6 +190,11 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
         this.reloadConfig();
         this._startUs = GLib.get_monotonic_time();
         this._redrawId = 0;
+        this._transition = 0.0;
+        this._transitionFrom = 0.0;
+        this._transitionTo = 0.0;
+        this._transitionStartUs = this._startUs;
+        this._transitionDurationUs = 0;
         this.set_enabled(false);
     }
 
@@ -173,28 +204,73 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
     }
 
     setRunning(running) {
+        const now = GLib.get_monotonic_time();
+        this._updateTransition(now);
+        const target = running ? 1.0 : 0.0;
+
         if (running) {
-            this._startUs = GLib.get_monotonic_time();
-            if (!this._redrawId) {
-                this._redrawId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => {
-                    if (!this.get_enabled()) {
-                        this._redrawId = 0;
-                        return GLib.SOURCE_REMOVE;
-                    }
-                    this.get_actor()?.queue_redraw();
-                    return GLib.SOURCE_CONTINUE;
-                });
-            }
-        } else {
-            if (this._redrawId) {
-                GLib.source_remove(this._redrawId);
-                this._redrawId = 0;
-            }
+            if (!this.get_enabled())
+                this._startUs = now;
+            this.set_enabled(true);
         }
-        this.set_enabled(running);
+
+        this._transitionFrom = this._transition;
+        this._transitionTo = target;
+        this._transitionStartUs = now;
+        this._transitionDurationUs = Math.round(
+            TRANSITION_DURATION_US * Math.abs(target - this._transition));
+
+        if (this._transitionDurationUs === 0) {
+            this._transition = target;
+            if (!running)
+                this._finishStopped();
+            return;
+        }
+
+        this._ensureRedrawTimer();
+        this.get_actor()?.queue_redraw();
+    }
+
+    _updateTransition(now = GLib.get_monotonic_time()) {
+        if (this._transitionDurationUs <= 0) {
+            this._transition = this._transitionTo;
+            return;
+        }
+
+        const elapsed = Math.max(0, now - this._transitionStartUs);
+        const progress = Math.min(elapsed / this._transitionDurationUs, 1.0);
+        this._transition = this._transitionFrom +
+            (this._transitionTo - this._transitionFrom) * progress;
+        if (progress >= 1.0)
+            this._transitionDurationUs = 0;
+    }
+
+    _ensureRedrawTimer() {
+        if (this._redrawId)
+            return;
+        this._redrawId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => {
+            this._updateTransition();
+            this.get_actor()?.queue_redraw();
+
+            if (this._transitionTo <= 0.0 && this._transition <= 0.0) {
+                this._finishStopped();
+                return GLib.SOURCE_REMOVE;
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
+    _finishStopped() {
+        this._transition = 0.0;
+        this._transitionFrom = 0.0;
+        this._transitionTo = 0.0;
+        this._transitionDurationUs = 0;
+        this.set_enabled(false);
+        this._redrawId = 0;
     }
 
     vfunc_paint_target(paintNode = null, paintContext = null) {
+        this._updateTransition();
         const time = (GLib.get_monotonic_time() - this._startUs) / 1000000.0;
         const actor = this.get_actor();
         const [width, height] = actor?.get_size() ?? [1920, 1080];
@@ -212,6 +288,7 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
         this.set_uniform_value('uStarGain', -1.0);
         this.set_uniform_value('uDiskIncl', -1.0);
         this.set_uniform_value('uBornProgress', 1.0);
+        this.set_uniform_value('uTransition', this._transition);
         this.set_uniform_value('uDistortion', 1.0);
         this.set_uniform_value('uSlotSec', 5.25);
         this.set_uniform_value('uHomeX', 0.5);

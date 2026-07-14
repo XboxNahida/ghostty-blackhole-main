@@ -15,7 +15,8 @@ Control interface:
 bus:       io.github.xboxnahida.Blackhole
 object:    /io/github/xboxnahida/Blackhole
 interface: io.github.xboxnahida.Blackhole
-methods:   Start, Stop, ReloadConfig, GetState
+methods:   Start, Stop, ReloadConfig, GetState, ConfigureShortcut
+signal:    StopShortcutActivated
 ```
 
 On Ubuntu GNOME, `appBlakholeUI` is the settings and lifecycle controller for
@@ -23,3 +24,11 @@ this backend. `Start` reloads the user's presets and advanced settings from
 `~/.config/XboxNahida/Blakhole UI/` before enabling the compositor effects, so
 pressing Start also applies changes without launching the legacy fullscreen
 renderer.
+
+The extension also owns the GNOME Shell global stop shortcut. Its GSettings
+schema stores the enabled state and accelerator (default
+`<Control><Alt>b`). `ConfigureShortcut` lets the Qt controller update that
+state without raw keyboard capture or an X11/XRecord native hook. Activating
+the shortcut stops the compositor effect immediately and emits
+`StopShortcutActivated`, allowing the controller to stop idle-mode scheduling
+as well.
