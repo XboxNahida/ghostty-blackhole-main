@@ -1,206 +1,184 @@
-# Black Hole — Windows 桌面黑洞屏保
+# Black Hole / 黑洞桌面特效
 
-![demo](demo.gif)
+[![Release](https://img.shields.io/badge/release-v1.2.1-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.1)
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#设备要求与兼容性)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-基于 Eric Bruneton 黑洞着色器的 Windows 桌面黑洞可视化程序。捕获桌面画面，实时渲染史瓦西黑洞的引力透镜、吸积盘、光子环等相对论效应。
+![Black Hole 演示](demo.gif)
 
-> **技术细节**（空闲检测原理、双进程设计、WGC vs DXGI、D3D11 实验、已知问题等）请参见 **[TECHNICAL.md](TECHNICAL.md)**。
+Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面并实时渲染引力透镜、吸积盘和光子环效果，可常驻显示，也可在系统空闲时自动出现。
 
----
+**当前版本：v1.2.1**
 
-# 目前新功能还在开发中，新 UI 已完成，旧 UI 仍可使用。
-# 发布版本见右侧Release里。
-# 作者最近比较忙，更新会比较慢。
+[下载 v1.2.1](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.1) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)
 
-## 当前状态
+## 下载与安装
 
-- 新版 Qt UI 可用，旧版 ImGui UI 仍保留。
-- 捕获方式支持自动 / WGC / DXGI。自动模式会在 Win11 22H2+ 优先使用可抑制黄边框的 WGC，在旧系统回退 DXGI。
-- 多显示器支持主屏、副屏、跨屏和一屏一黑洞。
-- 固定大小、16 预设、多预设列表持久化已端到端接入。
-- D3D11 渲染器仍作为实验路径保留，默认渲染路径仍是 OpenGL。
+1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.1-windows-x64.zip`。
+2. 将 ZIP **完整解压**到一个可写目录。
+3. 双击 `appBlakholeUI.exe` 启动界面。
 
-## 运行要求
+> 不要只复制单个 EXE。Qt DLL、插件、Shader、图片和 `blackhole.exe` Renderer 都是运行所需文件；文件缺失会导致界面、预览或黑洞渲染无法启动。
 
-### 操作系统
+## 主要功能
 
-| 要求 | 说明 |
-|------|------|
-| **最低** | Windows 10 1803+ (build 17134)，64 位 |
-| **推荐** | Windows 11 22H2+ (build 22621) |
+- **黑洞实时渲染**：引力透镜、吸积盘、光子环、星空背景及多组外观参数。
+- **两种触发模式**：始终显示，或达到设定空闲时间后自动出现；鼠标和键盘恢复活动后自动隐藏。
+- **视频与游戏检测**：综合媒体会话、前台窗口、全屏状态和进程特征，减少观看视频或游戏时误触发。
+- **三类名单**：始终允许触发、媒体识别提示、前台强制不触发。
+- **便捷添加程序**：支持从正在运行的程序选择、浏览 EXE，也保留手动输入。
+- **多显示器**：主屏、副屏、跨屏和一屏一黑洞。
+- **移动控制**：鼠标跟随、鼠标惯性、范围限制、四角或随机出现位置、自由移动速度。
+- **外观配置**：预设管理、播放顺序、固定大小、吸积盘光影及实时预览。
+- **更新提醒**：启动后后台检查新版本，在设置入口显示红点，不阻塞主界面。
+- **启动诊断**：Renderer 缺文件、初始化失败、提前退出或超时会显示错误详情，可复制信息并打开日志目录。
 
-> Win10 1803 是 WGC (`Windows.Graphics.Capture`) 的最低版本。Win11 22H2 额外支持 `IsBorderRequired(false)` 进一步抑制黄边框。
-
-### 显卡兼容性
-
-当前默认渲染路径：**WGC/DXGI 桌面捕获 → CPU 回读 → OpenGL 3.3 渲染**。WGC/DXGI 内部依赖 D3D11，但默认路径不做 D3D11 渲染。
-
-#### 桌面独显
-
-| 厂商 | 系列 | 兼容性 | 备注 |
-|------|------|--------|------|
-| **NVIDIA** | GeForce GTX 400 系列及以上 (2010+) | ✅ 完全支持 | Fermi 架构起支持 OpenGL 3.3 |
-| **AMD** | Radeon HD 7000 系列及以上 (2012+, GCN) | ✅ 完全支持 | GCN 第一代起支持 |
-| **Intel** | Arc 独显系列 | ✅ 完全支持 | |
-
-#### 集显（核显）
-
-| 厂商 | 系列 | 兼容性 | 备注 |
-|------|------|--------|------|
-| **Intel** | HD Graphics 4000 及以上 (2012+, Ivy Bridge) | ✅ 可用 | OpenGL 驱动偶有小问题，ImGui 已内置 Intel 兼容处理 |
-| **Intel** | UHD / Iris Xe (2017+) | ✅ 良好 | |
-| **AMD** | Radeon Vega 核显 (Ryzen 2000+) | ✅ 良好 | |
-| **AMD** | RDNA2/3 核显 (Radeon 680M/780M) | ✅ 良好 | |
-
-#### 笔记本混合显卡（双显卡）
-
-| 类型 | 兼容性 | 说明 |
-|------|--------|------|
-| **NVIDIA Optimus**（Intel 核显 + NVIDIA 独显） | ✅ 可用 | CPU 回读路径天然隔离 GPU 差异，不依赖 GPU 间纹理共享 |
-| **AMD Switchable Graphics**（核显 + AMD 独显） | ✅ 可用 | 同上 |
-| **纯集显笔记本** | ✅ 良好 | 单一 GPU，无需协调 |
-
-> 混合显卡下 D3D11 设备默认创建在核显上（WGC 内部需要），OpenGL 渲染在系统默认 GPU。数据经 CPU 中转，不依赖跨 GPU 纹理共享。
-
-### 运行时依赖
-
-| 程序 | 依赖 |
-|------|------|
-| `blackhole.exe` | 无额外依赖，静态链接 |
-| `appBlakholeUI.exe` | Qt 6.8+ 运行时 DLL（`release/` 已附带） |
-
-### 编译要求
-
-| 工具 | 版本 | 用途 |
-|------|------|------|
-| **MSYS2** | 最新 | UCRT64 编译环境 |
-| **GCC** | 12+ (`mingw-w64-ucrt-x86_64-gcc`) | C++17 编译 |
-| **CMake** | 3.20+ | 构建系统 |
-| **GLFW3** | 3.3+ (`pacman -S mingw-w64-ucrt-x86_64-glfw`) | 窗口/输入（ImGui 用） |
-| **Qt 6** | 6.8+ (`qt6-base`, `qt6-declarative`) | 仅 Blakhole_UI 需要 |
-
----
 ## 快速开始
 
-1. 双击 `release\appBlakholeUI.exe`（`release\blackhole.exe` 为旧版 UI / 渲染器入口）
-2. 配置参数 → 点击 **"启动"**
-3. 黑洞在**空闲时自动显示**，动鼠标/键盘即消失
-4. 右下角托盘图标 → 右键可退出
+1. 启动 `appBlakholeUI.exe`。
+2. 在主界面调整外观、显示器和运行模式。
+3. 点击“启动”运行黑洞。
+4. 使用空闲模式时，等待设定的空闲时间；移动鼠标或按键会隐藏黑洞。
+5. 需要完全退出时，在系统托盘中右键程序图标并选择退出。
 
----
+若首次使用只想确认渲染是否正常，可先选择“始终显示”。确认黑洞能出现后，再切换到空闲检测并配置视频、游戏和名单规则。
 
-## 两种模式
+## 设备要求与兼容性
 
-| 模式 | 行为 |
+以下是根据当前正式包、Qt 平台支持范围和实际代码路径审核后的要求。
+
+| 项目 | 最低要求 / 说明 |
+|------|-----------------|
+| 操作系统 | 64 位 Windows 10 1809（build 17763）或更高版本 |
+| 推荐系统 | Windows 11 22H2（build 22621）或更高版本 |
+| 处理器架构 | x86-64；不提供 32 位或 Windows on ARM 原生版本 |
+| 图形能力 | OpenGL 3.3，并且能够创建硬件 D3D11 设备 |
+| 显卡驱动 | 建议使用 Intel、NVIDIA 或 AMD 提供的较新正式驱动 |
+
+为什么同时需要两套图形能力：
+
+- Qt 实时预览和黑洞 Renderer 都显式使用 **OpenGL 3.3**。
+- 桌面画面通过 **WGC 或 DXGI Desktop Duplication** 捕获，两条路径都需要 D3D11 硬件设备。
+- Windows 11 22H2+ 的自动模式优先使用可抑制黄色捕获边框的 WGC。
+- Windows 10 和较早的 Windows 11 在自动模式下通常回退到 DXGI；也可以手动选择 WGC，但可能出现黄色捕获边框。
+
+显卡型号或发布时间不能单独证明兼容。双显卡、远程桌面、虚拟机、特殊显卡驱动，以及同时运行的录屏/远控软件都可能影响桌面捕获。项目目前没有覆盖所有硬件组合，因此不提供“某系列显卡完全兼容”的保证。
+
+## 视频、游戏与名单
+
+视频检测会综合 Windows 媒体会话、前台窗口和进程信息，内置常用浏览器、本地播放器及哔哩哔哩、腾讯视频、爱奇艺、优酷等常见客户端的识别提示。
+
+- 媒体处于播放状态时可阻止空闲黑洞触发；暂停后允许触发。
+- 开启“播放视频时视为空闲”后，即使检测到播放也允许黑洞触发。
+- 无声视频、未向 Windows 上报媒体状态的客户端或特殊播放方式可能漏检。
+- 游戏检测覆盖独占全屏、无边框和部分窗口化游戏；低负载、特殊渲染方式或不在前台的游戏可能漏检。
+
+检测不到时，可以在“空闲检测名单”中选择目标程序：
+
+| 名单 | 行为 |
 |------|------|
-| **始终显示** | 黑洞常驻桌面 |
-| **空闲检测** | 空闲 N 秒后显示，活跃时自动隐藏 |
+| 始终允许触发 | 目标在前台时忽略媒体和游戏检测，允许黑洞触发 |
+| 媒体识别提示 | 仅在目标实际播放且检测到媒体信号时阻止触发 |
+| 前台强制不触发 | 目标在前台时无条件阻止；切到后台后失效 |
 
-空闲时间在配置页面设置（默认 300 秒）。支持三层检测：D3D 全屏检测、窗口尺寸检测、音视频进程名单匹配。
+每类名单都支持“运行程序选择”“浏览可执行文件”和“手动输入”。自动检测采用偏保守策略，少数漏检程序由用户名单补充，避免普通后台进程长期误阻止黑洞。
 
----
+## 常见问题
 
-## 配置参数
+### 启动后没有黑洞
 
-- **14 个可调参数**：色温、倾角、旋转、半径、不透明度、多普勒、光束指数、亮度增益、条纹对比度、缠绕紧度、旋转速度、曝光度、星空亮度
-- **16 个预设**，支持复制/粘贴、上移/下移排序
-- **三种播放模式**：顺序 / 循环 / 随机
-- **捕获方式**：自动 / WGC / DXGI
-- **显示器模式**：主屏 / 副屏 / 跨屏 / 一屏一黑洞
-- **固定大小**：可让黑洞保持固定比例，不再随时间增长
+1. 确认 ZIP 已完整解压，`appBlakholeUI.exe` 与 `blackhole.exe` 位于同一目录，`shaders`、Qt DLL 和插件目录没有缺失。
+2. 先切换到“始终显示”并点击启动，排除尚未达到空闲时间的情况。
+3. 如果程序弹出 Renderer 启动错误，点击“复制错误详情”并打开日志目录。
+4. 更新显卡驱动后重试；不要从压缩包内直接运行 EXE。
 
----
+### 日志出现 `DXGI_Init primary failed`
+
+这表示桌面捕获初始化失败。窗口创建和 OpenGL 初始化可能已经成功，问题通常位于 D3D11/DXGI Desktop Duplication 环境。
+
+按顺序尝试：
+
+1. 关闭 OBS、录屏工具、远程控制软件和动态壁纸后重试。
+2. 更新显卡驱动。双显卡电脑可在 Windows“图形设置”中让 `appBlakholeUI.exe` 和 `blackhole.exe` 使用同一块 GPU。
+3. 在高级设置中手动选择 WGC。Windows 10 上可能出现黄色捕获边框。
+4. 退出远程桌面或虚拟机，在本机物理桌面会话中测试。
+
+需要补充 DXGI 详细错误码时，在解压目录打开 PowerShell：
+
+```powershell
+.\blackhole.exe --render 2> dxgi_error.txt
+```
+
+### Windows 或杀毒软件报毒
+
+当前 EXE **没有商业代码签名**。程序还会进行桌面捕获、全屏置顶、进程检测、开机自启动配置和联网更新检查，这些行为可能触发 SmartScreen 或杀毒软件的启发式检测。
+
+- 只从本仓库的 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载。
+- 优先核对 Release 发布说明或校验文件中的 SHA-256。
+- 不建议关闭杀毒软件。确认下载来源和校验值后，可按安全软件提示单独放行；无法放行时请停止运行。
+- 反馈误报时请提供安全软件名称、检测名称和文件 SHA-256，便于提交误报样本。
+
+### 如何反馈问题
+
+请在 [GitHub Issues](https://github.com/XboxNahida/ghostty-blackhole-main/issues) 提交以下信息：
+
+- `blackhole_debug.txt`。
+- 如果是 DXGI 问题，再附上 `dxgi_error.txt`。
+- Windows 版本和 build 号。
+- CPU、显卡型号，以及是否为双显卡电脑。
+- 是否使用远程桌面或虚拟机。
+- 是否同时运行录屏、远控或动态壁纸软件。
+- Renderer 错误弹窗中复制的完整详情。
+
+日志可能包含本机目录路径或正在识别的程序名，公开上传前请自行检查隐私信息。
+
+## 更新机制
+
+当前版本为 **v1.2.1**。程序每次启动会在后台检查 GitHub Release，不阻塞启动流程：
+
+- 有新版本时，设置入口显示红点。
+- 只有用户点击“检查更新”后才弹出更新窗口。
+- 点击下载会在默认浏览器中打开 Release 链接。
+- 忽略某个版本后会记住选择；下一个新版本仍会重新提醒。
+
+## 开发者构建
+
+构建要求：CMake 3.20+、支持 C++17 的 MinGW-w64 UCRT64、Qt 6.8+、GLFW3 和 OpenGL 开发库。当前正式包使用 Qt 6.11.1 x64 构建。
+
+```powershell
+# Renderer
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build --config Release --clean-first
+
+# Qt UI：按本机 Qt 安装路径调整 CMAKE_PREFIX_PATH
+cmake -S Blakhole_UI `
+  -B Blakhole_UI/build/Desktop_Qt_6_11_1_MinGW_64_bit-Release `
+  -G "MinGW Makefiles" `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/mingw_64
+cmake --build Blakhole_UI/build/Desktop_Qt_6_11_1_MinGW_64_bit-Release `
+  --config Release --clean-first
+
+# 从已完成的构建生成 release 目录
+.\package_release.ps1 -NoBuild
+```
+
+更深入的捕获、双进程和渲染实验记录见 [技术文档](Doc/TECHNICAL.md)。该文档包含历史方案，当前发布行为以代码和本 README 为准。
 
 ## 项目结构
 
-### 双程序架构
-
-| 程序 | 技术栈 | 用途 |
-|------|--------|------|
-| `blackhole.exe` | C++17 / OpenGL+WGL / ImGui | 原始实现：桌面黑洞渲染 + ImGui 配置面板 |
-| `Blakhole_UI/appBlakholeUI.exe` | Qt6 QML / OpenGL FBO | 新版 UI：可视化配置 + 实时预览 + 进程管理 |
-
-### 源代码模块
-
-#### ✅ 活跃模块（正在使用）
-
-| 文件 | 功能 |
+| 目录 | 用途 |
 |------|------|
-| `src/main.cpp` | 主入口，双进程架构、shader 编译、uniform 注入、空闲检测 |
-| `src/win32_gl.cpp/h` | Win32+WGL 原生窗口（替代 GLFW） |
-| `src/capture_wgc.cpp/h` | WGC 桌面捕获，支持黄边框抑制和禁用光标捕获 |
-| `src/capture_dxgi.cpp/h` | DXGI Duplication 备用/兼容捕获路径 |
-| `src/monitors.cpp/h` | 显示器枚举与主屏/副屏选择 |
-| `src/gl_texture.cpp/h` | D3D11→OpenGL 纹理上传 |
-| `src/gui_config.cpp/h` | ImGui 配置面板（旧版 UI） |
-| `src/imgui/` | Dear ImGui 库 |
-| `blackhole.glsl` | 核心黑洞着色器（运行时字符串替换） |
-| `shaders/vert.glsl` | OpenGL 顶点着色器 |
-| `shaders/frag_desktop_header.glsl` | 桌面版 uniform 声明 |
-| `shaders/frag_preview_header.glsl` | 预览版 uniform 声明 |
-| `shaders/blackhole_preview.glsl` | 预览版着色器（Blakhole_UI FBO 用） |
-
-#### 🔒 预留/实验模块（完整实现，当前未启用）
-
-| 文件 | 说明 |
-|------|------|
-| `src/d3d11_renderer.cpp/h` | D3D11 渲染器。因 WGC 纹理池化+GPU 异步导致画面冻结，已回退 |
-| `src/win32_window.cpp/h` | 纯 Win32 窗口（配合 D3D11 路径） |
-| `src/renderer_interface.h` | `IRenderer` 抽象接口（OpenGL/D3D11 双路径预留） |
-| `src/texture_source.h` | `ITextureSource` 纹理源抽象（面向未来扩展） |
-| `shaders/blackhole.hlsl` | HLSL 翻译（D3D11 路径） |
-| `shaders/fullscreen_vs.hlsl` | D3D11 全屏顶点着色器 |
-
-### 目录说明
-
-| 目录 | 内容 |
-|------|------|
-| `src/` | blackhole.exe 源代码 |
-| `shaders/` | GLSL/HLSL 着色器 |
-| `Blakhole_UI/` | Qt6/QML 新版配置面板（独立 CMake 项目） |
-| `Doc/` | 技术文档 |
-| `build/` | blackhole.exe 构建输出 |
-| `release/` | 发布目录（exe + DLL + shaders） |
-| `.vscode/` | VS Code 配置 |
-
----
-
-## 编译
-
-```powershell
-# 使用 MSYS2 UCRT64
-.\build_blackhole.ps1
-
-# 或 CMake
-cmake -B build -G "MinGW Makefiles"
-cmake --build build
-```
-
-D3D11 路径可通过 `CMakeLists.txt` 取消注释以下行启用：
-```cmake
-target_compile_definitions(blackhole PRIVATE BLACKHOLE_USE_D3D11)
-```
-
----
-
-## 技术栈
-
-| 组件 | 技术 | 说明 |
-|------|------|------|
-| **桌面捕获** | WGC / DXGI Desktop Duplication | 自动选择或手动指定捕获方式 |
-| **纹理传输** | CPU 回读 (`Staging → Map → glTexSubImage2D`) | 跨厂商兼容，隔离 GPU 差异 |
-| **渲染** | OpenGL 3.3 + WGL | 原生 Win32 窗口，全屏顶层覆盖 |
-| **配置面板（旧）** | ImGui | blackhole.exe 内置 |
-| **配置面板（新）** | Qt 6 + QML | Blakhole_UI，独立进程，含实时 FBO 预览 |
-| **构建** | MinGW-w64 (UCRT64) + CMake | |
-
-> DXGI Duplication 和 D3D11 渲染器代码保留在仓库中，当前未启用。详见 [TECHNICAL.md](TECHNICAL.md)。
-
+| `src/` | `blackhole.exe` Renderer、桌面捕获和原生 Windows 逻辑 |
+| `Blakhole_UI/` | Qt 6 / QML 配置界面、实时预览、名单和启动诊断 |
+| `shaders/` | 桌面与预览使用的 GLSL/HLSL Shader |
+| `Doc/` | 架构、测试和历史技术文档 |
+| `release/` | 本地发布目录，包含 EXE、运行库、插件和资源 |
 
 ## 灵感来源
 
-[Eric Bruneton's black hole shader](https://github.com/ebruneton/black_hole_shader) (BSD-3-Clause)
+[Eric Bruneton's black hole shader](https://github.com/ebruneton/black_hole_shader)（BSD-3-Clause）
 
 ## License
 
-MIT — 见 [LICENSE](LICENSE)
+本项目使用 [MIT License](LICENSE)。
