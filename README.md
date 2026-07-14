@@ -1,24 +1,21 @@
-# Black Hole — Windows 桌面黑洞屏保
+# Black Hole — 跨平台桌面黑洞屏保
 
 ![demo](demo.gif)
 
-基于 Eric Bruneton 黑洞着色器的 Windows 桌面黑洞可视化程序。捕获桌面画面，实时渲染史瓦西黑洞的引力透镜、吸积盘、光子环等相对论效应。
+基于 Eric Bruneton 黑洞着色器的**跨平台**桌面黑洞可视化程序。现已同时支持 **Windows**（原生 Win32 桌面捕获 + OpenGL 渲染）和 **Linux**（GNOME Shell 合成器扩展），通过实时渲染展现史瓦西黑洞的引力透镜、吸积盘、光子环等相对论效应。
 
-> **技术细节**（空闲检测原理、双进程设计、WGC vs DXGI、D3D11 实验、已知问题等）请参见 **[TECHNICAL.md](TECHNICAL.md)**。
+> **技术细节**（空闲检测原理、双进程设计、WGC vs DXGI、D3D11 实验、已知问题等）请参见 **[Doc/TECHNICAL.md](Doc/TECHNICAL.md)**。
 
 ---
 
-# 目前新功能还在开发中，新 UI 已完成，旧 UI 仍可使用。
-# 发布版本见右侧Release里。
-# 作者最近比较忙，更新会比较慢。
-
 ## 当前状态
 
-- 新版 Qt UI 可用，旧版 ImGui UI 仍保留。
-- 捕获方式支持自动 / WGC / DXGI。自动模式会在 Win11 22H2+ 优先使用可抑制黄边框的 WGC，在旧系统回退 DXGI。
-- 多显示器支持主屏、副屏、跨屏和一屏一黑洞。
-- 固定大小、16 预设、多预设列表持久化已端到端接入。
-- D3D11 渲染器仍作为实验路径保留，默认渲染路径仍是 OpenGL。
+- **双平台可用**：Windows 原生屏保 + Ubuntu GNOME Wayland 合成器效果均已落地。
+- **新版 Qt UI** 已替换旧版 ImGui 成为主配置面板；旧版仍在但不再主推。
+- **Linux 后端**使用 GNOME Shell 扩展 + D-Bus 接口，无需 Portal 桌面捕获。
+- **16 预设**、多预设列表、三种播放模式（顺序/循环/随机）端到端可用。
+- 捕获方式支持自动 / WGC / DXGI（Windows），自动模式优先 WGC。
+- 多显示器支持主屏、副屏、跨屏和一屏一黑洞（Windows）。
 
 ## 运行要求
 
@@ -28,8 +25,10 @@
 |------|------|
 | **最低** | Windows 10 1803+ (build 17134)，64 位 |
 | **推荐** | Windows 11 22H2+ (build 22621) |
+| **Linux 已验证环境** | Ubuntu 26.04 / GNOME 50 / Wayland |
 
 > Win10 1803 是 WGC (`Windows.Graphics.Capture`) 的最低版本。Win11 22H2 额外支持 `IsBorderRequired(false)` 进一步抑制黄边框。
+> Linux 后端使用 GNOME Shell 扩展，需 Wayland 会话；其他发行版和 GNOME 版本尚未验证。
 
 ### 显卡兼容性
 
@@ -71,6 +70,8 @@
 
 ### 编译要求
 
+#### Windows (MSYS2 UCRT64)
+
 | 工具 | 版本 | 用途 |
 |------|------|------|
 | **MSYS2** | 最新 | UCRT64 编译环境 |
@@ -79,25 +80,51 @@
 | **GLFW3** | 3.3+ (`pacman -S mingw-w64-ucrt-x86_64-glfw`) | 窗口/输入（ImGui 用） |
 | **Qt 6** | 6.8+ (`qt6-base`, `qt6-declarative`) | 仅 Blakhole_UI 需要 |
 
+#### Linux（本次验证环境）
+
+| 工具 | 版本 | 用途 |
+|------|------|------|
+| **GCC** | 15+ | C++17 编译 |
+| **CMake** | 4.2+ | 构建系统 |
+| **Ninja** | 1.13+ | 构建工具 |
+| **Qt 6** | 6.10+ (`qt6-base-dev`, `qt6-declarative-dev`) | Blakhole_UI 需要 |
+| **GLFW3** | 3.4+ (`libglfw3-dev`) | 渲染器窗口（Linux OpenGL 路径） |
+| **PipeWire** | (`libpipewire-0.3-dev`) | 旧全屏渲染器的 Portal 捕获依赖 |
+
 ---
 ## 快速开始
+
+### Windows
 
 1. 双击 `release\appBlakholeUI.exe`（`release\blackhole.exe` 为旧版 UI / 渲染器入口）
 2. 配置参数 → 点击 **"启动"**
 3. 黑洞在**空闲时自动显示**，动鼠标/键盘即消失
 4. 右下角托盘图标 → 右键可退出
 
+### Linux (Ubuntu GNOME Wayland)
+
+1. 启动 `appBlakholeUI`
+2. 配置参数 → 点击 **"启动黑洞"**
+3. 程序通过 D-Bus 向 GNOME Shell 扩展发送指令，在合成器层实时渲染
+4. 也可在终端使用 D-Bus 直接控制：
+
+   ```bash
+   gdbus call --session --dest io.github.xboxnahida.Blackhole \
+     --object-path /io/github/xboxnahida/Blackhole \
+     --method io.github.xboxnahida.Blackhole.Start
+   gdbus call --session --dest io.github.xboxnahida.Blackhole \
+     --object-path /io/github/xboxnahida/Blackhole \
+     --method io.github.xboxnahida.Blackhole.Stop
+   ```
+
 ---
 
 ### Ubuntu GNOME Wayland 使用须知
 
-- 从 UI 启动的黑洞默认使用生成背景，不会弹出屏幕共享授权。将全屏黑洞本身作为 Portal 桌面捕获源会形成递归反馈，因此实时桌面捕获不用作默认屏保背景。
-
-- “始终显示”会立即启动黑洞；“空闲检测”只在达到设定的空闲时间后启动。
-- 桌面背景首次使用时可能弹出 GNOME 选屏授权；请选择要捕获的显示器。拒绝或超时时会退回生成背景。
-- 授权流程结束且黑洞稳定显示后，按键、鼠标按键或移动超过 10 像素都会结束黑洞，这是屏保式退出行为。
+- Linux 主链路由 Qt UI 通过 D-Bus 控制 GNOME Shell 合成器扩展，不需要 Portal 选屏授权，也不会启动旧全屏渲染器。
+- “始终显示”会立即启动黑洞；“空闲检测”在达到设定时间后启动，用户恢复活动后自动停止。
 - 托盘不可用时，主窗口仍应保留启动、停止和退出入口。
-- 渲染器启动诊断日志位于 `~/.config/XboxNahida/Blakhole UI/blackhole_debug.txt`。
+- 当前 Linux 实机验收平台为 Ubuntu 26.04、GNOME 50、Wayland 和 NVIDIA RTX 3060。
 
 ---
 
@@ -109,6 +136,8 @@
 | **空闲检测** | 空闲 N 秒后显示，活跃时自动隐藏 |
 
 空闲时间在配置页面设置（默认 300 秒）。支持三层检测：D3D 全屏检测、窗口尺寸检测、音视频进程名单匹配。
+
+> Linux 上使用 GNOME idle monitor (D-Bus) + MPRIS 媒体播放检测替代 Windows 三层检测。
 
 ---
 
@@ -129,8 +158,9 @@
 
 | 程序 | 技术栈 | 用途 |
 |------|--------|------|
-| `blackhole.exe` | C++17 / OpenGL+WGL / ImGui | 原始实现：桌面黑洞渲染 + ImGui 配置面板 |
-| `Blakhole_UI/appBlakholeUI.exe` | Qt6 QML / OpenGL FBO | 新版 UI：可视化配置 + 实时预览 + 进程管理 |
+| `blackhole.exe` | C++17 / OpenGL+WGL / ImGui | Windows 原始实现：桌面黑洞渲染 + ImGui 配置面板 |
+| `Blakhole_UI/appBlakholeUI` | Qt6 QML / OpenGL FBO | 新版跨平台 UI：可视化配置 + 实时预览 + 进程管理 |
+| `blackhole@xboxnahida.github.com` | GNOME Shell 扩展 (JS) | Linux 后端：合成器效果 + D-Bus 控制接口 |
 
 ### 源代码模块
 
@@ -167,17 +197,21 @@
 
 | 目录 | 内容 |
 |------|------|
-| `src/` | blackhole.exe 源代码 |
+| `src/` | blackhole.exe 源代码（含 Windows + Linux 双平台入口） |
 | `shaders/` | GLSL/HLSL 着色器 |
-| `Blakhole_UI/` | Qt6/QML 新版配置面板（独立 CMake 项目） |
+| `Blakhole_UI/` | Qt6/QML 跨平台配置面板（独立 CMake 项目） |
+| `gnome-extension/` | GNOME Shell 合成器扩展 |
 | `Doc/` | 技术文档 |
 | `build/` | blackhole.exe 构建输出 |
 | `release/` | 发布目录（exe + DLL + shaders） |
 | `.vscode/` | VS Code 配置 |
+| `packaging/` | Linux 桌面图标和应用元数据 |
 
 ---
 
 ## 编译
+
+### Windows
 
 ```powershell
 # 使用 MSYS2 UCRT64
@@ -193,20 +227,48 @@ D3D11 路径可通过 `CMakeLists.txt` 取消注释以下行启用：
 target_compile_definitions(blackhole PRIVATE BLACKHOLE_USE_D3D11)
 ```
 
+### Linux
+
+```bash
+cmake -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBLACKHOLE_BUILD_UI=ON \
+  -DBLACKHOLE_ENABLE_PORTAL_CAPTURE=ON
+cmake --build build
+
+# 安装（系统级）
+sudo cmake --install build
+
+# 打包为 .deb
+cpack --config build/CPackConfig.cmake -G DEB
+```
+
 ---
 
 ## 技术栈
 
 | 组件 | 技术 | 说明 |
 |------|------|------|
-| **桌面捕获** | WGC / DXGI Desktop Duplication | 自动选择或手动指定捕获方式 |
-| **纹理传输** | CPU 回读 (`Staging → Map → glTexSubImage2D`) | 跨厂商兼容，隔离 GPU 差异 |
-| **渲染** | OpenGL 3.3 + WGL | 原生 Win32 窗口，全屏顶层覆盖 |
+| **桌面捕获 (Win)** | WGC / DXGI Desktop Duplication | 自动选择或手动指定捕获方式 |
+| **纹理传输 (Win)** | CPU 回读 (`Staging → Map → glTexSubImage2D`) | 跨厂商兼容，隔离 GPU 差异 |
+| **渲染 (Win)** | OpenGL 3.3 + WGL | 原生 Win32 窗口，全屏顶层覆盖 |
+| **Linux 后端** | GNOME Shell 扩展 (JS) + D-Bus | 合成器层实时效果，无需 Portal |
+| **桌面捕获 (Linux)** | XDG Desktop Portal (可选) / 生成背景 | 回退到生成背景，避免递归捕获 |
+| **空闲检测 (Win)** | D3D全屏 / 窗口尺寸 / 音频会话 | 三层检测 |
+| **空闲检测 (Linux)** | GNOME idle monitor + MPRIS | D-Bus 空闲 + 媒体播放检测 |
 | **配置面板（旧）** | ImGui | blackhole.exe 内置 |
-| **配置面板（新）** | Qt 6 + QML | Blakhole_UI，独立进程，含实时 FBO 预览 |
-| **构建** | MinGW-w64 (UCRT64) + CMake | |
+| **配置面板（新）** | Qt 6 + QML | 跨平台，独立进程，含实时 FBO 预览 |
+| **构建** | MinGW-w64 (UCRT64) + CMake (Win) / GCC+CMake+Ninja (Linux) | |
 
-> DXGI Duplication 和 D3D11 渲染器代码保留在仓库中，当前未启用。详见 [TECHNICAL.md](TECHNICAL.md)。
+> DXGI Duplication 和 D3D11 渲染器代码保留在仓库中，当前未启用。详见 [Doc/TECHNICAL.md](Doc/TECHNICAL.md)。
+
+---
+
+## 迁移手记
+
+这次 Ubuntu GNOME Wayland 迁移经历了多轮 AI 编码、审查和实机验收。按开发过程中的用量统计与估算，累计消耗约 **5 亿 DeepSeek token**，以及约 **75% 的 Codex Plus 周限额**。期间先后尝试了原生全屏窗口、Portal 桌面捕获和合成器原型等多种方案；在 Wayland 递归捕获与窗口层级限制下，最终转向 **GNOME Shell 扩展 + D-Bus**，才完成可用落地。
+
+这段经历最直接的教训是：构建和单元测试只是起点，桌面合成器效果必须在真实图形会话中反复验收。
 
 
 ## 灵感来源
