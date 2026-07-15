@@ -59,7 +59,9 @@ int main(int argc, char **argv)
         FakeBackend backend;
         GnomeIdleMonitor monitor(&backend);
         require(monitor.state() == GnomeIdleMonitor::Degraded, "initial state is Degraded");
+        require(!monitor.isStarted(), "initial monitor is stopped");
         monitor.start();
+        require(monitor.isStarted(), "start records monitoring enabled independently of state");
         require(monitor.isActive(), "start with both services and watches becomes Active");
         require(monitor.hasIdleWatch() && monitor.hasActiveWatch(), "both watches registered");
         require(backend.lastIdleInterval == 300000, "default idle interval passed to backend");
@@ -145,6 +147,7 @@ int main(int argc, char **argv)
         QObject::connect(&monitor, &GnomeIdleMonitor::idleEligible, [&] { emitted = true; });
         monitor.start();
         monitor.stop();
+        require(!monitor.isStarted(), "stop records monitoring disabled");
         monitor.handleWatchFired(11);
         monitor.handleScreenSaverActiveChanged(true);
         monitor.handleServiceRegistered(kIdleService);

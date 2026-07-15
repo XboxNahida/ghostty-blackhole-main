@@ -7,7 +7,7 @@ import Shell from 'gi://Shell';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {BlackholePrototypeEffect} from './effect.js';
+import {BlackholePrototypeEffect, ConfiguredShaderCache} from './effect.js';
 
 const BUS_NAME = 'io.github.xboxnahida.Blackhole';
 const OBJECT_PATH = '/io/github/xboxnahida/Blackhole';
@@ -37,8 +37,11 @@ export default class BlackholeExtension extends Extension {
     enable() {
         this._running = false;
         this._effects = [];
+        this._unredirectDisabled = false;
+        this._restoreUnredirectId = 0;
         this._settings = this.getSettings();
         this._shortcutRegistered = false;
+        this._shaderCache = new ConfiguredShaderCache(this.path);
         this._shortcutSettingsChangedId = this._settings.connect(
             'changed', (_settings, key) => {
                 if (key === 'shortcut-enabled' || key === STOP_SHORTCUT)
@@ -47,12 +50,15 @@ export default class BlackholeExtension extends Extension {
 
         // Apply the effect to Mutter's real paint actors.  A Clutter.Clone
         // overlay only receives source damage intermittently and obscures the
-        // live windows with a stale snapshot.
+        // live windows with a stale snapshot. Fullscreen direct scanout is
+        // disabled separately while running so these actors remain in the
+        // compositor path.
+        const configured = this._shaderCache.get();
         for (const [index, actor] of [
             Main.layoutManager._backgroundGroup,
             global.window_group,
         ].entries()) {
-            const effect = new BlackholePrototypeEffect(this.path);
+            const effect = new BlackholePrototypeEffect(configured);
             actor.add_effect_with_name(`${EFFECT_NAME}-${index}`, effect);
             this._effects.push({actor, effect, name: `${EFFECT_NAME}-${index}`});
         }
@@ -77,9 +83,17 @@ export default class BlackholeExtension extends Extension {
         }
         this._settings = null;
         this.Stop();
+        for (const {effect} of this._effects ?? [])
+            effect.stopImmediately();
+        if (this._restoreUnredirectId) {
+            GLib.source_remove(this._restoreUnredirectId);
+            this._restoreUnredirectId = 0;
+        }
+        this._restoreUnredirect();
         for (const {actor, name} of this._effects ?? [])
             actor.remove_effect_by_name(name);
         this._effects = [];
+        this._shaderCache = null;
 
         if (this._dbus) {
             this._dbus.unexport();
@@ -94,13 +108,19 @@ export default class BlackholeExtension extends Extension {
 
     Start() {
         this._running = true;
+        if (this._restoreUnredirectId) {
+            GLib.source_remove(this._restoreUnredirectId);
+            this._restoreUnredirectId = 0;
+        }
+        this._disableUnredirect();
         // Both compositor actors must share one spawn or their distortion
         // fields would not line up. Keep enough edge margin for the entrance.
         const homeX = 0.18 + Math.random() * 0.64;
         const homeY = 0.18 + Math.random() * 0.64;
         const phase = Math.random() * Math.PI * 2.0;
+        const configured = this._shaderCache.get();
         for (const {effect} of this._effects) {
-            effect.reloadConfig();
+            effect.applyConfiguredShader(configured);
             effect.prepareStart(homeX, homeY, phase);
             effect.setRunning(true);
         }
@@ -109,8 +129,9 @@ export default class BlackholeExtension extends Extension {
     }
 
     ReloadConfig() {
+        const configured = this._shaderCache.get(true);
         for (const {effect} of this._effects)
-            effect.reloadConfig();
+            effect.applyConfiguredShader(configured);
         console.log('[blackhole] configuration reloaded');
     }
 
@@ -118,8 +139,45 @@ export default class BlackholeExtension extends Extension {
         this._running = false;
         for (const {effect} of this._effects ?? [])
             effect.setRunning(false);
+        if (this._unredirectDisabled && !this._restoreUnredirectId) {
+            // Keep fullscreen surfaces composited until the 650 ms exit
+            // transition has finished, then restore Mutter's direct-scanout
+            // optimization while the effect is idle.
+            this._restoreUnredirectId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT, 700, () => {
+                    this._restoreUnredirectId = 0;
+                    this._restoreUnredirect();
+                    return GLib.SOURCE_REMOVE;
+                });
+        }
         this._dbus?.emit_property_changed('Running', new GLib.Variant('b', false));
         console.log('[blackhole] effect stopped');
+    }
+
+    _disableUnredirect() {
+        if (this._unredirectDisabled)
+            return;
+        if (Meta.disable_unredirect_for_display !== undefined)
+            Meta.disable_unredirect_for_display(global.display);
+        else if (global.compositor.disable_unredirect !== undefined)
+            global.compositor.disable_unredirect();
+        else {
+            console.warn('[blackhole] Mutter does not expose an unredirect control API');
+            return;
+        }
+        this._unredirectDisabled = true;
+        console.log('[blackhole] fullscreen direct scanout disabled');
+    }
+
+    _restoreUnredirect() {
+        if (!this._unredirectDisabled)
+            return;
+        if (Meta.enable_unredirect_for_display !== undefined)
+            Meta.enable_unredirect_for_display(global.display);
+        else if (global.compositor.enable_unredirect !== undefined)
+            global.compositor.enable_unredirect();
+        this._unredirectDisabled = false;
+        console.log('[blackhole] fullscreen direct scanout restored');
     }
 
     GetState() {

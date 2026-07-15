@@ -315,6 +315,10 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     connect(m_gnomeIdle, &GnomeIdleMonitor::lockDetected, this, [this]() {
         stopRendererWithReason("GNOME screen lock detected");
     });
+    connect(m_gnomeIdle, &GnomeIdleMonitor::stateChanged, this, [this]() {
+        updateLinuxIdleDetectionState();
+        emit systemActiveChanged();
+    });
     connect(this, &BlackHoleCore::rendererStarted, this, [this]() {
         m_gnomeIdle->setRendererRunning(true);
     });
@@ -329,6 +333,7 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
             // Media is playing and video-as-idle is off: stop renderer
             stopRendererWithReason("MPRIS player entered Playing state");
         }
+        updateLinuxIdleDetectionState();
     });
     if (!QDBusConnection::sessionBus().connect(
             QString::fromLatin1(kBlackholeBus),
@@ -1264,13 +1269,24 @@ void BlackHoleCore::applyAndStart()
         // 始终显示模式: 直接启动渲染器
         startRenderer();
     } else {
-        // 空闲检测模式: 启动定时器，等待空闲时自动启动
+        // 空闲检测模式: 等待空闲时自动启动
         stopRendererWithReason("applyAndStart switched to idle-detection mode");
+#ifdef Q_OS_WIN
         if (m_idleTimer && !m_idleTimer->isActive()) {
             m_idleTimer->start();
             emit systemActiveChanged();
             qDebug() << "BlackHoleCore: idle detection started, waiting for idle...";
         }
+#else
+        if (m_gnomeIdle) {
+            m_gnomeIdle->setIdleSeconds(m_idleSeconds);
+            m_gnomeIdle->start();
+        }
+        if (m_mpris) m_mpris->start();
+        updateLinuxIdleDetectionState();
+        emit systemActiveChanged();
+        qDebug() << "BlackHoleCore: event-driven idle detection started, waiting for idle...";
+#endif
     }
 }
 
@@ -1300,13 +1316,14 @@ bool BlackHoleCore::rendererRunning() const
 
 bool BlackHoleCore::isSystemActive() const
 {
-    if (m_idleTimer && m_idleTimer->isActive()) return true;
 #ifndef Q_OS_WIN
-    return compositorRunning();
-#endif
+    return (m_gnomeIdle && m_gnomeIdle->isStarted()) || compositorRunning();
+#else
+    if (m_idleTimer && m_idleTimer->isActive()) return true;
     for (const auto *p : m_rendererProcesses)
         if (p->state() != QProcess::NotRunning) return true;
     return false;
+#endif
 }
 
 // ====== 属性访问器 ======
@@ -1327,7 +1344,15 @@ void BlackHoleCore::setDisplayMode(int mode) {
 }
 
 int BlackHoleCore::idleSeconds() const        { return m_idleSeconds; }
-void BlackHoleCore::setIdleSeconds(int sec)   { if (m_idleSeconds != sec) { m_idleSeconds = sec; emit idleSecondsChanged(); } }
+void BlackHoleCore::setIdleSeconds(int sec)   {
+    if (m_idleSeconds == sec) return;
+    m_idleSeconds = sec;
+#ifndef Q_OS_WIN
+    if (m_gnomeIdle) m_gnomeIdle->setIdleSeconds(sec);
+    updateLinuxIdleDetectionState();
+#endif
+    emit idleSecondsChanged();
+}
 
 int BlackHoleCore::playMode() const           { return m_playMode; }
 void BlackHoleCore::setPlayMode(int m)        { if (m_playMode != m) { m_playMode = m; emit playModeChanged(); } }
@@ -1910,30 +1935,25 @@ check_foreground_done:
         }
     }
 #else
-    // Linux: delegate to GnomeIdleMonitor
-    if (m_gnomeIdle) {
-        if (m_displayMode != 1) {
-            setIdleDetectionState(tr("空闲检测未启用"), false);
-            m_gnomeIdle->stop();
-            return;
-        }
-        m_gnomeIdle->setIdleSeconds(m_idleSeconds);
-        if (m_gnomeIdle->state() == GnomeIdleMonitor::Degraded) {
-            m_gnomeIdle->start();
-        }
-        // MPRIS: start monitoring if not started
-        if (m_mpris) {
-            m_mpris->start();
-        }
-        // Check if media is playing (suppresses idle start)
-        if (m_mpris && m_mpris->isPlaying() && !m_videoAsIdle) {
-            setIdleDetectionState(tr("正在播放媒体，不启动黑洞"), false);
-        } else {
-            setIdleDetectionState(tr("等待用户空闲 %1 秒").arg(m_idleSeconds), false);
-        }
-    }
+    // Linux is event-driven; this slot is only connected to the Windows timer.
+    updateLinuxIdleDetectionState();
 #endif
 }
+
+#ifndef Q_OS_WIN
+void BlackHoleCore::updateLinuxIdleDetectionState()
+{
+    if (m_displayMode != 1 || !m_gnomeIdle || !m_gnomeIdle->isStarted()) {
+        setIdleDetectionState(tr("空闲检测未启用"), false);
+        return;
+    }
+    if (m_mpris && m_mpris->isPlaying() && !m_videoAsIdle) {
+        setIdleDetectionState(tr("正在播放媒体，不启动黑洞"), false);
+        return;
+    }
+    setIdleDetectionState(tr("等待用户空闲 %1 秒").arg(m_idleSeconds), false);
+}
+#endif
 // ====== 高级设置 getter/setter ======
 
 bool BlackHoleCore::followMouse() const { return m_followMouse; }

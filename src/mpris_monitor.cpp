@@ -9,10 +9,15 @@
 #include <QDebug>
 #include <QPointer>
 #include <QSet>
+#include <QTimer>
 
 static const QString kDBusBusName = QStringLiteral("org.freedesktop.DBus");
 static const QString kDBusPath    = QStringLiteral("/org/freedesktop/DBus");
 static const QString kDBusInterface = QStringLiteral("org.freedesktop.DBus");
+static const QString kMprisPrefix = QStringLiteral("org.mpris.MediaPlayer2.");
+static const QString kPlayerPath = QStringLiteral("/org/mpris/MediaPlayer2");
+static const QString kPropertiesInterface = QStringLiteral("org.freedesktop.DBus.Properties");
+static const QString kPlayerInterface = QStringLiteral("org.mpris.MediaPlayer2.Player");
 // Default backend. Pending calls keep all D-Bus waits off the UI thread; the
 // monitor owns the overall deadline and ignores callbacks from expired polls.
 class MprisDBusBackend : public MprisBackend
@@ -31,12 +36,27 @@ public:
             QStringList players;
             QDBusPendingReply<QStringList> reply = *watcher;
             if (!reply.isError()) {
-                static const QString prefix = QStringLiteral("org.mpris.MediaPlayer2.");
                 for (const QString &name : reply.value())
-                    if (name.startsWith(prefix)) players.append(name);
+                    if (name.startsWith(kMprisPrefix)) players.append(name);
             }
             watcher->deleteLater();
             callback(std::move(players));
+        });
+    }
+
+    void queryOwner(const QString &serviceName,
+                    OwnerCallback callback) override
+    {
+        QDBusInterface dbus(kDBusBusName, kDBusPath, kDBusInterface,
+                            QDBusConnection::sessionBus());
+        auto *watcher = new QDBusPendingCallWatcher(
+            dbus.asyncCall(QStringLiteral("GetNameOwner"), serviceName), m_context);
+        QObject::connect(watcher, &QDBusPendingCallWatcher::finished, m_context,
+                         [watcher, callback = std::move(callback)]() mutable {
+            QDBusPendingReply<QString> reply = *watcher;
+            const QString owner = reply.isError() ? QString() : reply.value();
+            watcher->deleteLater();
+            callback(owner);
         });
     }
 
@@ -90,32 +110,26 @@ void MprisMonitor::start()
         m_backend = new MprisDBusBackend(this);
         m_ownsBackend = true;
     }
-    if (!m_pollTimer) {
-        m_pollTimer = new QTimer(this);
-        m_pollTimer->setInterval(kPollIntervalMs);
-        connect(m_pollTimer, &QTimer::timeout, this, [this]() {
-            pollPlayers();
-        });
-    }
     if (m_started) return;
     m_started = true;
-    pollPlayers();
-    m_pollTimer->start();
+    subscribeToDBus();
+    initialSync();
 }
 
 void MprisMonitor::stop()
 {
-    if (m_pollTimer) m_pollTimer->stop();
+    unsubscribeFromDBus();
     m_started = false;
     ++m_generation;
     m_playerStatus.clear();
+    m_ownerToPlayer.clear();
     m_pendingPlayers.clear();
     m_pendingStatus.clear();
     m_pollActive = false;
     m_anyPlaying = false;
 }
 
-void MprisMonitor::pollPlayers()
+void MprisMonitor::initialSync()
 {
     if (!m_backend || m_pollActive) return;
 
@@ -134,6 +148,10 @@ void MprisMonitor::pollPlayers()
             return;
         }
         for (const QString &service : std::as_const(players)) {
+            self->m_backend->queryOwner(service, [self, generation, service](QString owner) {
+                if (!self || !self->m_started || generation != self->m_generation || owner.isEmpty()) return;
+                self->m_ownerToPlayer.insert(owner, service);
+            });
             self->m_backend->queryPlaybackStatus(service, [self, generation, service](QString status) {
                 if (!self || !self->m_started || generation != self->m_generation || !self->m_pollActive) return;
                 self->m_pendingStatus.insert(service, std::move(status));
@@ -142,6 +160,87 @@ void MprisMonitor::pollPlayers()
             });
         }
     });
+}
+
+void MprisMonitor::queryPlayer(const QString &service, quint64 generation)
+{
+    if (!m_backend || service.isEmpty()) return;
+    QPointer<MprisMonitor> self(this);
+    m_backend->queryPlaybackStatus(service, [self, generation, service](QString status) {
+        if (!self || !self->m_started || generation != self->m_generation) return;
+        self->m_playerStatus.insert(service, std::move(status));
+        self->updatePlaying();
+    });
+}
+
+void MprisMonitor::subscribeToDBus()
+{
+    auto bus = QDBusConnection::sessionBus();
+    bus.connect(kDBusBusName, kDBusPath, kDBusInterface,
+                QStringLiteral("NameOwnerChanged"), this,
+                SLOT(onNameOwnerChanged(QString,QString,QString)));
+    bus.connect(QString(), kPlayerPath, kPropertiesInterface,
+                QStringLiteral("PropertiesChanged"), this,
+                SLOT(onPropertiesChanged(QString,QVariantMap,QStringList)));
+}
+
+void MprisMonitor::unsubscribeFromDBus()
+{
+    auto bus = QDBusConnection::sessionBus();
+    bus.disconnect(kDBusBusName, kDBusPath, kDBusInterface,
+                   QStringLiteral("NameOwnerChanged"), this,
+                   SLOT(onNameOwnerChanged(QString,QString,QString)));
+    bus.disconnect(QString(), kPlayerPath, kPropertiesInterface,
+                   QStringLiteral("PropertiesChanged"), this,
+                   SLOT(onPropertiesChanged(QString,QVariantMap,QStringList)));
+}
+
+void MprisMonitor::onNameOwnerChanged(const QString &name,
+                                      const QString &oldOwner,
+                                      const QString &newOwner)
+{
+    handleNameOwnerChanged(name, oldOwner, newOwner);
+}
+
+void MprisMonitor::onPropertiesChanged(const QString &interfaceName,
+                                       const QVariantMap &changedProperties,
+                                       const QStringList &invalidatedProperties)
+{
+    handlePropertiesChanged(m_ownerToPlayer.value(message().service()), interfaceName,
+                            changedProperties, invalidatedProperties);
+}
+
+void MprisMonitor::handleNameOwnerChanged(const QString &name,
+                                          const QString &oldOwner,
+                                          const QString &newOwner)
+{
+    if (!m_started || !name.startsWith(kMprisPrefix)) return;
+
+    if (!oldOwner.isEmpty()) m_ownerToPlayer.remove(oldOwner);
+    if (newOwner.isEmpty()) {
+        m_playerStatus.remove(name);
+        updatePlaying();
+        return;
+    }
+
+    m_ownerToPlayer.insert(newOwner, name);
+    queryPlayer(name, m_generation);
+}
+
+void MprisMonitor::handlePropertiesChanged(const QString &service,
+                                           const QString &interfaceName,
+                                           const QVariantMap &changedProperties,
+                                           const QStringList &invalidatedProperties)
+{
+    if (!m_started || service.isEmpty() || interfaceName != kPlayerInterface) return;
+
+    const auto status = changedProperties.constFind(QStringLiteral("PlaybackStatus"));
+    if (status != changedProperties.constEnd()) {
+        m_playerStatus.insert(service, status->toString());
+        updatePlaying();
+    } else if (invalidatedProperties.contains(QStringLiteral("PlaybackStatus"))) {
+        queryPlayer(service, m_generation);
+    }
 }
 
 void MprisMonitor::finishPoll(quint64 generation)

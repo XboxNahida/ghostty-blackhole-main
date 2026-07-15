@@ -32,33 +32,28 @@ SystemTray::SystemTray(QObject *parent)
 
 SystemTray::SystemTray(bool available, QObject *parent)
     : QObject(parent)
-    , m_tray(new QSystemTrayIcon(this))
+    , m_tray(nullptr)
     , m_menu(new QMenu())
     , m_window(nullptr)
     , m_available(available)
 {
-    m_tray->setIcon(QIcon(":/new/prefix1/fonts/icon.ico"));
-    if (m_tray->icon().isNull())
-        m_tray->setIcon(QIcon::fromTheme(QStringLiteral("application-x-executable")));
-    m_tray->setToolTip("Blakhole UI");
-
     QAction *showAction = m_menu->addAction("显示窗口");
     QAction *exitAction = m_menu->addAction("退出");
 
     connect(showAction, &QAction::triggered, this, [this]() {
-        if (m_window) {
-            m_window->show();
-            m_window->raise();
-            m_window->requestActivate();
-        }
-        m_tray->hide();
-        emit visibleChanged();
+        hide();
     });
 
     connect(exitAction, &QAction::triggered, this, [this]() {
         emit exitRequested();
     });
 
+#ifdef Q_OS_WIN
+    m_tray = new QSystemTrayIcon(this);
+    m_tray->setIcon(QIcon(":/new/prefix1/fonts/icon.ico"));
+    if (m_tray->icon().isNull())
+        m_tray->setIcon(QIcon::fromTheme(QStringLiteral("application-x-executable")));
+    m_tray->setToolTip("Blakhole UI");
     m_tray->setContextMenu(m_menu);
 
     connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
@@ -72,8 +67,11 @@ SystemTray::SystemTray(bool available, QObject *parent)
             emit visibleChanged();
         }
     });
-
-#ifndef Q_OS_WIN
+#else
+    // GNOME uses the StatusNotifierItem exported below. Constructing a second
+    // QSystemTrayIcon on Linux also registers Qt's legacy tray item; with the
+    // bundled ICO Qt produced an unreadable temporary PNG, leaving a blank
+    // indicator beside the real item.
     if (m_available)
         m_available = registerStatusNotifier();
 #endif
@@ -91,7 +89,9 @@ bool SystemTray::isVisible() const
 void SystemTray::setVisible(bool v)
 {
     if (v && !m_available) {
+#ifdef Q_OS_WIN
         m_tray->hide();
+#endif
         if (m_window) m_window->show();
         emit visibleChanged();
         return;
@@ -108,7 +108,9 @@ void SystemTray::show()
 {
     if (!m_available) {
         if (m_window) { m_window->show(); m_window->raise(); m_window->requestActivate(); }
+#ifdef Q_OS_WIN
         m_tray->hide();
+#endif
         emit visibleChanged();
         return;
     }
@@ -117,7 +119,10 @@ void SystemTray::show()
 #else
     m_tray->show();
 #endif
-    if (m_window) m_window->hide();
+    if (m_window) {
+        m_window->hide();
+        m_window->releaseResources();
+    }
     emit visibleChanged();
 }
 
@@ -199,7 +204,10 @@ void SystemTray::SecondaryActivate(int x, int y)
 
 void SystemTray::ContextMenu(int x, int y)
 {
-    Activate(x, y);
+    if (m_menu)
+        m_menu->popup(QPoint(x, y));
+    else
+        Activate(x, y);
 }
 
 void SystemTray::Scroll(int, const QString &)

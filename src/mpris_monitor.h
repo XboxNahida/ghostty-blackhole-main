@@ -2,15 +2,16 @@
 #pragma once
 
 #include <QObject>
-#include <QTimer>
+#include <QDBusContext>
 #include <QHash>
 #include <QSet>
+#include <QVariantMap>
 
 #include "mpris_backend.h"
 
 // Monitors MPRIS MediaPlayer2 services for playback status.
 // Uses injectable MprisBackend for D-Bus communication.
-class MprisMonitor : public QObject
+class MprisMonitor : public QObject, protected QDBusContext
 {
     Q_OBJECT
 public:
@@ -27,20 +28,42 @@ public:
     void start();
     void stop();
 
+    // Event entry points are public so the D-Bus-independent tests exercise
+    // the same cache transitions as the production signal handlers.
+    void handleNameOwnerChanged(const QString &name,
+                                const QString &oldOwner,
+                                const QString &newOwner);
+    void handlePropertiesChanged(const QString &service,
+                                 const QString &interfaceName,
+                                 const QVariantMap &changedProperties,
+                                 const QStringList &invalidatedProperties);
+
 signals:
     void playingChanged(bool playing);
 
 private:
-    void pollPlayers();
+    void initialSync();
     void finishPoll(quint64 generation);
+    void queryPlayer(const QString &service, quint64 generation);
+    void subscribeToDBus();
+    void unsubscribeFromDBus();
     void updatePlaying();
 
-    QTimer *m_pollTimer = nullptr;
+private slots:
+    void onNameOwnerChanged(const QString &name,
+                            const QString &oldOwner,
+                            const QString &newOwner);
+    void onPropertiesChanged(const QString &interfaceName,
+                             const QVariantMap &changedProperties,
+                             const QStringList &invalidatedProperties);
+
+private:
     MprisBackend *m_backend = nullptr;
     bool m_ownsBackend = false;
 
     // Per-player playback status cache
     QHash<QString, QString> m_playerStatus;
+    QHash<QString, QString> m_ownerToPlayer;
 
     bool m_anyPlaying = false;
     bool m_pollActive = false;
@@ -48,6 +71,5 @@ private:
     quint64 m_generation = 0;
     QSet<QString> m_pendingPlayers;
     QHash<QString, QString> m_pendingStatus;
-    static constexpr int kPollIntervalMs = 2000;
     static constexpr int kMaxPollMs = 500;
 };

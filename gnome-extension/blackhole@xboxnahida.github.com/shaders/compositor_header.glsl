@@ -11,14 +11,6 @@ uniform sampler2D iChannel0;
 #define iTimeCursorChange 0.0
 #define iMouse vec4(0.0)
 
-uniform float uHoleRadius;
-uniform float uDiskGain;
-uniform float uDiskTemp;
-uniform float uExposure;
-uniform float uSpeed;
-uniform float uStarGain;
-uniform float uDiskIncl;
-uniform float uBornProgress;
 uniform float uTransition;
 
 uniform int uFixedSize;
@@ -26,7 +18,6 @@ uniform float uFixedLevel;
 uniform int uGrowEnabled;
 uniform float uInitialSize;
 uniform int uLightingEffect;
-uniform float uDistortion;
 
 #define MAX_PRESETS 64
 uniform int uPresetCount;
@@ -46,12 +37,10 @@ uniform float uPresetExpo[MAX_PRESETS];
 uniform float uPresetStar[MAX_PRESETS];
 
 uniform int uPlayMode;
-uniform float uSlotSec;
 uniform float uHomeX;
 uniform float uHomeY;
 uniform int uFollowMouse;
 uniform float uRandPhase;
-uniform float uPresetOffset;
 
 // Cogl's snippet compiler supplies the output and texture coordinates.
 #define texture texture2D

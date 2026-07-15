@@ -14,10 +14,15 @@ struct MprisBackend {
     // Enumerate MPRIS services on session bus
     using PlayersCallback = std::function<void(QStringList)>;
     using StatusCallback = std::function<void(QString)>;
+    using OwnerCallback = std::function<void(QString)>;
 
     virtual void enumeratePlayers(PlayersCallback callback) = 0;
 
     // Query a single player's PlaybackStatus; returns empty on error/timeout
     virtual void queryPlaybackStatus(const QString &serviceName,
                                      StatusCallback callback) = 0;
+
+    // Resolve the unique bus owner used as the sender of PropertiesChanged.
+    virtual void queryOwner(const QString &serviceName,
+                            OwnerCallback callback) = 0;
 };

@@ -22,6 +22,7 @@ public:
     State state() const { return m_state; }
     bool isLocked() const { return m_state == Locked; }
     bool isActive() const { return m_state == Active; }
+    bool isStarted() const { return m_started; }
     bool isIdleEligible() const { return m_state == IdleEligible; }
     bool isRendererRunning() const { return m_state == RendererRunning; }
     QString stateName() const;

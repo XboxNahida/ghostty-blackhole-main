@@ -40,5 +40,6 @@ int main(int argc, char **argv) {
 
     QQuickWindow window;
     SystemTray tray(false, nullptr); tray.setWindow(&window); tray.show();
+    assert(tray.sniIconName() == QStringLiteral("io.github.xboxnahida.Blakhole-tray-symbolic"));
     assert(!tray.isVisible()); assert(window.isVisible());
 }

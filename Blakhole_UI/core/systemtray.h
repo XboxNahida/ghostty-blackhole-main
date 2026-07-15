@@ -38,7 +38,7 @@ public:
     QString sniId() const { return QStringLiteral("io.github.xboxnahida.Blakhole"); }
     QString sniTitle() const { return QStringLiteral("Blakhole Ubuntu Local"); }
     QString sniStatus() const { return m_sniVisible ? QStringLiteral("Active") : QStringLiteral("Passive"); }
-    QString sniIconName() const { return QStringLiteral("io.github.xboxnahida.Blakhole"); }
+    QString sniIconName() const { return QStringLiteral("io.github.xboxnahida.Blakhole-tray-symbolic"); }
     QDBusObjectPath sniMenu() const { return QDBusObjectPath(QStringLiteral("/NO_DBUSMENU")); }
     bool sniItemIsMenu() const { return false; }
 #endif

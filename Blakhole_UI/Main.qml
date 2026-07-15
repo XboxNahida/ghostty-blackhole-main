@@ -9,7 +9,7 @@ import "pages" as Pages
 
 ApplicationWindow {
     id: root
-    visible: true
+    visible: !startMinimized
     width: 1400
     height: 800
     minimumWidth: 1400
@@ -80,6 +80,11 @@ ApplicationWindow {
     property string closeHotkeySequence: blackHoleCore ? blackHoleCore.closeHotkeySequence : "Ctrl+Alt+B"
     property string closeHotkeyStatus: blackHoleCore ? blackHoleCore.closeHotkeyStatus : ""
     property bool recordingHotkey: false
+    property bool uiActivated: !startMinimized
+
+    onVisibleChanged: {
+        if (visible) uiActivated = true
+    }
 
     function navigateToAbout() {
         if (root.currentPageIndex === root.aboutPageIndex) return
@@ -401,10 +406,17 @@ ApplicationWindow {
             anchors.bottomMargin: 20
 
             // 黑洞配置页面
-            Pages.BlackholeConfig {
-                bhCore: blackHoleCore
+            Loader {
+                id: blackholeConfigLoader
                 anchors.fill: parent
+                active: root.uiActivated
                 visible: root.currentPageIndex === 0
+                sourceComponent: Component {
+                    Pages.BlackholeConfig {
+                        bhCore: blackHoleCore
+                        previewsEnabled: root.visible && root.currentPageIndex === 0
+                    }
+                }
             }
 
             // 高级设置页面

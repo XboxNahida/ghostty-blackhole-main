@@ -111,6 +111,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("updateChecker", &updateChecker);
 #endif
     blackHoleCore.loadConfig();
+    const bool startMinimized = minimizedArgument || blackHoleCore.launchMinimized();
+    engine.rootContext()->setContextProperty("startMinimized", startMinimized);
 
     // MSYS2 的 Qt6 编译时硬编码 QML 导入路径为 <exe_dir>/share/qt6/qml/,
     // 但 windeployqt6 把 QML 模块部署到 <exe_dir>/qml/. 两者不匹配,
@@ -132,6 +134,11 @@ int main(int argc, char *argv[])
     if (!rootObjects.isEmpty()) {
         QQuickWindow *window = qobject_cast<QQuickWindow*>(rootObjects.first());
         if (window) {
+            // The tray workflow hides the only QQuickWindow for long periods.
+            // Let Qt tear down scene-graph and graphics resources while it is
+            // hidden; previews are recreated lazily on the next activation.
+            window->setPersistentGraphics(false);
+            window->setPersistentSceneGraph(false);
 #ifdef Q_OS_WIN
             HWND hwnd = reinterpret_cast<HWND>(window->winId());
             int cornerPreference = 2;
@@ -157,7 +164,7 @@ int main(int argc, char *argv[])
                 // policy. In always-on mode this starts the effect immediately;
                 // in idle mode it arms GNOME IdleMonitor and waits for the
                 // configured threshold.
-                if (minimizedArgument || blackHoleCore.launchMinimized()) {
+                if (startMinimized) {
                     tray->show();
                     blackHoleCore.applyAndStart();
                 }

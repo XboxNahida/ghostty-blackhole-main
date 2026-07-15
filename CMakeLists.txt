@@ -251,6 +251,12 @@ endif()
 # Tests
 # ══════════════════════════════════════════════════════════════
 if(BUILD_TESTING)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    add_test(NAME gnome_uniform_usage_test
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_SOURCE_DIR}/tests/gnome_uniform_usage_test.py")
+
     add_executable(shader_source_tests EXCLUDE_FROM_ALL
         tests/shader_source_tests.cpp
         src/render/shader_source.cpp

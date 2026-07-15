@@ -595,5 +595,6 @@ private slots:
     void checkIdle();
 #ifndef Q_OS_WIN
     void handleGlobalStopShortcut();
+    void updateLinuxIdleDetectionState();
 #endif
 };

@@ -14,6 +14,11 @@ Item {
 
     // === 鐎殿喗娲滈弫?BlackHoleCore (闁?main.cpp 婵炲鍔岄崣鍡涘冀闁稓鐟愬☉鎾愁儐閺? ===
     property var bhCore: null
+    property bool previewsEnabled: true
+
+    onPreviewsEnabledChanged: {
+        if (!previewsEnabled) largePreviewLoader.active = false
+    }
 
     // === 鐟滅増鎸告晶鐘绘焻婢跺鍘Λ鏉垮椤?===
     property int currentPresetIndex: bhCore ? bhCore.currentPresetIndex : 0
@@ -253,33 +258,40 @@ Item {
                     border.color: theme.borderColor
                     border.width: 1
 
-                    Components.BlackholePreviewArea {
-                        id: blackholePreviewFBO
+                    Loader {
+                        id: previewLoader
                         anchors.fill: parent
                         anchors.margins: 4
+                        active: configPage.previewsEnabled
+                        sourceComponent: Component {
+                            Components.BlackholePreviewArea {
+                                diskTemp:  configPage.diskTemp
+                                diskIncl:  configPage.diskIncl
+                                diskRoll:  configPage.diskRoll
+                                diskInner: configPage.diskInner
+                                diskOuter: configPage.diskOuter
+                                diskOpac:  configPage.diskOpac
+                                diskDopp:  configPage.diskDopp
+                                diskBeam:  configPage.diskBeam
+                                diskGain:  configPage.diskGain
+                                diskContr: configPage.diskContr
+                                diskWind:  configPage.diskWind
+                                diskSpeed: configPage.diskSpeed
+                                diskExpo:  configPage.diskExpo
+                                diskStar:  configPage.diskStar
+                                holeSize: bhCore ? bhCore.holeSize : 1.0
+                                movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
+                                animationSpeed: bhCore ? bhCore.animationSpeed : 1.0
+                                fixedSize: bhCore ? bhCore.fixedSize : false
+                                fixedLevel: bhCore ? bhCore.fixedLevel : 1.0
+                                running: configPage.previewsEnabled
 
-                        diskTemp:  configPage.diskTemp
-                        diskIncl:  configPage.diskIncl
-                        diskRoll:  configPage.diskRoll
-                        diskInner: configPage.diskInner
-                        diskOuter: configPage.diskOuter
-                        diskOpac:  configPage.diskOpac
-                        diskDopp:  configPage.diskDopp
-                        diskBeam:  configPage.diskBeam
-                        diskGain:  configPage.diskGain
-                        diskContr: configPage.diskContr
-                        diskWind:  configPage.diskWind
-                        diskSpeed: configPage.diskSpeed
-                        diskExpo:  configPage.diskExpo
-                        diskStar:  configPage.diskStar
-                        holeSize: bhCore ? bhCore.holeSize : 1.0
-                        movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
-                        animationSpeed: bhCore ? bhCore.animationSpeed : 1.0
-                        fixedSize: bhCore ? bhCore.fixedSize : false
-                        fixedLevel: bhCore ? bhCore.fixedLevel : 1.0
-                        running:   true
-
-                        onEnlargeRequested: largePreview.open()
+                                onEnlargeRequested: {
+                                    largePreviewLoader.active = true
+                                    largePreviewLoader.item.open()
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -717,27 +729,32 @@ Item {
     }
 
 // ========== 闁衡偓閹佷海濡澘瀚～宥咁嚕閸︻厾宕?==========
-    Components.BlackholeLargePreview {
-        id: largePreview
-
-        diskTemp:  configPage.diskTemp
-        diskIncl:  configPage.diskIncl
-        diskRoll:  configPage.diskRoll
-        diskInner: configPage.diskInner
-        diskOuter: configPage.diskOuter
-        diskOpac:  configPage.diskOpac
-        diskDopp:  configPage.diskDopp
-        diskBeam:  configPage.diskBeam
-        diskGain:  configPage.diskGain
-        diskContr: configPage.diskContr
-        diskWind:  configPage.diskWind
-        diskSpeed: configPage.diskSpeed
-        diskExpo:  configPage.diskExpo
-        diskStar:  configPage.diskStar
-        holeSize: bhCore ? bhCore.holeSize : 1.0
-        movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
-        animationSpeed: bhCore ? bhCore.animationSpeed : 1.0
-        fixedSize: bhCore ? bhCore.fixedSize : false
-        fixedLevel: bhCore ? bhCore.fixedLevel : 1.0
+    Loader {
+        id: largePreviewLoader
+        active: false
+        sourceComponent: Component {
+            Components.BlackholeLargePreview {
+                diskTemp:  configPage.diskTemp
+                diskIncl:  configPage.diskIncl
+                diskRoll:  configPage.diskRoll
+                diskInner: configPage.diskInner
+                diskOuter: configPage.diskOuter
+                diskOpac:  configPage.diskOpac
+                diskDopp:  configPage.diskDopp
+                diskBeam:  configPage.diskBeam
+                diskGain:  configPage.diskGain
+                diskContr: configPage.diskContr
+                diskWind:  configPage.diskWind
+                diskSpeed: configPage.diskSpeed
+                diskExpo:  configPage.diskExpo
+                diskStar:  configPage.diskStar
+                holeSize: bhCore ? bhCore.holeSize : 1.0
+                movementSpeed: bhCore ? bhCore.movementSpeed : 1.0
+                animationSpeed: bhCore ? bhCore.animationSpeed : 1.0
+                fixedSize: bhCore ? bhCore.fixedSize : false
+                fixedLevel: bhCore ? bhCore.fixedLevel : 1.0
+                onClosed: largePreviewLoader.active = false
+            }
+        }
     }
 }

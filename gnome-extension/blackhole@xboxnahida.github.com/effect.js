@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
@@ -67,9 +68,34 @@ function number(value, fallback) {
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function readConfig() {
+function configPaths() {
     const dir = GLib.build_filenamev([
         GLib.get_user_config_dir(), 'XboxNahida', 'Blakhole UI']);
+    return [
+        GLib.build_filenamev([dir, 'blackhole_presets.txt']),
+        GLib.build_filenamev([dir, 'blackhole_advanced.txt']),
+    ];
+}
+
+function fileFingerprint(path) {
+    try {
+        const info = Gio.File.new_for_path(path).query_info(
+            'standard::size,time::modified,time::modified-usec',
+            Gio.FileQueryInfoFlags.NONE, null);
+        return `${info.get_size()}:` +
+            `${info.get_attribute_uint64('time::modified')}:` +
+            `${info.get_attribute_uint32('time::modified-usec')}`;
+    } catch (_error) {
+        return 'missing';
+    }
+}
+
+function configFingerprint() {
+    return configPaths().map(path => fileFingerprint(path)).join('|');
+}
+
+function readConfig() {
+    const [presetsPath, advancedPath] = configPaths();
     const config = {
         slotSec: 5.25,
         playMode: 1,
@@ -87,7 +113,7 @@ function readConfig() {
 
     try {
         const text = Shell.get_file_contents_utf8_sync(
-            GLib.build_filenamev([dir, 'blackhole_presets.txt']));
+            presetsPath);
         const lines = text.split(/\r?\n/);
         const header = (lines[1] ?? '').trim().split(/\s+/);
         config.slotSec = Math.max(0.5, number(header[2], config.slotSec));
@@ -107,7 +133,7 @@ function readConfig() {
 
     try {
         const text = Shell.get_file_contents_utf8_sync(
-            GLib.build_filenamev([dir, 'blackhole_advanced.txt']));
+            advancedPath);
         for (const line of text.split(/\r?\n/)) {
             const match = line.match(/^\s*([^#=]+)=(.*)$/);
             if (!match)
@@ -166,8 +192,7 @@ DiskLook demoLook() {
 }`;
 }
 
-function loadConfiguredShader(extensionPath) {
-    const config = readConfig();
+function buildConfiguredShader(baseShader, config) {
     const levelExpression = config.fixedSize
         ? config.fixedLevel.toFixed(4)
         : '(0.5 - 0.5 * cos(3.14159265 * iTime / DEMO_GROW_SEC))';
@@ -176,7 +201,7 @@ function loadConfiguredShader(extensionPath) {
         `rotationSpeed=${config.rotationSpeed.toFixed(2)} ` +
         `size=${config.fixedSize ? `fixed:${config.fixedLevel.toFixed(2)}` : 'pulse:40s+40s'} ` +
         `spawn=${config.spawnPosition}`);
-    let shader = loadShader(extensionPath)
+    let shader = baseShader
         .replace(/const float HOLE_RADIUS\s*=\s*[-+0-9.]+;/,
             `const float HOLE_RADIUS = ${config.holeRadius.toFixed(4)};`)
         .replace(/const float DRIFT_SPEED\s*=\s*[-+0-9.]+;/,
@@ -191,16 +216,39 @@ function loadConfiguredShader(extensionPath) {
     return {shader, spawnPosition: config.spawnPosition};
 }
 
+export class ConfiguredShaderCache {
+    constructor(extensionPath) {
+        this._extensionPath = extensionPath;
+        this._baseShader = null;
+        this._configured = null;
+        this._fingerprint = null;
+        this._revision = 0;
+    }
+
+    get(force = false) {
+        const fingerprint = configFingerprint();
+        if (!force && this._configured && fingerprint === this._fingerprint)
+            return this._configured;
+
+        if (!this._baseShader)
+            this._baseShader = loadShader(this._extensionPath);
+        const configured = buildConfiguredShader(this._baseShader, readConfig());
+        this._fingerprint = fingerprint;
+        this._configured = {...configured, revision: ++this._revision};
+        return this._configured;
+    }
+}
+
 export const BlackholePrototypeEffect = GObject.registerClass(
 class BlackholePrototypeEffect extends Clutter.ShaderEffect {
-    _init(extensionPath) {
+    _init(configured) {
         super._init();
-        this._extensionPath = extensionPath;
         this._spawnPosition = 0;
+        this._shaderRevision = 0;
         this._homeX = 0.5;
         this._homeY = 0.5;
         this._randomPhase = 0.0;
-        this.reloadConfig();
+        this.applyConfiguredShader(configured);
         this._startUs = GLib.get_monotonic_time();
         this._redrawId = 0;
         this._transition = 0.0;
@@ -211,11 +259,14 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
         this.set_enabled(false);
     }
 
-    reloadConfig() {
-        const configured = loadConfiguredShader(this._extensionPath);
+    applyConfiguredShader(configured) {
+        if (!configured || configured.revision === this._shaderRevision)
+            return false;
         this._spawnPosition = configured.spawnPosition;
         this.set_shader_source(configured.shader);
+        this._shaderRevision = configured.revision;
         this.get_actor()?.queue_redraw();
+        return true;
     }
 
     prepareStart(randomX, randomY, randomPhase) {
@@ -298,6 +349,14 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
         this._redrawId = 0;
     }
 
+    stopImmediately() {
+        if (this._redrawId) {
+            GLib.source_remove(this._redrawId);
+            this._redrawId = 0;
+        }
+        this._finishStopped();
+    }
+
     vfunc_paint_target(paintNode = null, paintContext = null) {
         this._updateTransition();
         const time = (GLib.get_monotonic_time() - this._startUs) / 1000000.0;
@@ -307,23 +366,10 @@ class BlackholePrototypeEffect extends Clutter.ShaderEffect {
         this.set_uniform_value('uResolutionX', Math.max(width, 1));
         this.set_uniform_value('uResolutionY', Math.max(height, 1));
         this.set_uniform_value('iChannel0', 0);
-
-        // Negative values select the shader's built-in visual defaults.
-        this.set_uniform_value('uHoleRadius', -1.0);
-        this.set_uniform_value('uDiskGain', -1.0);
-        this.set_uniform_value('uDiskTemp', -1.0);
-        this.set_uniform_value('uExposure', -1.0);
-        this.set_uniform_value('uSpeed', -1.0);
-        this.set_uniform_value('uStarGain', -1.0);
-        this.set_uniform_value('uDiskIncl', -1.0);
-        this.set_uniform_value('uBornProgress', 1.0);
         this.set_uniform_value('uTransition', this._transition);
-        this.set_uniform_value('uDistortion', 1.0);
-        this.set_uniform_value('uSlotSec', 5.25);
         this.set_uniform_value('uHomeX', this._homeX);
         this.set_uniform_value('uHomeY', this._homeY);
         this.set_uniform_value('uRandPhase', this._randomPhase);
-        this.set_uniform_value('uPresetOffset', 0.0);
 
         if (paintNode && paintContext)
             super.vfunc_paint_target(paintNode, paintContext);

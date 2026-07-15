@@ -41,6 +41,8 @@ public:
     QHash<QString, Player> players;
     int enumerateDelayMs = 0;
     int enumerateCount = 0;
+    int statusQueryCount = 0;
+    int ownerQueryCount = 0;
 
     void enumeratePlayers(PlayersCallback callback) override
     {
@@ -53,10 +55,19 @@ public:
 
     void queryPlaybackStatus(const QString &service, StatusCallback callback) override
     {
+        ++statusQueryCount;
         const Player player = players.value(service);
         QTimer::singleShot(player.delayMs,
                            [callback = std::move(callback), status = player.status]() mutable {
             callback(status);
+        });
+    }
+
+    void queryOwner(const QString &service, OwnerCallback callback) override
+    {
+        ++ownerQueryCount;
+        QTimer::singleShot(0, [callback = std::move(callback), service]() mutable {
+            callback(QStringLiteral(":owner.") + service);
         });
     }
 };
@@ -85,6 +96,46 @@ int main(int argc, char *argv[])
                 "status reply applied");
         Require(monitor.isPlaying() == sample.second,
                 "Playing/Paused/Stopped policy");
+        monitor.stop();
+    }
+
+    {
+        MprisMonitor monitor;
+        FakeBackend backend;
+        monitor.setBackend(&backend);
+        monitor.start();
+        Require(WaitUntil([&]() { return backend.enumerateCount == 1; }),
+                "startup performs one initial enumeration");
+        QThread::msleep(2100);
+        QCoreApplication::processEvents();
+        Require(backend.enumerateCount == 1, "idle monitoring has no periodic enumeration");
+
+        const QString service = QStringLiteral("org.mpris.MediaPlayer2.events");
+        backend.players.insert(service, {"Playing", 0});
+        monitor.handleNameOwnerChanged(service, QString(), QStringLiteral(":1.50"));
+        Require(WaitUntil([&]() { return monitor.isPlaying(); }),
+                "player appearance queries status and enters Playing");
+
+        monitor.handlePropertiesChanged(
+            service, QStringLiteral("org.mpris.MediaPlayer2.Player"),
+            {{QStringLiteral("PlaybackStatus"), QStringLiteral("Paused")}}, {});
+        Require(!monitor.isPlaying(), "PropertiesChanged updates PlaybackStatus directly");
+
+        backend.players[service].status = QStringLiteral("Playing");
+        const int queriesBeforeInvalidation = backend.statusQueryCount;
+        monitor.handlePropertiesChanged(
+            service, QStringLiteral("org.mpris.MediaPlayer2.Player"), {},
+            {QStringLiteral("PlaybackStatus")});
+        Require(WaitUntil([&]() { return monitor.isPlaying(); }),
+                "invalidated PlaybackStatus is queried once");
+        Require(backend.statusQueryCount == queriesBeforeInvalidation + 1,
+                "invalidation performs one targeted status query");
+
+        monitor.handleNameOwnerChanged(service, QStringLiteral(":1.50"), QString());
+        Require(!monitor.isPlaying() && monitor.activePlayers().isEmpty(),
+                "player disappearance removes cached status");
+        Require(backend.enumerateCount == 1,
+                "lifecycle and property events do not repeat ListNames");
         monitor.stop();
     }
 
