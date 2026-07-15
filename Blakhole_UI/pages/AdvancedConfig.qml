@@ -27,6 +27,7 @@ Item {
     property real initialSize: bhCore ? bhCore.initialSize : 0.3
     // 新增：捕获方式 / 固定大小（对齐 ImGui UI / main.cpp 后端）
     property int captureMode: bhCore ? bhCore.captureMode : -1  // -1=自动 0=WGC 1=DXGI
+    property int frameRateLimit: bhCore ? bhCore.frameRateLimit : 60
     property bool fixedSize: bhCore ? bhCore.fixedSize : false
     property real fixedLevel: bhCore ? bhCore.fixedLevel : 1.0   // 0.01~1.0
 
@@ -570,6 +571,30 @@ Item {
                     height: 1
                     color: theme.borderColor
                     opacity: 0.2
+                }
+
+                Components.ESlider {
+                    id: frameRateSlider
+                    label: "帧率限制"
+                    from: 30
+                    to: 241
+                    stepSize: 1
+                    decimals: 0
+                    externalValue: advPage.frameRateLimit === 0 ? 241 : frameRateLimit
+                    displayText: value >= 241 ? "无限制" : Math.round(value) + " FPS"
+                    onUserChanged: function(newValue) {
+                        const limit = newValue >= 241 ? 0 : Math.round(newValue)
+                        advPage.frameRateLimit = limit
+                        if (bhCore) bhCore.frameRateLimit = limit
+                    }
+                }
+
+                Text {
+                    text: "无限制会明显提高 GPU 占用和功耗"
+                    font.pixelSize: 11
+                    color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                    visible: advPage.frameRateLimit === 0
+                    Layout.fillWidth: true
                 }
 
                 // 捕获方式 (WGC/DXGI/自动; 对接 main.cpp cfg.captureMode)

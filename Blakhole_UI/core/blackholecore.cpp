@@ -645,6 +645,7 @@ void BlackHoleCore::resetDefaults()
     m_videoAsIdle = false;
     m_autoStart   = false;
     m_captureMode = -1; // 默认自动检测 (Win10→DXGI 无黄框, Win11 22H2+→WGC)
+    m_frameRateLimit = kDefaultFrameRateLimit;
     m_fixedSize   = false;
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
@@ -660,6 +661,7 @@ void BlackHoleCore::resetDefaults()
     emit videoAsIdleChanged();
     emit autoStartChanged();
     emit captureModeChanged();
+    emit frameRateLimitChanged();
     emit fixedSizeChanged();
     emit fixedLevelChanged();
     emit screenTargetChanged();
@@ -1025,6 +1027,19 @@ void BlackHoleCore::setScreenTarget(int v) { if (m_screenTarget == v) return; m_
 
 int BlackHoleCore::captureMode() const { return m_captureMode; }
 void BlackHoleCore::setCaptureMode(int v) { if (m_captureMode == v) return; m_captureMode = v; emit captureModeChanged(); }
+
+int BlackHoleCore::frameRateLimit() const
+{
+    return m_frameRateLimit;
+}
+
+void BlackHoleCore::setFrameRateLimit(int value)
+{
+    const int normalized = NormalizeFrameRateLimit(value);
+    if (m_frameRateLimit == normalized) return;
+    m_frameRateLimit = normalized;
+    emit frameRateLimitChanged();
+}
 
 bool BlackHoleCore::fixedSize() const { return m_fixedSize; }
 void BlackHoleCore::setFixedSize(bool v) { if (m_fixedSize == v) return; m_fixedSize = v; emit fixedSizeChanged(); }
@@ -1768,6 +1783,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
     out << "growEnabled="   << (m_growEnabled ? 1 : 0) << "\n";
     out << "initialSize="   << QString::number(m_initialSize, 'f', 2) << "\n";
+    out << "frameRateLimit=" << m_frameRateLimit << "\n";
     out << "holeRadius="  << (qFuzzyCompare(m_holeSize, 1.0f) ? QString("-1.0") : QString::number(0.08f * m_holeSize, 'f', 3)) << "\n";
     out << "diskGain="    << QString::number(m_overrideDiskGain, 'f', 3) << "\n";
     out << "diskTemp="    << QString::number(m_overrideDiskTemp, 'f', 1) << "\n";
@@ -1812,6 +1828,7 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "holeSize")       m_holeSize       = val.toFloat();
         else if (key == "growEnabled")    m_growEnabled    = (val.toInt() != 0);
         else if (key == "initialSize")    m_initialSize    = val.toFloat();
+        else if (key == "frameRateLimit") setFrameRateLimit(val.toInt());
         else if (key == "holeRadius") { float hv = val.toFloat(); m_holeSize = (hv <= 0.0f) ? 1.0f : (hv / 0.08f); }
         else if (key == "diskGain")   m_overrideDiskGain   = val.toFloat();
         else if (key == "diskTemp")   m_overrideDiskTemp   = val.toFloat();

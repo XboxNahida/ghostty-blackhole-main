@@ -35,4 +35,10 @@ if ($blackholeConfig -match 'bhCore\.startRenderer\s*\(' -or
     throw "Blackhole start button must use applyAndStart() so idle mode starts the idle timer"
 }
 
+$advancedConfig = Get-Content -Raw -Encoding UTF8 (Join-Path $pagesDir "AdvancedConfig.qml")
+if ($advancedConfig -notmatch 'externalValue\s*:\s*advPage\.frameRateLimit' -or
+    $advancedConfig -notmatch 'bhCore\.frameRateLimit\s*=\s*limit') {
+    throw "AdvancedConfig frame rate slider must stay bound to BlackHoleCore"
+}
+
 "QML_CORE_BINDINGS_OK"

@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QAbstractListModel>
 #include <QAbstractNativeEventFilter>
+#include "../../src/frame_limiter.h"
 #include <QVector>
 #include <QString>
 #include <QColor>
@@ -100,6 +101,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(int screenTarget READ screenTarget WRITE setScreenTarget NOTIFY screenTargetChanged)
     // 捕获方式 (-1=自动检测, 0=WGC, 1=DXGI) — 与 ImGui UI / main.cpp 共用 presets.txt 第 2 行字段
     Q_PROPERTY(int captureMode READ captureMode WRITE setCaptureMode NOTIFY captureModeChanged)
+    Q_PROPERTY(int frameRateLimit READ frameRateLimit WRITE setFrameRateLimit NOTIFY frameRateLimitChanged)
     // 固定大小 (黑洞不再随时间增长，保持固定比例)
     Q_PROPERTY(bool fixedSize READ fixedSize WRITE setFixedSize NOTIFY fixedSizeChanged)
     Q_PROPERTY(float fixedLevel READ fixedLevel WRITE setFixedLevel NOTIFY fixedLevelChanged)
@@ -214,6 +216,8 @@ public:
     void setScreenTarget(int v);
     int captureMode() const;
     void setCaptureMode(int v);
+    int frameRateLimit() const;
+    void setFrameRateLimit(int v);
     bool fixedSize() const;
     void setFixedSize(bool v);
     float fixedLevel() const;
@@ -373,6 +377,7 @@ signals:
 
     void screenTargetChanged();
     void captureModeChanged();
+    void frameRateLimitChanged();
     void fixedSizeChanged();
     void fixedLevelChanged();
     void rendererRunningChanged();
@@ -487,6 +492,7 @@ private:
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
     int     m_captureMode  = -1; // -1=自动检测, 0=WGC, 1=DXGI (对齐 main.cpp)
+    int     m_frameRateLimit = kDefaultFrameRateLimit;
     bool    m_fixedSize    = false;  // 固定大小（不随时间增长）
     float   m_fixedLevel   = 1.0f;   // 固定大小级别 (0.01~1.0 = 1%~100%)
 

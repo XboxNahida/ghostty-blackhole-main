@@ -18,6 +18,7 @@ Item {
     property int decimals: 2
     property string suffix: ""
     property string prefix: ""
+    property string displayText: ""
 
     // === 外部赋值 → 内部同步（不打破 externalValue 绑定） ===
     onExternalValueChanged: {
@@ -49,7 +50,9 @@ Item {
             Item { Layout.fillWidth: true }
 
             Text {
-                text: root.prefix + root.value.toFixed(root.decimals) + root.suffix
+                text: root.displayText.length > 0
+                      ? root.displayText
+                      : root.prefix + root.value.toFixed(root.decimals) + root.suffix
                 font.pixelSize: 13
                 font.bold: true
                 color: theme.focusColor

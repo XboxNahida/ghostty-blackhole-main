@@ -24,6 +24,7 @@ qt_add_executable(appBlakholeUI
     ../src/autostart_registry.cpp
     ../src/foreground_window.cpp
     ../src/game_detection.cpp
+    ../src/frame_limiter.cpp
     ../src/media_session.cpp
     ../src/movement_settings.cpp
     core/application_catalog.cpp
