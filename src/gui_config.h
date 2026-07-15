@@ -1,6 +1,8 @@
 // gui_config.h  ImGui config panel with preset editing
 #pragma once
 
+#include "frame_limiter.h"
+
 struct DiskPreset {
     float temp  = 5500.0f;
     float incl  = 1.50f;
@@ -49,6 +51,7 @@ struct BlackholeConfig {
     bool  allowRecordingCapture = false; // 允许截图/录屏捕获黑洞窗口
     bool  growEnabled     = false; // 是否从 initialSize 逐渐增长
     float initialSize     = 0.3f;  // 逐渐增长的初始大小（0.01~1.0）
+    int   frameRateLimit = kDefaultFrameRateLimit;
     bool  confirmed  = false;
 };
 

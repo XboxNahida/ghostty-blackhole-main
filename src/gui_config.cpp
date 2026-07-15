@@ -389,6 +389,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
     fprintf(f, "initialSize=%.3f\n", cfg.initialSize);
+    fprintf(f, "frameRateLimit=%d\n", NormalizeFrameRateLimit(cfg.frameRateLimit));
     fclose(f);
 }
 
@@ -441,6 +442,8 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
                 if (val > 1.0f) val = 1.0f;
                 cfg.initialSize = val;
             }
+            else if (strcmp(key, "frameRateLimit") == 0)
+                cfg.frameRateLimit = NormalizeFrameRateLimit((int)val);
         }
     }
     fclose(f);

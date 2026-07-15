@@ -204,12 +204,7 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int 
     }
     wglMakeCurrent(wgl.hdc, wgl.hglrc);
 
-    // 8. VSync
-    PFN_wglSwapIntervalEXT wglSwapIntervalEXT =
-        (PFN_wglSwapIntervalEXT)wglGetProcAddress("wglSwapIntervalEXT");
-    if (wglSwapIntervalEXT) wglSwapIntervalEXT(1);
-
-    // 9. DWM 属性（关键：防止 Win11 黄边框、焦点抢占）
+    // 8. DWM 属性（关键：防止 Win11 黄边框、焦点抢占）
     DWM_BLURBEHIND bb = {};
     bb.dwFlags = DWM_BB_ENABLE;
     bb.fEnable = FALSE;

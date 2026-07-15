@@ -29,6 +29,7 @@
 #include "game_detection.h"
 #include "media_session.h"
 #include "gui_config.h"
+#include "frame_limiter.h"
 #include "movement_settings.h"
 #include "win32_gl.h"
 #include "monitors.h"
@@ -1152,6 +1153,8 @@ int main(int argc, char* argv[]) {
         if (debugLog) { fprintf(debugLog, "[FAIL] Win32GL_Init failed!\n"); fclose(debugLog); }
         return 1;
     }
+    Win32GL_SetSwapInterval(0);
+    FrameLimiter frameLimiter(cfg.frameRateLimit);
     if (debugLog) { fprintf(debugLog, "[OK] Window created: %dx%d @(%d,%d)\n", wgl.width, wgl.height, wgl.targetX, wgl.targetY); fflush(debugLog); }
 
     setbuf(stderr, NULL);
@@ -1478,7 +1481,17 @@ int main(int argc, char* argv[]) {
     // 不再隐藏系统光标 — WGC 已通过 IsCursorCaptureEnabled=false 禁用光标捕获，
     // 捕获的纹理不含光标，不会出现双重光标，系统光标始终保持正常可用
 
-    if (debugLog) { fprintf(debugLog, "[OK] Ready, entering main loop\n"); fclose(debugLog); debugLog = nullptr; }
+    if (debugLog) {
+        if (frameLimiter.frameRateLimit() == 0)
+            fprintf(debugLog, "[Init] Frame rate limit: unlimited\n");
+        else
+            fprintf(debugLog, "[Init] Frame rate limit: %d FPS\n",
+                    frameLimiter.frameRateLimit());
+        fflush(debugLog);
+        fprintf(debugLog, "[OK] Ready, entering main loop\n");
+        fclose(debugLog);
+        debugLog = nullptr;
+    }
 
     // ---- Main loop ----
     double startTime = Win32GL_GetTime();
@@ -1808,6 +1821,7 @@ int main(int argc, char* argv[]) {
             Win32GL_SetWindowTitle(wgl, title);
             frames=0; lastFps=now;
         }
+        frameLimiter.wait();
     }
 
     Bloom_Destroy(bloom);
