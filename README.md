@@ -31,7 +31,7 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 - **移动控制**：鼠标跟随、鼠标惯性、范围限制、四角或随机出现位置、自由移动速度。
 - **外观配置**：预设管理、播放顺序、固定大小、吸积盘光影及实时预览。
 - **更新提醒**：启动后后台检查新版本，在设置入口显示红点，不阻塞主界面。
-- **启动诊断**：Renderer 缺文件、初始化失败、提前退出或超时会显示错误详情，可复制信息并打开日志目录。
+- **启动诊断**：Renderer 缺文件、初始化失败、提前退出或超时会显示错误详情，可复制信息并打开程序目录。
 
 ## 快速开始
 
@@ -89,7 +89,7 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 
 1. 确认 ZIP 已完整解压，`appBlakholeUI.exe` 与 `blackhole.exe` 位于同一目录，`shaders`、Qt DLL 和插件目录没有缺失。
 2. 先切换到“始终显示”并点击启动，排除尚未达到空闲时间的情况。
-3. 如果程序弹出 Renderer 启动错误，点击“复制错误详情”并打开日志目录。
+3. 如果程序弹出 Renderer 启动错误，点击“复制错误详情”并打开程序目录。
 4. 更新显卡驱动后重试；不要从压缩包内直接运行 EXE。
 
 ### 日志出现 `DXGI_Init primary failed`
@@ -147,16 +147,19 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 
 ```powershell
 # Renderer
-cmake -S . -B build -G "MinGW Makefiles"
-cmake --build build --config Release --clean-first
+cmake -S . -B _build_v122_renderer -G "MinGW Makefiles" `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_CXX_COMPILER=C:/Qt/Tools/mingw1310_64/bin/c++.exe
+cmake --build _build_v122_renderer --config Release --clean-first
 
 # Qt UI：按本机 Qt 安装路径调整 CMAKE_PREFIX_PATH
 cmake -S Blakhole_UI `
-  -B Blakhole_UI/build/Desktop_Qt_6_11_1_MinGW_64_bit-Release `
+  -B _build_v122_ui `
   -G "MinGW Makefiles" `
   -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_CXX_COMPILER=C:/Qt/Tools/mingw1310_64/bin/c++.exe `
   -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/mingw_64
-cmake --build Blakhole_UI/build/Desktop_Qt_6_11_1_MinGW_64_bit-Release `
+cmake --build _build_v122_ui `
   --config Release --clean-first
 
 # 从已完成的构建生成 release 目录

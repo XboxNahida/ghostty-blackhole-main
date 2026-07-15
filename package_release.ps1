@@ -124,17 +124,12 @@ function Write-Utf8NoBom {
     [IO.File]::WriteAllText($Path, $Content, $Utf8NoBom)
 }
 
-function Ensure-ConfiguredBuildDirectory {
+function Configure-BuildDirectory {
     param(
         [Parameter(Mandatory = $true)][string]$SourceDir,
         [Parameter(Mandatory = $true)][string]$BuildDir,
         [string[]]$ConfigureArgs = @()
     )
-
-    $cachePath = Join-Path $BuildDir "CMakeCache.txt"
-    if (Test-Path -LiteralPath $cachePath -PathType Leaf) {
-        return
-    }
 
     & cmake -S $SourceDir -B $BuildDir -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release @ConfigureArgs
     if ($LASTEXITCODE -ne 0) {
@@ -152,11 +147,11 @@ if (-not $NoBuild) {
     Write-Host "[1/9] Clean-building renderer and Qt UI from commit $commit..."
     $qtCompiler = "C:/Qt/Tools/mingw1310_64/bin/c++.exe"
     $qtPrefix = "C:/Qt/6.11.1/mingw_64"
-    Ensure-ConfiguredBuildDirectory `
+    Configure-BuildDirectory `
         -SourceDir $ProjectRoot `
         -BuildDir $CoreBuildDir `
         -ConfigureArgs @("-DCMAKE_CXX_COMPILER=$qtCompiler")
-    Ensure-ConfiguredBuildDirectory `
+    Configure-BuildDirectory `
         -SourceDir (Join-Path $ProjectRoot "Blakhole_UI") `
         -BuildDir $UiBuildDir `
         -ConfigureArgs @("-DCMAKE_CXX_COMPILER=$qtCompiler", "-DCMAKE_PREFIX_PATH=$qtPrefix")

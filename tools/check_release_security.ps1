@@ -165,10 +165,22 @@ foreach ($contract in @(
     @{ Pattern = '(?s)cmake.+--build.+\$CoreBuildDir.+--clean-first'; Message = "package script does not clean-build the renderer by default" },
     @{ Pattern = '(?s)cmake.+--build.+\$UiBuildDir.+--clean-first'; Message = "package script does not clean-build the Qt UI by default" },
     @{ Pattern = 'verify_release_checksums\.ps1'; Message = "package script does not include the standalone checksum verifier" },
-    @{ Pattern = '--version'; Message = "package script does not validate strip.exe identity" }
+    @{ Pattern = '--version'; Message = "package script does not validate strip.exe identity" },
+    @{ Pattern = 'function\s+Configure-BuildDirectory'; Message = "package script does not configure build directories on every formal build" }
 )) {
     if ($packageScript -notmatch $contract.Pattern) {
         Add-Failure $contract.Message
+    }
+}
+
+if ($packageScript -match 'if\s*\(Test-Path[^\r\n]+CMakeCache') {
+    Add-Failure "package script may silently reuse an unchecked CMake cache"
+}
+
+$readme = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root "README.md")
+foreach ($requiredBuildPath in @("_build_v122_renderer", "_build_v122_ui")) {
+    if ($readme -notmatch [regex]::Escape($requiredBuildPath)) {
+        Add-Failure "README -NoBuild workflow does not use $requiredBuildPath"
     }
 }
 
