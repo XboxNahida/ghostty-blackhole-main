@@ -26,6 +26,31 @@ void createFile(const QString &path, const QByteArray &content = {})
     require(file.write(content) == content.size(), "temporary file content is written");
 }
 
+void testMissingRendererSuggestsSecurityIsolation(const QString &rootPath,
+                                                  const QString &logPath)
+{
+    RendererStartupDiagnostics diagnostics;
+    diagnostics.beginAttempt(logPath, 0, {});
+    QDir(rootPath).mkpath(QStringLiteral("shaders"));
+    createFile(QDir(rootPath).filePath(QStringLiteral("blackhole.glsl")));
+    createFile(QDir(rootPath).filePath(QStringLiteral("shaders/vert.glsl")));
+    createFile(QDir(rootPath).filePath(
+        QStringLiteral("shaders/frag_desktop_header.glsl")));
+    const QString exePath = QDir(rootPath).filePath(QStringLiteral("blackhole.exe"));
+
+    const RendererDiagnostic missing = diagnostics.validateRequiredFiles(
+        exePath,
+        rootPath,
+        {QStringLiteral("blackhole.glsl"),
+         QStringLiteral("shaders/vert.glsl"),
+         QStringLiteral("shaders/frag_desktop_header.glsl")});
+    require(missing.summary.contains(QStringLiteral("安全软件")),
+            "missing renderer mentions security software isolation");
+    require(missing.details.contains(QStringLiteral("完整解压"))
+                && missing.details.contains(exePath),
+            "missing renderer contains safe recovery guidance and exact path");
+}
+
 void testAttemptAndMissingFiles(const QString &rootPath, const QString &logPath)
 {
     RendererStartupDiagnostics diagnostics;
@@ -53,6 +78,8 @@ void testAttemptAndMissingFiles(const QString &rootPath, const QString &logPath)
     require(missing.attemptId == attempt, "diagnostic belongs to current attempt");
     require(missing.details.contains(QStringLiteral("frag_desktop_header.glsl")),
             "missing diagnostic names missing shader");
+    require(!missing.summary.contains(QStringLiteral("安全软件")),
+            "missing shader does not mention security software isolation");
     require(diagnostics.state() == RendererStartupState::Failed,
             "missing file enters Failed");
 
@@ -332,6 +359,9 @@ int main(int argc, char *argv[])
     const QString rootPath = temporaryDirectory.path();
     const QString logPath = QDir(rootPath).filePath(QStringLiteral("blackhole_debug.txt"));
 
+    testMissingRendererSuggestsSecurityIsolation(
+        QDir(rootPath).filePath(QStringLiteral("missing-renderer-case")),
+        logPath);
     testAttemptAndMissingFiles(rootPath, logPath);
     testReadyAndLogBaselines(logPath);
     testFailureMarker(logPath);

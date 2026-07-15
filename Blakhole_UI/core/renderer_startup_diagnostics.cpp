@@ -88,8 +88,9 @@ RendererDiagnostic RendererStartupDiagnostics::validateRequiredFiles(
     const QStringList &relativeRequiredFiles)
 {
     QStringList missingPaths;
-    if (!QFileInfo(exePath).isFile()) {
-        missingPaths.append(QDir::toNativeSeparators(exePath));
+    const bool rendererMissing = !QFileInfo(exePath).isFile();
+    if (rendererMissing) {
+        missingPaths.append(exePath);
     }
 
     const QDir workingDir(workingDirectory);
@@ -102,6 +103,17 @@ RendererDiagnostic RendererStartupDiagnostics::validateRequiredFiles(
 
     if (missingPaths.isEmpty()) {
         return {};
+    }
+
+    if (rendererMissing) {
+        return fail(
+            RendererFailureKind::MissingFile,
+            QStringLiteral("blackhole.exe 缺失，可能未完整解压或被安全软件隔离"),
+            QStringLiteral(
+                "请从官方发布包完整解压所有文件。若安全软件已隔离该程序，"
+                "只在确认官方来源和 SHA-256 后恢复或单独放行；不得关闭全部防护。"
+                "\n\n未找到以下文件：\n%1")
+                .arg(missingPaths.join(QLatin1Char('\n'))));
     }
 
     return fail(RendererFailureKind::MissingFile,

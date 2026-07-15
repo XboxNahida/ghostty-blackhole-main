@@ -1,6 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$programDirectoryText = [Text.Encoding]::UTF8.GetString(
+    [Convert]::FromBase64String('5omT5byA56iL5bqP55uu5b2V'))
+$logDirectoryText = [Text.Encoding]::UTF8.GetString(
+    [Convert]::FromBase64String('5omT5byA5pel5b+X55uu5b2V'))
 
 function Require-Pattern {
     param(
@@ -25,10 +29,16 @@ Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'rendererStartupFailed' 'di
 Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'function showFailure' 'dialog failure API'
 Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'copy\(\)' 'copy details action'
 Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'openRendererLogDirectory' 'open log directory action'
+Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' ("text:\s*`"" + [regex]::Escape($programDirectoryText) + '"') 'program directory button text'
 Require-Pattern 'Blakhole_UI\Main.qml' 'onRendererStartupFailed' 'renderer failure connection'
 Require-Pattern 'Blakhole_UI\Main.qml' 'root\.showNormal\(\)' 'restore minimized window'
 Require-Pattern 'Blakhole_UI\Main.qml' 'root\.requestActivate\(\)' 'activate restored window'
 Require-Pattern 'Blakhole_UI\Main.qml' 'systemTray\.visible\s*=\s*false' 'tray state reset'
+
+$dialog = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\components\RendererErrorDialog.qml')
+if ($dialog.Contains($logDirectoryText)) {
+    throw 'Renderer failure dialog must identify the action as opening the program directory'
+}
 
 $header = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\core\blackholecore.h')
 $source = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\core\blackholecore.cpp')

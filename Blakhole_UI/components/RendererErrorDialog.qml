@@ -149,7 +149,7 @@ Item {
 
                 Components.EButton {
                     size: "xs"
-                    text: "打开日志目录"
+                    text: "打开程序目录"
                     iconCharacter: "\uf07c"
                     onClicked: if (core) core.openRendererLogDirectory()
                 }

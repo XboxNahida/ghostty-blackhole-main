@@ -47,11 +47,13 @@ Require-FileText "cmake\AppVersion.cmake" @(
 Require-FileText "cmake\app_version.h.in" @("APP_VERSION_STRING")
 Require-FileText "cmake\renderer_version.rc.in" @(
     'VALUE "CompanyName", "XboxNahida"',
+    'VALUE "Comments", "Official source: https://github.com/XboxNahida/ghostty-blackhole-main"',
     'VALUE "ProductName", "Blakhole Renderer"',
     'VALUE "OriginalFilename", "blackhole.exe"'
 )
 Require-FileText "Blakhole_UI\app_version.rc.in" @(
     'VALUE "CompanyName", "XboxNahida"',
+    'VALUE "Comments", "Official source: https://github.com/XboxNahida/ghostty-blackhole-main"',
     'VALUE "ProductName", "Blakhole UI"',
     'VALUE "OriginalFilename", "appBlakholeUI.exe"'
 )
@@ -62,6 +64,7 @@ Require-FileText "Blakhole_UI\main.cpp" @(
 
 $rendererDescription = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("Qmxha2hvbGUg5pys5Zyw5riy5p+T5Zmo"))
 $uiDescription = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("6buR5rSe5Y+v6KeG5YyW6YWN572u5bel5YW3"))
+$officialSource = "Official source: https://github.com/XboxNahida/ghostty-blackhole-main"
 $builtFiles = @(
     @{ Path = $RendererPath; Description = $rendererDescription },
     @{ Path = $UiPath; Description = $uiDescription }
@@ -74,7 +77,7 @@ foreach ($builtFile in $builtFiles) {
     }
 
     $version = (Get-Item -LiteralPath $path).VersionInfo
-    foreach ($property in @("FileDescription", "ProductName", "CompanyName", "FileVersion", "ProductVersion", "OriginalFilename")) {
+    foreach ($property in @("Comments", "FileDescription", "ProductName", "CompanyName", "FileVersion", "ProductVersion", "OriginalFilename")) {
         if ([string]::IsNullOrWhiteSpace([string]$version.$property)) {
             Fail-IdentityCheck "$(Split-Path -Leaf $path) has empty $property"
         }
@@ -87,6 +90,9 @@ foreach ($builtFile in $builtFiles) {
     }
     if ($version.FileDescription -cne $builtFile.Description) {
         Fail-IdentityCheck "$(Split-Path -Leaf $path) FileDescription has an encoding mismatch"
+    }
+    if ($version.Comments -cne $officialSource) {
+        Fail-IdentityCheck "$(Split-Path -Leaf $path) Comments is [$($version.Comments)], expected official source URL"
     }
 }
 
