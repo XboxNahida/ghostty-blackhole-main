@@ -5,8 +5,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
-$UiBuildDir = Join-Path $ProjectRoot "Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release"
-$CoreBuildDir = Join-Path $ProjectRoot "build"
+$UiBuildDir = Join-Path $ProjectRoot "_build_v122_ui"
+$CoreBuildDir = Join-Path $ProjectRoot "_build_v122_renderer"
 $ReleaseDir = Join-Path $ProjectRoot "release"
 $RendererSource = Join-Path $CoreBuildDir "blackhole.exe"
 $UiSource = Join-Path $UiBuildDir "appBlakholeUI.exe"
@@ -124,6 +124,24 @@ function Write-Utf8NoBom {
     [IO.File]::WriteAllText($Path, $Content, $Utf8NoBom)
 }
 
+function Ensure-ConfiguredBuildDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceDir,
+        [Parameter(Mandatory = $true)][string]$BuildDir,
+        [string[]]$ConfigureArgs = @()
+    )
+
+    $cachePath = Join-Path $BuildDir "CMakeCache.txt"
+    if (Test-Path -LiteralPath $cachePath -PathType Leaf) {
+        return
+    }
+
+    & cmake -S $SourceDir -B $BuildDir -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release @ConfigureArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "CMake configure failed for $BuildDir with exit code $LASTEXITCODE"
+    }
+}
+
 Assert-CleanGitState
 $commit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
@@ -132,6 +150,16 @@ if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') {
 
 if (-not $NoBuild) {
     Write-Host "[1/9] Clean-building renderer and Qt UI from commit $commit..."
+    $qtCompiler = "C:/Qt/Tools/mingw1310_64/bin/c++.exe"
+    $qtPrefix = "C:/Qt/6.11.1/mingw_64"
+    Ensure-ConfiguredBuildDirectory `
+        -SourceDir $ProjectRoot `
+        -BuildDir $CoreBuildDir `
+        -ConfigureArgs @("-DCMAKE_CXX_COMPILER=$qtCompiler")
+    Ensure-ConfiguredBuildDirectory `
+        -SourceDir (Join-Path $ProjectRoot "Blakhole_UI") `
+        -BuildDir $UiBuildDir `
+        -ConfigureArgs @("-DCMAKE_CXX_COMPILER=$qtCompiler", "-DCMAKE_PREFIX_PATH=$qtPrefix")
     & cmake --build $CoreBuildDir --config Release --clean-first
     if ($LASTEXITCODE -ne 0) {
         throw "Renderer clean build failed with exit code $LASTEXITCODE"
@@ -144,11 +172,11 @@ if (-not $NoBuild) {
 }
 
 if (-not (Test-Path -LiteralPath $RendererSource)) {
-    throw "Missing build\blackhole.exe. Run: cmake --build build --config Release"
+    throw "Missing _build_v122_renderer\blackhole.exe. Run: cmake --build _build_v122_renderer --config Release"
 }
 
 if (-not (Test-Path -LiteralPath $UiSource)) {
-    throw "Missing Qt UI build output. Run: cmake --build Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release --config Release"
+    throw "Missing Qt UI build output. Run: cmake --build _build_v122_ui --config Release"
 }
 
 $rendererBuildHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $RendererSource).Hash.ToLowerInvariant()
@@ -241,8 +269,8 @@ Remove-ReleaseDebugSections -StripPath $uiStrip -ReleaseExecutable $UiRelease
 
 $buildTime = [DateTimeOffset]::Now
 $releaseInfo = @(
-    "Version: 1.2.1",
-    "Tag: v1.2.1",
+    "Version: 1.2.2",
+    "Tag: v1.2.2",
     "Commit: $commit",
     "BuildTimeUTC: $($buildTime.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ'))",
     "BuildTimeLocal: $($buildTime.ToString('yyyy-MM-ddTHH:mm:sszzz'))",
@@ -304,7 +332,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "[9/9] Confirming build artifacts were not modified..."
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $RendererSource).Hash.ToLowerInvariant() -cne $rendererBuildHash) {
-    throw "Packaging modified build\blackhole.exe"
+    throw "Packaging modified _build_v122_renderer\blackhole.exe"
 }
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $UiSource).Hash.ToLowerInvariant() -cne $uiBuildHash) {
     throw "Packaging modified the Qt UI build executable"

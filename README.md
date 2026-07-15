@@ -1,6 +1,6 @@
 # Black Hole / 黑洞桌面特效
 
-[![Release](https://img.shields.io/badge/release-v1.2.1-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.1)
+[![Release](https://img.shields.io/badge/release-v1.2.2-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.2)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#设备要求与兼容性)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -8,13 +8,13 @@
 
 Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面并实时渲染引力透镜、吸积盘和光子环效果，可常驻显示，也可在系统空闲时自动出现。
 
-**当前版本：v1.2.1**
+**当前版本：v1.2.2**
 
-[下载 v1.2.1](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.1) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)
+[下载 v1.2.2](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.2) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)
 
 ## 下载与安装
 
-1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.1-windows-x64.zip`。
+1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.2-windows-x64.zip`。
 2. 将 ZIP **完整解压**到一个可写目录。
 3. 双击 `appBlakholeUI.exe` 启动界面。
 
@@ -134,7 +134,7 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 
 ## 更新机制
 
-当前版本为 **v1.2.1**。程序每次启动会在后台检查 GitHub Release，不阻塞启动流程：
+当前版本为 **v1.2.2**。程序每次启动会在后台检查 GitHub Release，不阻塞启动流程：
 
 - 有新版本时，设置入口显示红点。
 - 只有用户点击“检查更新”后才弹出更新窗口。

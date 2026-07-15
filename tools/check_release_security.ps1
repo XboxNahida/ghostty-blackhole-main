@@ -31,8 +31,8 @@ function Resolve-Objdump {
     }
 
     foreach ($cachePath in @(
-        (Join-Path $root "build\CMakeCache.txt"),
-        (Join-Path $root "Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release\CMakeCache.txt")
+        (Join-Path $root "_build_v122_renderer\CMakeCache.txt"),
+        (Join-Path $root "_build_v122_ui\CMakeCache.txt")
     )) {
         if (-not (Test-Path -LiteralPath $cachePath)) {
             continue
@@ -107,10 +107,10 @@ foreach ($executable in $executables) {
     if ($version.ProductName -cne $executable.ProductName) {
         Add-Failure "$($executable.Name) ProductName is [$($version.ProductName)]"
     }
-    if ($version.ProductVersion -cne "1.2.1") {
+    if ($version.ProductVersion -cne "1.2.2") {
         Add-Failure "$($executable.Name) ProductVersion is [$($version.ProductVersion)]"
     }
-    if ($version.FileVersion -cne "1.2.1.0") {
+    if ($version.FileVersion -cne "1.2.2.0") {
         Add-Failure "$($executable.Name) FileVersion is [$($version.FileVersion)]"
     }
     if ($version.CompanyName -cne "XboxNahida") {
@@ -158,6 +158,8 @@ foreach ($executable in $executables) {
 $packageScriptPath = Join-Path $root "package_release.ps1"
 $packageScript = Get-Content -Raw -Encoding UTF8 -LiteralPath $packageScriptPath
 foreach ($contract in @(
+    @{ Pattern = '\$UiBuildDir\s*=\s*Join-Path\s+\$ProjectRoot\s+"_build_v122_ui"'; Message = "package script does not use the source-local short Qt UI build directory" },
+    @{ Pattern = '\$CoreBuildDir\s*=\s*Join-Path\s+\$ProjectRoot\s+"_build_v122_renderer"'; Message = "package script does not use the source-local short renderer build directory" },
     @{ Pattern = 'git\s+-C\s+\$ProjectRoot\s+diff\s+--quiet'; Message = "package script does not reject tracked working-tree changes" },
     @{ Pattern = 'git\s+-C\s+\$ProjectRoot\s+diff\s+--cached\s+--quiet'; Message = "package script does not reject staged changes" },
     @{ Pattern = '(?s)cmake.+--build.+\$CoreBuildDir.+--clean-first'; Message = "package script does not clean-build the renderer by default" },
@@ -178,8 +180,8 @@ if (-not (Test-Path -LiteralPath $releaseInfoPath -PathType Leaf)) {
 else {
     $releaseInfo = Get-Content -Raw -Encoding UTF8 -LiteralPath $releaseInfoPath
     foreach ($requiredPattern in @(
-        '(?m)^Version: 1\.2\.1$',
-        '(?m)^Tag: v1\.2\.1$',
+        '(?m)^Version: 1\.2\.2$',
+        '(?m)^Tag: v1\.2\.2$',
         '(?m)^Commit: [0-9a-f]{40}$',
         '(?m)^BuildTimeUTC: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$',
         '(?m)^BuildTimeLocal: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$',
@@ -192,8 +194,8 @@ else {
 }
 
 $buildArtifacts = @(
-    @{ Path = (Join-Path $root "build\blackhole.exe"); HashField = "BuildRendererSHA256" },
-    @{ Path = (Join-Path $root "Blakhole_UI\build\Desktop_Qt_6_11_1_MinGW_64_bit-Release\appBlakholeUI.exe"); HashField = "BuildUiSHA256" }
+    @{ Path = (Join-Path $root "_build_v122_renderer\blackhole.exe"); HashField = "BuildRendererSHA256" },
+    @{ Path = (Join-Path $root "_build_v122_ui\appBlakholeUI.exe"); HashField = "BuildUiSHA256" }
 )
 foreach ($artifact in $buildArtifacts) {
     if (-not (Test-Path -LiteralPath $artifact.Path -PathType Leaf)) {
@@ -300,4 +302,4 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Output "RELEASE_SECURITY_OK version=1.2.1"
+Write-Output "RELEASE_SECURITY_OK version=1.2.2"
