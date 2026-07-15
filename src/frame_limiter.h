@@ -16,6 +16,7 @@ constexpr bool IsSuccessfulTimerWait(DWORD waitResult)
 } // namespace frame_limiter_detail
 
 int NormalizeFrameRateLimit(int value);
+int ParseFrameRateLimitText(const char *text);
 
 struct FrameDeadlineDecision {
     bool shouldWait = false;

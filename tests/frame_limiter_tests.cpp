@@ -30,6 +30,17 @@ int main()
     require(NormalizeFrameRateLimit(240) == 240);
     require(NormalizeFrameRateLimit(241) == 240);
 
+    require(ParseFrameRateLimitText("0") == 0);
+    require(ParseFrameRateLimitText("30") == 30);
+    require(ParseFrameRateLimitText("240") == 240);
+    require(ParseFrameRateLimitText("29") == 30);
+    require(ParseFrameRateLimitText("241") == 240);
+    require(ParseFrameRateLimitText("nan") == kDefaultFrameRateLimit);
+    require(ParseFrameRateLimitText("inf") == kDefaultFrameRateLimit);
+    require(ParseFrameRateLimitText("999999999999999999999999") == 240);
+    require(ParseFrameRateLimitText("-999999999999999999999999") == 30);
+    require(ParseFrameRateLimitText("60garbage") == kDefaultFrameRateLimit);
+
     const FrameDeadlineDecision unlimited = AdvanceFrameDeadline(0, 10.0, 8.0);
     require(!unlimited.shouldWait);
     requireNear(unlimited.nextDeadlineSeconds, 10.0);

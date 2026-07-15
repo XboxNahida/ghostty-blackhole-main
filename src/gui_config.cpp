@@ -403,6 +403,12 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
     while (fgets(line, sizeof(line), f)) {
         // skip comments and empty lines
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
+        constexpr char frameRateLimitKey[] = "frameRateLimit=";
+        if (strncmp(line, frameRateLimitKey, sizeof(frameRateLimitKey) - 1) == 0) {
+            cfg.frameRateLimit = ParseFrameRateLimitText(
+                line + sizeof(frameRateLimitKey) - 1);
+            continue;
+        }
         char key[64] = {0};
         float val = -1.0f;
         if (sscanf(line, "%63[^=]=%f", key, &val) == 2) {
@@ -442,8 +448,6 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
                 if (val > 1.0f) val = 1.0f;
                 cfg.initialSize = val;
             }
-            else if (strcmp(key, "frameRateLimit") == 0)
-                cfg.frameRateLimit = NormalizeFrameRateLimit((int)val);
         }
     }
     fclose(f);

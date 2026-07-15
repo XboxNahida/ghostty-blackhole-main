@@ -1,7 +1,11 @@
 #include "frame_limiter.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <cctype>
+#include <climits>
 #include <cmath>
+#include <cstdlib>
 
 namespace {
 
@@ -14,6 +18,28 @@ int NormalizeFrameRateLimit(int value)
 {
     if (value == 0) return 0;
     return std::clamp(value, kMinimumFrameRateLimit, kMaximumFrameRateLimit);
+}
+
+int ParseFrameRateLimitText(const char *text)
+{
+    if (!text) return kDefaultFrameRateLimit;
+
+    errno = 0;
+    char *end = nullptr;
+    const long long value = std::strtoll(text, &end, 10);
+    if (end == text) return kDefaultFrameRateLimit;
+
+    while (*end != '\0' && std::isspace(static_cast<unsigned char>(*end))) ++end;
+    if (*end != '\0') return kDefaultFrameRateLimit;
+
+    if (errno == ERANGE) return value == LLONG_MIN
+        ? kMinimumFrameRateLimit
+        : kMaximumFrameRateLimit;
+    if (errno != 0) return kDefaultFrameRateLimit;
+    if (value == 0) return 0;
+    if (value < kMinimumFrameRateLimit) return kMinimumFrameRateLimit;
+    if (value > kMaximumFrameRateLimit) return kMaximumFrameRateLimit;
+    return static_cast<int>(value);
 }
 
 FrameDeadlineDecision AdvanceFrameDeadline(int frameRateLimit,
