@@ -74,6 +74,13 @@ target_link_libraries(appBlakholeUI
 )
 
 if(BUILD_TESTING)
+    add_executable(frame_limiter_tests EXCLUDE_FROM_ALL
+        ../tests/frame_limiter_tests.cpp
+        ../src/frame_limiter.cpp
+    )
+    target_include_directories(frame_limiter_tests PRIVATE ../src)
+    add_test(NAME frame_limiter_tests COMMAND frame_limiter_tests)
+
     add_executable(renderer_startup_diagnostics_tests EXCLUDE_FROM_ALL
         ../tests/renderer_startup_diagnostics_tests.cpp
         core/renderer_startup_diagnostics.cpp
