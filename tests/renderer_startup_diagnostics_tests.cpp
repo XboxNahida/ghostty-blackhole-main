@@ -36,10 +36,11 @@ void testMissingRendererSuggestsSecurityIsolation(const QString &rootPath,
     createFile(QDir(rootPath).filePath(QStringLiteral("shaders/vert.glsl")));
     createFile(QDir(rootPath).filePath(
         QStringLiteral("shaders/frag_desktop_header.glsl")));
-    const QString exePath = QDir(rootPath).filePath(QStringLiteral("blackhole.exe"));
+    const QString expectedExePath = QDir(rootPath).filePath(
+        QStringLiteral("blackhole.exe"));
 
     const RendererDiagnostic missing = diagnostics.validateRequiredFiles(
-        exePath,
+        {},
         rootPath,
         {QStringLiteral("blackhole.glsl"),
          QStringLiteral("shaders/vert.glsl"),
@@ -47,8 +48,13 @@ void testMissingRendererSuggestsSecurityIsolation(const QString &rootPath,
     require(missing.summary.contains(QStringLiteral("安全软件")),
             "missing renderer mentions security software isolation");
     require(missing.details.contains(QStringLiteral("完整解压"))
-                && missing.details.contains(exePath),
+                && missing.details.contains(expectedExePath),
             "missing renderer contains safe recovery guidance and exact path");
+    require(missing.details.contains(QStringLiteral("官方来源"))
+                && missing.details.contains(QStringLiteral("SHA-256"))
+                && missing.details.contains(QStringLiteral("单独放行"))
+                && missing.details.contains(QStringLiteral("不要关闭全部防护")),
+            "missing renderer contains complete security recovery guidance");
 }
 
 void testAttemptAndMissingFiles(const QString &rootPath, const QString &logPath)

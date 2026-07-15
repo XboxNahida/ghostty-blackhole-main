@@ -28,8 +28,6 @@ Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'startRendererInternal\(boo
 Require-Pattern 'Blakhole_UI\core\blackholecore.cpp' 'rendererStartupFailed' 'diagnostic publication'
 Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'function showFailure' 'dialog failure API'
 Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'copy\(\)' 'copy details action'
-Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' 'openRendererLogDirectory' 'open log directory action'
-Require-Pattern 'Blakhole_UI\components\RendererErrorDialog.qml' ("text:\s*`"" + [regex]::Escape($programDirectoryText) + '"') 'program directory button text'
 Require-Pattern 'Blakhole_UI\Main.qml' 'onRendererStartupFailed' 'renderer failure connection'
 Require-Pattern 'Blakhole_UI\Main.qml' 'root\.showNormal\(\)' 'restore minimized window'
 Require-Pattern 'Blakhole_UI\Main.qml' 'root\.requestActivate\(\)' 'activate restored window'
@@ -38,6 +36,19 @@ Require-Pattern 'Blakhole_UI\Main.qml' 'systemTray\.visible\s*=\s*false' 'tray s
 $dialog = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\components\RendererErrorDialog.qml')
 if ($dialog.Contains($logDirectoryText)) {
     throw 'Renderer failure dialog must identify the action as opening the program directory'
+}
+$buttonBlocks = [regex]::Matches(
+    $dialog,
+    '(?ms)^\s{16}Components\.EButton\s*\{.*?^\s{16}\}')
+$programDirectoryButtons = @($buttonBlocks | Where-Object {
+    $_.Value.Contains($programDirectoryText)
+})
+if ($programDirectoryButtons.Count -ne 1) {
+    throw 'Renderer failure dialog must have exactly one program directory button'
+}
+if ($programDirectoryButtons[0].Value -notmatch
+    'onClicked\s*:\s*if\s*\(core\)\s*core\.openRendererLogDirectory\s*\(\s*\)') {
+    throw 'Program directory button must call openRendererLogDirectory'
 }
 
 $header = Get-Content -Raw -Encoding UTF8 (Join-Path $projectRoot 'Blakhole_UI\core\blackholecore.h')
