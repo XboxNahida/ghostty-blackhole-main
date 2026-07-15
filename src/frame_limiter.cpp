@@ -99,8 +99,8 @@ void FrameLimiter::waitUntil(double deadlineSeconds)
         dueTime.QuadPart = -std::max<LONGLONG>(
             1, static_cast<LONGLONG>(remainingSeconds * kHundredNanosecondsPerSecond));
         if (SetWaitableTimer(m_waitableTimer, &dueTime, 0, nullptr, nullptr, FALSE)) {
-            WaitForSingleObject(m_waitableTimer, INFINITE);
-            return;
+            const DWORD waitResult = WaitForSingleObject(m_waitableTimer, INFINITE);
+            if (frame_limiter_detail::IsSuccessfulTimerWait(waitResult)) return;
         }
     }
 

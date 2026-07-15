@@ -6,6 +6,15 @@ inline constexpr int kDefaultFrameRateLimit = 60;
 inline constexpr int kMinimumFrameRateLimit = 30;
 inline constexpr int kMaximumFrameRateLimit = 240;
 
+namespace frame_limiter_detail {
+
+constexpr bool IsSuccessfulTimerWait(DWORD waitResult)
+{
+    return waitResult == WAIT_OBJECT_0;
+}
+
+} // namespace frame_limiter_detail
+
 int NormalizeFrameRateLimit(int value);
 
 struct FrameDeadlineDecision {

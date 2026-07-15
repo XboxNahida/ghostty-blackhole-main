@@ -19,6 +19,10 @@ void requireNear(double actual, double expected)
 
 int main()
 {
+    require(frame_limiter_detail::IsSuccessfulTimerWait(WAIT_OBJECT_0));
+    require(!frame_limiter_detail::IsSuccessfulTimerWait(WAIT_FAILED));
+    require(!frame_limiter_detail::IsSuccessfulTimerWait(WAIT_TIMEOUT));
+
     require(NormalizeFrameRateLimit(0) == 0);
     require(NormalizeFrameRateLimit(1) == 30);
     require(NormalizeFrameRateLimit(30) == 30);

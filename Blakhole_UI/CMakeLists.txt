@@ -79,6 +79,12 @@ if(BUILD_TESTING)
         ../src/frame_limiter.cpp
     )
     target_include_directories(frame_limiter_tests PRIVATE ../src)
+    target_compile_features(frame_limiter_tests PRIVATE cxx_std_17)
+    set_target_properties(frame_limiter_tests PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+    )
     add_test(NAME frame_limiter_tests COMMAND frame_limiter_tests)
 
     add_executable(renderer_startup_diagnostics_tests EXCLUDE_FROM_ALL
