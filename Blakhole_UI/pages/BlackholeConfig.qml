@@ -188,7 +188,7 @@ Item {
                         id: slotSpin
                         from: 5; to: 600; stepSize: 2
                         editable: true
-                        textFromValue: function(v, l) { return (v / 10.0).toFixed(1) }
+                        textFromValue: function(v, locale) { return Number(v / 10.0).toLocaleString(locale, 'f', 1) }
                         valueFromText: function(text, locale) {
                             var parsed = Number.fromLocaleString(locale, text)
                             return isNaN(parsed) ? slotSpin.value : Math.round(parsed * 10)

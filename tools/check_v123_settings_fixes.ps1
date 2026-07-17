@@ -21,6 +21,9 @@ if (-not $qml.Contains($slotLabel) -and
 if ($qml -notmatch '(?s)id:\s*slotSpin.+?valueFromText:\s*function\s*\(text,\s*locale\).+?Number\.fromLocaleString\(locale,\s*text\).+?Math\.round\(parsed\s*\*\s*10\)') {
     Add-Failure "slotSpin does not convert decimal text to tenths"
 }
+if ($qml -notmatch "textFromValue:\s*function\s*\(v,\s*locale\)\s*\{\s*return\s+Number\(v\s*/\s*10\.0\)\.toLocaleString\(locale,\s*'f',\s*1\)\s*\}") {
+    Add-Failure "slotSpin display and parsing do not use the same locale"
+}
 if ($core -notmatch '(?s)int\s+dm\s*=\s*0;\s*ls\s*>>\s*dm;\s*if\s*\(ls\.status\(\)\s*==\s*QTextStream::Ok\)\s*m_screenTarget\s*=\s*dm;') {
     Add-Failure "screenTarget is not restored from a valid final field"
 }
