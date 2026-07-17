@@ -182,13 +182,17 @@ Item {
                 // 婵″弶鍨濈紞鍛矓閹烘挻娈?(SpinBox 濞寸姴鎳忛弫顕€骞?int, 缂傚倵鏅滈弬?x10)
                 Column { spacing: 4
                     Layout.preferredWidth: 120
-                    Text { text: "\u69fd\u4f4d\u79d2\u6570"; font.pixelSize: 12; color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5) }
+                    Text { text: "\u9ed1\u6d1e\u53d8\u6362\u79d2\u6570"; font.pixelSize: 12; color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.5) }
                     SpinBox {
                         width: 110; height: 32
                         id: slotSpin
                         from: 5; to: 600; stepSize: 2
                         editable: true
                         textFromValue: function(v, l) { return (v / 10.0).toFixed(1) }
+                        valueFromText: function(text, locale) {
+                            var parsed = Number.fromLocaleString(locale, text)
+                            return isNaN(parsed) ? slotSpin.value : Math.round(parsed * 10)
+                        }
                         value: Math.round(configPage.slotSeconds * 10)
                         onValueChanged: { if (bhCore) bhCore.slotSeconds = value / 10.0 }
                         contentItem: TextInput {

@@ -418,7 +418,7 @@ void BlackHoleCore::loadConfig()
                     m_fixedSize = (fixedSz != 0);
                     float fl = 1.0f;  ls >> fl;  if (fl > 0.0f) m_fixedLevel = fl;
                     int cm = -1;      ls >> cm; m_captureMode = cm;
-                    int dm = 0;       ls >> dm; if (!ls.atEnd()) m_screenTarget = dm;
+                    int dm = 0;       ls >> dm; if (ls.status() == QTextStream::Ok) m_screenTarget = dm;
                 }
             }
         }
