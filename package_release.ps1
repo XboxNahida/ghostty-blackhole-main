@@ -5,8 +5,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
-$UiBuildDir = Join-Path $ProjectRoot "_build_v122_ui"
-$CoreBuildDir = Join-Path $ProjectRoot "_build_v122_renderer"
+$UiBuildDir = Join-Path $ProjectRoot "_build_v123_ui"
+$CoreBuildDir = Join-Path $ProjectRoot "_build_v123_renderer"
 $ReleaseDir = Join-Path $ProjectRoot "release"
 $RendererSource = Join-Path $CoreBuildDir "blackhole.exe"
 $UiSource = Join-Path $UiBuildDir "appBlakholeUI.exe"
@@ -167,11 +167,11 @@ if (-not $NoBuild) {
 }
 
 if (-not (Test-Path -LiteralPath $RendererSource)) {
-    throw "Missing _build_v122_renderer\blackhole.exe. Run: cmake --build _build_v122_renderer --config Release"
+    throw "Missing _build_v123_renderer\blackhole.exe. Run: cmake --build _build_v123_renderer --config Release"
 }
 
 if (-not (Test-Path -LiteralPath $UiSource)) {
-    throw "Missing Qt UI build output. Run: cmake --build _build_v122_ui --config Release"
+    throw "Missing Qt UI build output. Run: cmake --build _build_v123_ui --config Release"
 }
 
 $rendererBuildHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $RendererSource).Hash.ToLowerInvariant()
@@ -264,8 +264,8 @@ Remove-ReleaseDebugSections -StripPath $uiStrip -ReleaseExecutable $UiRelease
 
 $buildTime = [DateTimeOffset]::Now
 $releaseInfo = @(
-    "Version: 1.2.2",
-    "Tag: v1.2.2",
+    "Version: 1.2.3",
+    "Tag: v1.2.3",
     "Commit: $commit",
     "BuildTimeUTC: $($buildTime.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ'))",
     "BuildTimeLocal: $($buildTime.ToString('yyyy-MM-ddTHH:mm:sszzz'))",
@@ -327,7 +327,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "[9/9] Confirming build artifacts were not modified..."
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $RendererSource).Hash.ToLowerInvariant() -cne $rendererBuildHash) {
-    throw "Packaging modified _build_v122_renderer\blackhole.exe"
+    throw "Packaging modified _build_v123_renderer\blackhole.exe"
 }
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $UiSource).Hash.ToLowerInvariant() -cne $uiBuildHash) {
     throw "Packaging modified the Qt UI build executable"

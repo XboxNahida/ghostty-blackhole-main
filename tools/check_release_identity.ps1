@@ -8,10 +8,10 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 if ([string]::IsNullOrWhiteSpace($RendererPath)) {
-    $RendererPath = Join-Path $root "_build_v122_renderer\blackhole.exe"
+    $RendererPath = Join-Path $root "_build_v123_renderer\blackhole.exe"
 }
 if ([string]::IsNullOrWhiteSpace($UiPath)) {
-    $UiPath = Join-Path $root "_build_v122_ui\appBlakholeUI.exe"
+    $UiPath = Join-Path $root "_build_v123_ui\appBlakholeUI.exe"
 }
 
 function Fail-IdentityCheck {
@@ -39,7 +39,7 @@ function Require-FileText {
 }
 
 Require-FileText "cmake\AppVersion.cmake" @(
-    'set(BLACKHOLE_VERSION "1.2.2")',
+    'set(BLACKHOLE_VERSION "1.2.3")',
     "BLACKHOLE_VERSION_MAJOR",
     "BLACKHOLE_VERSION_MINOR",
     "BLACKHOLE_VERSION_PATCH"
@@ -82,11 +82,11 @@ foreach ($builtFile in $builtFiles) {
             Fail-IdentityCheck "$(Split-Path -Leaf $path) has empty $property"
         }
     }
-    if ($version.ProductVersion -cne "1.2.2") {
-        Fail-IdentityCheck "$(Split-Path -Leaf $path) ProductVersion is $($version.ProductVersion), expected 1.2.2"
+    if ($version.ProductVersion -cne "1.2.3") {
+        Fail-IdentityCheck "$(Split-Path -Leaf $path) ProductVersion is $($version.ProductVersion), expected 1.2.3"
     }
-    if ($version.FileVersion -cne "1.2.2.0") {
-        Fail-IdentityCheck "$(Split-Path -Leaf $path) FileVersion is $($version.FileVersion), expected 1.2.2.0"
+    if ($version.FileVersion -cne "1.2.3.0") {
+        Fail-IdentityCheck "$(Split-Path -Leaf $path) FileVersion is $($version.FileVersion), expected 1.2.3.0"
     }
     if ($version.FileDescription -cne $builtFile.Description) {
         Fail-IdentityCheck "$(Split-Path -Leaf $path) FileDescription has an encoding mismatch"
@@ -96,4 +96,4 @@ foreach ($builtFile in $builtFiles) {
     }
 }
 
-"RELEASE_IDENTITY_OK version=1.2.2"
+"RELEASE_IDENTITY_OK version=1.2.3"
