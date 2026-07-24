@@ -24,6 +24,7 @@ add_executable(blackhole
     src/game_detection.cpp
     src/media_session.cpp
     src/movement_settings.cpp
+    src/renderer_instance.cpp
     src/frame_limiter.cpp
     src/capture_wgc.cpp
     src/capture_dxgi.cpp
@@ -88,5 +89,20 @@ if(MINGW)
             COMMENT "Copying ${ucrt_dll} to output directory"
         )
     endforeach()
+endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(renderer_instance_tests
+        tests/renderer_instance_tests.cpp
+        src/renderer_instance.cpp
+    )
+    target_include_directories(renderer_instance_tests PRIVATE src)
+    add_test(NAME renderer_instance_tests COMMAND renderer_instance_tests)
+
+    add_executable(bloom_fullscreen_shader_tests
+        tests/bloom_fullscreen_shader_tests.cpp
+    )
+    add_test(NAME bloom_fullscreen_shader_tests COMMAND bloom_fullscreen_shader_tests)
 endif()
 

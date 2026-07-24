@@ -31,6 +31,7 @@
 #include "gui_config.h"
 #include "frame_limiter.h"
 #include "movement_settings.h"
+#include "renderer_instance.h"
 #include "win32_gl.h"
 #include "monitors.h"
 #ifdef BLACKHOLE_USE_D3D11
@@ -913,6 +914,21 @@ int main(int argc, char* argv[]) {
     int screenIdx = -1;
     if (isRenderer && argc >= 4 && strcmp(argv[2], "--screen") == 0) {
         screenIdx = atoi(argv[3]);
+    }
+
+    // UI 启动的主 Renderer 只允许一个实例；一屏一黑洞模式的合法
+    // 子 Renderer（screenIdx >= 1）则按显示器编号分别加锁。
+    if (isRenderer && screenIdx >= 0) {
+        const auto startupMonitors = EnumerateMonitors();
+        if (!IsValidRendererChildScreenIndex(
+                screenIdx, startupMonitors.size())) {
+            return 1;
+        }
+    }
+
+    RendererInstanceLock rendererInstance;
+    if (isRenderer && !rendererInstance.acquire(screenIdx)) {
+        return 0;
     }
 
     // 直接写入调试文件（子进程用独立文件名避免冲突）
