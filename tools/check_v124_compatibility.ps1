@@ -8,6 +8,8 @@ $mainPath = Join-Path $root "src\main.cpp"
 $win32GlPath = Join-Path $root "src\win32_gl.cpp"
 $wgcPath = Join-Path $root "src\capture_wgc.cpp"
 $dpiPath = Join-Path $root "src\dpi_awareness.cpp"
+$wgcHeaderPath = Join-Path $root "src\capture_wgc.h"
+$d3dRendererHeaderPath = Join-Path $root "src\d3d11_renderer.h"
 
 $shader = Get-Content -Raw -Encoding UTF8 -LiteralPath $shaderPath
 $bloom = Get-Content -Raw -Encoding UTF8 -LiteralPath $bloomPath
@@ -15,6 +17,8 @@ $advancedQml = Get-Content -Raw -Encoding UTF8 -LiteralPath $advancedQmlPath
 $main = Get-Content -Raw -Encoding UTF8 -LiteralPath $mainPath
 $win32Gl = Get-Content -Raw -Encoding UTF8 -LiteralPath $win32GlPath
 $wgc = Get-Content -Raw -Encoding UTF8 -LiteralPath $wgcPath
+$wgcHeader = Get-Content -Raw -Encoding UTF8 -LiteralPath $wgcHeaderPath
+$d3dRendererHeader = Get-Content -Raw -Encoding UTF8 -LiteralPath $d3dRendererHeaderPath
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Add-Failure([string]$message) {
@@ -73,6 +77,30 @@ if ($win32Gl -match '\bSetProcessDPIAware\s*\(') {
 }
 if ($wgc -match '\bSetProcessDPIAware\s*\(') {
     Add-Failure "capture_wgc.cpp still changes process DPI awareness"
+}
+
+if ($wgcHeader -match '\bWGC_GetFrame\s*\(' -or
+    $wgcHeader -match '\bWGC_CopyToStaging\s*\(') {
+    Add-Failure "WGC header still exposes capture-pool textures"
+}
+if ($wgcHeader -notmatch '\bWGC_TryGetMappedFrame\s*\(' -or
+    $wgcHeader -notmatch '\bWGC_GetStableFrame\s*\(') {
+    Add-Failure "WGC stable frame APIs are missing"
+}
+if ($main -match '\bWGC_GetFrame\s*\(' -or
+    $main -match '\bWGC_CopyToStaging\s*\(') {
+    Add-Failure "main.cpp still handles WGC capture-pool textures"
+}
+if ($main -notmatch '\bWGC_TryGetMappedFrame\s*\(' -or
+    $main -notmatch '\bWGC_GetStableFrame\s*\(') {
+    Add-Failure "main.cpp does not use stable WGC APIs"
+}
+if ($wgc -notmatch 'struct\s+WGCFrameLease' -or
+    $wgc -notmatch '(?s)WGC_TryGetMappedFrame.+?CopyResource.+?Map\s*\(') {
+    Add-Failure "WGC mapped-frame path does not hold a frame lease through Map"
+}
+if ($d3dRendererHeader -match '\bframeQueue_\b') {
+    Add-Failure "D3D11 renderer still relies on delayed WGC frame references"
 }
 
 if ($failures.Count -gt 0) {

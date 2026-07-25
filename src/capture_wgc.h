@@ -16,6 +16,8 @@ struct WGCCapture {
 
     // Staging texture for GPU-CPU readback
     ID3D11Texture2D*     stagingTex = nullptr;
+    ID3D11Texture2D*     stableTex  = nullptr;
+    ID3D11Query*         copyFence  = nullptr;
 
     int width  = 0;
     int height = 0;
@@ -26,12 +28,15 @@ struct WGCCapture {
 // hMon=nullptr → fallback to primary monitor
 bool WGC_Init(WGCCapture& wgc, HMONITOR hMon);
 
-// Get latest captured frame (caller must Release)
-ID3D11Texture2D* WGC_GetFrame(WGCCapture& wgc);
+// Acquire the latest frame and keep its frame-pool lease until the GPU copy
+// has completed and the staging texture is mapped. Pair success with Unmap.
+bool WGC_TryGetMappedFrame(WGCCapture& wgc,
+                           D3D11_MAPPED_SUBRESOURCE& mapped,
+                           int& width, int& height);
 
-// Copy frame to staging, then Map for CPU read
-bool WGC_CopyToStaging(WGCCapture& wgc, ID3D11Texture2D* srcTex,
-                       D3D11_MAPPED_SUBRESOURCE& mapped);
+// Experimental D3D11 renderer path: returns an owned reference to a stable
+// texture copied out of the WGC frame pool. Caller must Release.
+ID3D11Texture2D* WGC_GetStableFrame(WGCCapture& wgc);
 
 void WGC_UnmapStaging(WGCCapture& wgc);
 

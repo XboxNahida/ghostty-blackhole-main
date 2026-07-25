@@ -1365,41 +1365,67 @@ int main(int argc, char* argv[]) {
 
     while (stableFrames < requiredStableFrames && warmupAttempts < maxWarmupAttempts) {
         bool gotPri = false;
-        ID3D11Texture2D* framePri = useWGC ? WGC_GetFrame(wgcPri) : DXGI_GetFrame(dxgiPri);
-        if (framePri) {
-            gotPri = true;
-            D3D11_TEXTURE2D_DESC desc; framePri->GetDesc(&desc);
-            int fw = (int)desc.Width, fh = (int)desc.Height;
-            int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
-            int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
-            D3D11_MAPPED_SUBRESOURCE mapped;
-            if (useWGC ? WGC_CopyToStaging(wgcPri, framePri, mapped) : DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
+        if (useWGC) {
+            D3D11_MAPPED_SUBRESOURCE mapped = {};
+            int fw = 0, fh = 0;
+            if (WGC_TryGetMappedFrame(wgcPri, mapped, fw, fh)) {
+                gotPri = true;
+                int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
+                int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
                 GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
-                if (useWGC) WGC_UnmapStaging(wgcPri); else DXGI_UnmapStaging(dxgiPri);
-                stableFrames++;
                 unsigned char* pData = (unsigned char*)mapped.pData;
                 int sum = 0;
                 for (int i = 0; i < 100; i++) sum += pData[i];
+                WGC_UnmapStaging(wgcPri);
+                stableFrames++;
                 if (debugLog) { fprintf(debugLog, "[Warmup] Frame %d/%d pri(%dx%d) sum=%d\n", stableFrames, requiredStableFrames, fw, fh, sum); fflush(debugLog); }
             }
-            framePri->Release();
-            if (!useWGC) DXGI_ReleaseFrame(dxgiPri);
+        } else {
+            ID3D11Texture2D* framePri = DXGI_GetFrame(dxgiPri);
+            if (framePri) {
+                gotPri = true;
+                D3D11_TEXTURE2D_DESC desc; framePri->GetDesc(&desc);
+                int fw = (int)desc.Width, fh = (int)desc.Height;
+                int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
+                int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
+                D3D11_MAPPED_SUBRESOURCE mapped;
+                if (DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
+                    GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                    unsigned char* pData = (unsigned char*)mapped.pData;
+                    int sum = 0;
+                    for (int i = 0; i < 100; i++) sum += pData[i];
+                    DXGI_UnmapStaging(dxgiPri);
+                    stableFrames++;
+                    if (debugLog) { fprintf(debugLog, "[Warmup] Frame %d/%d pri(%dx%d) sum=%d\n", stableFrames, requiredStableFrames, fw, fh, sum); fflush(debugLog); }
+                }
+                framePri->Release();
+                DXGI_ReleaseFrame(dxgiPri);
+            }
         }
         // 副屏帧（仅跨屏模式）
-        if (crossScreen) {
-            ID3D11Texture2D* frameSec = useWGC ? WGC_GetFrame(wgcSec) : DXGI_GetFrame(dxgiSec);
+        if (crossScreen && useWGC) {
+            D3D11_MAPPED_SUBRESOURCE mapped = {};
+            int fw = 0, fh = 0;
+            if (WGC_TryGetMappedFrame(wgcSec, mapped, fw, fh)) {
+                int dstX = monSecondary.rc.left - winX;
+                int dstY = monSecondary.rc.top - winY;
+                GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                WGC_UnmapStaging(wgcSec);
+            }
+        } else if (crossScreen) {
+            ID3D11Texture2D* frameSec = DXGI_GetFrame(dxgiSec);
             if (frameSec) {
                 D3D11_TEXTURE2D_DESC desc; frameSec->GetDesc(&desc);
                 int fw = (int)desc.Width, fh = (int)desc.Height;
                 int dstX = monSecondary.rc.left - winX;
                 int dstY = monSecondary.rc.top - winY;
                 D3D11_MAPPED_SUBRESOURCE mapped;
-                if (useWGC ? WGC_CopyToStaging(wgcSec, frameSec, mapped) : DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
+                if (DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
                     GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
-                    if (useWGC) WGC_UnmapStaging(wgcSec); else DXGI_UnmapStaging(dxgiSec);
+                    DXGI_UnmapStaging(dxgiSec);
                 }
                 frameSec->Release();
-                if (!useWGC) DXGI_ReleaseFrame(dxgiSec);
+                DXGI_ReleaseFrame(dxgiSec);
             }
         }
         if (!gotPri) Sleep(16);
@@ -1553,35 +1579,53 @@ int main(int argc, char* argv[]) {
         // 退出时跳过捕获，避免卡顿；录屏模式下完全冻结窗口显示前的桌面纹理，避免自捕获递归
         if (!exiting && captureUpdateDue) {
             // 主屏帧
-            if (!useWGC) DXGI_ReleaseFrame(dxgiPri);
-            ID3D11Texture2D* framePri = useWGC ? WGC_GetFrame(wgcPri) : DXGI_GetFrame(dxgiPri);
-            if (framePri) {
-                D3D11_TEXTURE2D_DESC desc; framePri->GetDesc(&desc);
-                int fw = (int)desc.Width, fh = (int)desc.Height;
-                int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
-                int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
-                D3D11_MAPPED_SUBRESOURCE mapped;
-                if (useWGC ? WGC_CopyToStaging(wgcPri, framePri, mapped)
-                           : DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
+            if (useWGC) {
+                D3D11_MAPPED_SUBRESOURCE mapped = {};
+                int fw = 0, fh = 0;
+                if (WGC_TryGetMappedFrame(wgcPri, mapped, fw, fh)) {
+                    int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
+                    int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
                     GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
-                    if (useWGC) WGC_UnmapStaging(wgcPri); else DXGI_UnmapStaging(dxgiPri);
+                    WGC_UnmapStaging(wgcPri);
                 }
-                framePri->Release();
+            } else {
+                DXGI_ReleaseFrame(dxgiPri);
+                ID3D11Texture2D* framePri = DXGI_GetFrame(dxgiPri);
+                if (framePri) {
+                    D3D11_TEXTURE2D_DESC desc; framePri->GetDesc(&desc);
+                    int fw = (int)desc.Width, fh = (int)desc.Height;
+                    int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
+                    int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
+                    D3D11_MAPPED_SUBRESOURCE mapped;
+                    if (DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
+                        GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                        DXGI_UnmapStaging(dxgiPri);
+                    }
+                    framePri->Release();
+                }
             }
             // 副屏帧（仅跨屏模式）
-            if (crossScreen) {
-                if (!useWGC) DXGI_ReleaseFrame(dxgiSec);
-                ID3D11Texture2D* frameSec = useWGC ? WGC_GetFrame(wgcSec) : DXGI_GetFrame(dxgiSec);
+            if (crossScreen && useWGC) {
+                D3D11_MAPPED_SUBRESOURCE mapped = {};
+                int fw = 0, fh = 0;
+                if (WGC_TryGetMappedFrame(wgcSec, mapped, fw, fh)) {
+                    int dstX = monSecondary.rc.left - winX;
+                    int dstY = monSecondary.rc.top - winY;
+                    GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                    WGC_UnmapStaging(wgcSec);
+                }
+            } else if (crossScreen) {
+                DXGI_ReleaseFrame(dxgiSec);
+                ID3D11Texture2D* frameSec = DXGI_GetFrame(dxgiSec);
                 if (frameSec) {
                     D3D11_TEXTURE2D_DESC desc; frameSec->GetDesc(&desc);
                     int fw = (int)desc.Width, fh = (int)desc.Height;
                     int dstX = monSecondary.rc.left - winX;
                     int dstY = monSecondary.rc.top - winY;
                     D3D11_MAPPED_SUBRESOURCE mapped;
-                    if (useWGC ? WGC_CopyToStaging(wgcSec, frameSec, mapped)
-                               : DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
+                    if (DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
                         GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
-                        if (useWGC) WGC_UnmapStaging(wgcSec); else DXGI_UnmapStaging(dxgiSec);
+                        DXGI_UnmapStaging(dxgiSec);
                     }
                     frameSec->Release();
                 }
@@ -1860,7 +1904,7 @@ int main(int argc, char* argv[]) {
         if (!r.Init(win.hwnd, fbW, fbH, wgc.d3dDev, wgc.d3dCtx)) { WGC_Release(wgc); Win32Window_Shutdown(win); return 1; }
         double st = Win32Window_GetTime(); int fr=0; double lf=st; char tt[128];
         while (Win32Window_PollEvents(win)) {
-            ID3D11Texture2D* frTex = WGC_GetFrame(wgc);
+            ID3D11Texture2D* frTex = WGC_GetStableFrame(wgc);
             if (!frTex) continue;
             TextureFrame tf = {}; tf.d3dTex=frTex; tf.valid=true;
             double nw = Win32Window_GetTime();
@@ -1870,6 +1914,7 @@ int main(int argc, char* argv[]) {
             u.holeRadius=cfg.holeRadius; u.diskGain=cfg.diskGain; u.diskTemp=cfg.diskTemp; u.exposure=cfg.exposure; u.speed=cfg.spd; u.starGain=cfg.starGain; u.diskIncl=cfg.diskIncl; u.playMode=cfg.playMode; u.slotSec=cfg.slotSec; u.presetCount=cfg.presetCount;
             for(int i=0;i<cfg.presetCount&&i<64;i++){u.presetTemp[i]=cfg.presets[i].temp;u.presetIncl[i]=cfg.presets[i].incl;u.presetRoll[i]=cfg.presets[i].roll;u.presetInner[i]=cfg.presets[i].inner;u.presetOuter[i]=cfg.presets[i].outer;u.presetOpac[i]=cfg.presets[i].opac;u.presetDopp[i]=cfg.presets[i].dopp;u.presetBeam[i]=cfg.presets[i].beam;u.presetGain[i]=cfg.presets[i].gain;u.presetContr[i]=cfg.presets[i].contr;u.presetWind[i]=cfg.presets[i].wind;u.presetSpeed[i]=cfg.presets[i].speed;u.presetExpo[i]=cfg.presets[i].expo;u.presetStar[i]=cfg.presets[i].star;}
             r.Render(tf, u);
+            frTex->Release();
         }
         r.Shutdown(); if(useWGC)WGC_Release(wgc);else DXGI_Release(dxgi); Win32Window_ShowSystemCursor(true); Win32Window_Shutdown(win);
     }

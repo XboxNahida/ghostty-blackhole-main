@@ -51,6 +51,24 @@ using WGD3D::IDirect3DDevice;
 using WGD3D::IDirect3DSurface;
 using ABI::Windows::Graphics::SizeInt32;
 
+struct WGCFrameLease {
+    IDirect3D11CaptureFrame* frame = nullptr;
+    IDirect3DSurface* surface = nullptr;
+    IDirect3DDxgiInterfaceAccess* access = nullptr;
+    ID3D11Texture2D* texture = nullptr;
+
+    WGCFrameLease() = default;
+    WGCFrameLease(const WGCFrameLease&) = delete;
+    WGCFrameLease& operator=(const WGCFrameLease&) = delete;
+
+    ~WGCFrameLease() {
+        if (texture) texture->Release();
+        if (access) access->Release();
+        if (surface) surface->Release();
+        if (frame) frame->Release();
+    }
+};
+
 // GUID for IDirect3DDevice (not exported as IID_ in MinGW WIDL)
 // {A37624AB-8D5F-4650-9D3E-9EAE3D9BC670}
 // IGraphicsCaptureSession2: {2C39AE40-7D2E-5044-804E-8B6799D4CF9E}
@@ -307,67 +325,108 @@ bool WGC_Init(WGCCapture& wgc, HMONITOR hMon) {
     return true;
 }
 
-ID3D11Texture2D* WGC_GetFrame(WGCCapture& wgc) {
-    if (!wgc.active) return nullptr;
-
+static bool WGC_AcquireFrameLease(WGCCapture& wgc, WGCFrameLease& lease) {
+    if (!wgc.active) return false;
     IDirect3D11CaptureFramePool* pool = (IDirect3D11CaptureFramePool*)wgc.framePool;
-    IDirect3D11CaptureFrame* frame = nullptr;
+    HRESULT hr = pool->TryGetNextFrame(&lease.frame);
+    if (FAILED(hr) || !lease.frame) return false;
 
-    // TryGetNextFrame: non-blocking
-    HRESULT hr = pool->TryGetNextFrame(&frame);
-    if (FAILED(hr) || !frame) return nullptr;
+    hr = lease.frame->get_Surface(&lease.surface);
+    if (FAILED(hr) || !lease.surface) return false;
 
-    // Get the Direct3D surface from the frame
-    IDirect3DSurface* surface = nullptr;
-    hr = frame->get_Surface(&surface);
-    frame->Release();
-    if (FAILED(hr) || !surface) return nullptr;
-
-    // Use IDirect3DDxgiInterfaceAccess to get the underlying D3D11 texture.
-    // Direct QI for ID3D11Texture2D on a WinRT surface returns E_NOINTERFACE.
-    IDirect3DDxgiInterfaceAccess* dxgiAccess = nullptr;
-    hr = surface->QueryInterface(IID_IDirect3DDxgiInterfaceAccess,
-                                  (void**)&dxgiAccess);
-    if (FAILED(hr) || !dxgiAccess) {
+    hr = lease.surface->QueryInterface(IID_IDirect3DDxgiInterfaceAccess,
+                                       (void**)&lease.access);
+    if (FAILED(hr) || !lease.access) {
         fprintf(stderr, "[WGC] DxgiInterfaceAccess QI failed: 0x%08X\n",
-                (unsigned)hr);
-        surface->Release();
-        return nullptr;
+                 (unsigned)hr);
+        return false;
     }
 
-    ID3D11Texture2D* tex = nullptr;
-    hr = dxgiAccess->GetInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
-    dxgiAccess->Release();
-    surface->Release();
+    hr = lease.access->GetInterface(__uuidof(ID3D11Texture2D),
+                                    (void**)&lease.texture);
     if (FAILED(hr)) {
         fprintf(stderr, "[WGC] GetInterface(ID3D11Texture2D) failed: 0x%08X\n",
-                (unsigned)hr);
-        return nullptr;
+                 (unsigned)hr);
+        return false;
     }
-    return tex;
+    return true;
 }
 
-bool WGC_CopyToStaging(WGCCapture& wgc, ID3D11Texture2D* srcTex,
-                       D3D11_MAPPED_SUBRESOURCE& mapped) {
-    if (!wgc.active || !srcTex || !wgc.stagingTex) return false;
+bool WGC_TryGetMappedFrame(WGCCapture& wgc,
+                           D3D11_MAPPED_SUBRESOURCE& mapped,
+                           int& width, int& height) {
+    mapped = {};
+    WGCFrameLease lease;
+    if (!WGC_AcquireFrameLease(wgc, lease) || !wgc.stagingTex) return false;
 
-    // Copy frame to staging texture (GPU-only)
-    wgc.d3dCtx->CopyResource(wgc.stagingTex, srcTex);
-
-    // D3D11 fence: ensure CopyResource completes before CPU Map.
-    // Without this, high-fps GPU pipelining can return partially-written data.
-    ID3D11Query* fence = nullptr;
-    D3D11_QUERY_DESC qdesc = { D3D11_QUERY_EVENT, 0 };
-    if (SUCCEEDED(wgc.d3dDev->CreateQuery(&qdesc, &fence))) {
-        wgc.d3dCtx->End(fence);
-        while (wgc.d3dCtx->GetData(fence, nullptr, 0, 0) == S_FALSE)
-            ;  // spin-wait for GPU
-        fence->Release();
+    D3D11_TEXTURE2D_DESC desc = {};
+    lease.texture->GetDesc(&desc);
+    width = (int)desc.Width;
+    height = (int)desc.Height;
+    if (width != wgc.width || height != wgc.height ||
+        desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM) {
+        WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr,
+                 "[WGC] Frame format changed: %dx%d format=%u\n",
+                 width, height, (unsigned)desc.Format));
+        return false;
     }
 
-    // Map staging for CPU read
-    HRESULT hr = wgc.d3dCtx->Map(wgc.stagingTex, 0, D3D11_MAP_READ, 0, &mapped);
+    wgc.d3dCtx->CopyResource(wgc.stagingTex, lease.texture);
+    const HRESULT hr = wgc.d3dCtx->Map(
+        wgc.stagingTex, 0, D3D11_MAP_READ, 0, &mapped);
     return SUCCEEDED(hr);
+}
+
+static bool WGC_WaitForCopy(WGCCapture& wgc) {
+    if (!wgc.copyFence) {
+        D3D11_QUERY_DESC queryDesc = { D3D11_QUERY_EVENT, 0 };
+        if (FAILED(wgc.d3dDev->CreateQuery(&queryDesc, &wgc.copyFence))) {
+            WGC_LOG((g_wgcDebug ? g_wgcDebug : stderr,
+                     "[WGC] Failed to create copy fence\n"));
+            return false;
+        }
+    }
+
+    wgc.d3dCtx->End(wgc.copyFence);
+    HRESULT hr = S_FALSE;
+    while ((hr = wgc.d3dCtx->GetData(wgc.copyFence, nullptr, 0, 0)) == S_FALSE) {
+        SwitchToThread();
+    }
+    return hr == S_OK;
+}
+
+ID3D11Texture2D* WGC_GetStableFrame(WGCCapture& wgc) {
+    WGCFrameLease lease;
+    if (!WGC_AcquireFrameLease(wgc, lease)) return nullptr;
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    lease.texture->GetDesc(&desc);
+    if (wgc.stableTex) {
+        D3D11_TEXTURE2D_DESC stableDesc = {};
+        wgc.stableTex->GetDesc(&stableDesc);
+        if (stableDesc.Width != desc.Width ||
+            stableDesc.Height != desc.Height ||
+            stableDesc.Format != desc.Format) {
+            wgc.stableTex->Release();
+            wgc.stableTex = nullptr;
+        }
+    }
+    if (!wgc.stableTex) {
+        D3D11_TEXTURE2D_DESC stableDesc = desc;
+        stableDesc.Usage = D3D11_USAGE_DEFAULT;
+        stableDesc.BindFlags = 0;
+        stableDesc.CPUAccessFlags = 0;
+        stableDesc.MiscFlags = 0;
+        if (FAILED(wgc.d3dDev->CreateTexture2D(
+                &stableDesc, nullptr, &wgc.stableTex))) {
+            return nullptr;
+        }
+    }
+
+    wgc.d3dCtx->CopyResource(wgc.stableTex, lease.texture);
+    if (!WGC_WaitForCopy(wgc)) return nullptr;
+    wgc.stableTex->AddRef();
+    return wgc.stableTex;
 }
 
 void WGC_UnmapStaging(WGCCapture& wgc) {
@@ -376,6 +435,8 @@ void WGC_UnmapStaging(WGCCapture& wgc) {
 }
 
 void WGC_Release(WGCCapture& wgc) {
+    if (wgc.copyFence) { wgc.copyFence->Release(); wgc.copyFence = nullptr; }
+    if (wgc.stableTex) { wgc.stableTex->Release(); wgc.stableTex = nullptr; }
     if (wgc.stagingTex) { wgc.stagingTex->Release(); wgc.stagingTex = nullptr; }
 
     if (wgc.session) {
