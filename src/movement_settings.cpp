@@ -9,8 +9,8 @@ int NormalizeSpawnPosition(int value) {
 }
 
 float ClampMovementSpeed(float value) {
-    if (value < 0.1f) {
-        return 0.1f;
+    if (value < 0.0f) {
+        return 0.0f;
     }
     if (value > 3.0f) {
         return 3.0f;

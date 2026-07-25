@@ -5,7 +5,7 @@
 
 static void RequireNear(float actual, float expected) {
     if (std::fabs(actual - expected) > 0.0001f) {
-        std::abort();
+        std::exit(99);
     }
 }
 
@@ -17,7 +17,8 @@ int main() {
     if (NormalizeSpawnPosition(4) != static_cast<int>(SpawnPosition::RightBottom)) return 5;
     if (NormalizeSpawnPosition(-1) != 0) return 1;
     if (NormalizeSpawnPosition(5) != 0) return 2;
-    RequireNear(ClampMovementSpeed(0.0f), 0.1f);
+    RequireNear(ClampMovementSpeed(-0.1f), 0.0f);
+    RequireNear(ClampMovementSpeed(0.0f), 0.0f);
     RequireNear(ClampMovementSpeed(1.0f), 1.0f);
     RequireNear(ClampMovementSpeed(4.0f), 3.0f);
 

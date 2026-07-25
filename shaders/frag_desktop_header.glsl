@@ -57,4 +57,4 @@ uniform int uFollowMouse = 0;      // 1=lock hole center to uHomeX/uHomeY
 uniform float uRandPhase = 0.0;    // random phase offset for trajectory
 uniform float uPresetOffset = 0.0; // random time offset for preset cycling (seconds)
 
-#define fragColor gl_FragColor
+out vec4 fragColor;

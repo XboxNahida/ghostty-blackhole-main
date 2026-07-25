@@ -308,9 +308,12 @@ Item {
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: "分层吸积盘、冷暖双色照明与辉光"
+                        text: "实验性功能，尚未完成；启用后可能出现泛白、对比度变化或画面异常"
                         font.pixelSize: 11
-                        color: Qt.rgba(theme.textColor.r, theme.textColor.g, theme.textColor.b, 0.45)
+                        color: "#d6a04b"
+                        Layout.preferredWidth: 390
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignRight
                     }
                     CheckBox {
                         id: lightingCheck
@@ -535,7 +538,7 @@ Item {
                 // 黑洞移动速度
                 Components.ESlider {
                     label: "黑洞移动速度"
-                    from: 0.1; to: 3.0; stepSize: 0.1; decimals: 1
+                    from: 0.0; to: 3.0; stepSize: 0.1; decimals: 1
                     value: advPage.movementSpeed
                     onValueChanged: { advPage.movementSpeed = value; if (bhCore) bhCore.movementSpeed = value }
                 }
