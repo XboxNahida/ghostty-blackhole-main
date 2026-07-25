@@ -40,7 +40,7 @@ if ($qml -match 'screenSwallow|swallowStrength') {
 }
 
 $defaultConfig = Get-ProjectText "blackhole_advanced.txt"
-if ($defaultConfig -notmatch '(?m)^lightingEffect=0$') {
+if ($defaultConfig -notmatch '(?m)^lightingEffect=0\r?$') {
     throw "Missing default lighting key: blackhole_advanced.txt"
 }
 
@@ -84,7 +84,7 @@ Require-Pattern "src\bloom_renderer.h" "struct\s+BloomRenderer" "Bloom state"
 Require-Pattern "src\bloom_renderer.h" "Bloom_BeginScene" "Bloom begin interface"
 Require-Pattern "src\bloom_renderer.h" "Bloom_EndScene" "Bloom composite interface"
 Require-Pattern "src\bloom_renderer.cpp" "GL_RGBA16F" "HDR scene texture"
-Require-Pattern "src\bloom_renderer.cpp" 'uv\s*=\s*p\s*\*\s*0\.5' "normalized fullscreen texture coordinates"
+Require-Pattern "src\bloom_renderer.cpp" 'uv\s*=\s*p\s*;' "normalized fullscreen texture coordinates"
 Require-Pattern "src\bloom_renderer.cpp" "blurDirection" "separable Gaussian blur"
 Require-Pattern "src\bloom_renderer.cpp" "bloomTexture" "Bloom composite sampler"
 Require-Pattern "src\bloom_renderer.cpp" 'source\s*-\s*vec3\(1\.02\)' "isolated HDR Bloom threshold"

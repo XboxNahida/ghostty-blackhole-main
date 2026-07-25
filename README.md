@@ -1,6 +1,6 @@
 # Black Hole / 黑洞桌面特效
 
-[![Release](https://img.shields.io/badge/release-v1.2.3-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3)
+[![Release](https://img.shields.io/badge/release-v1.2.4-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.4)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#设备要求与兼容性)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -8,17 +8,28 @@
 
 Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面并实时渲染引力透镜、吸积盘和光子环效果，可常驻显示，也可在系统空闲时自动出现。
 
-**当前版本：v1.2.3**
+**当前版本：v1.2.4**
 
-[下载 v1.2.3](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.3) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)
+[下载 v1.2.4](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.4) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)
 
 ## 下载与安装
 
-1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.3-windows-x64.zip`。
+1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.4-windows-x64.zip`。
 2. 将 ZIP **完整解压**到一个可写目录。
 3. 双击 `appBlakholeUI.exe` 启动界面。
 
 > 不要只复制单个 EXE。Qt DLL、插件、Shader、图片和 `blackhole.exe` Renderer 都是运行所需文件；文件缺失会导致界面、预览或黑洞渲染无法启动。
+
+## v1.2.4 修复重点
+
+- 修复 AMD 等严格 OpenGL 驱动上的片元 Shader 编译失败。
+- 修复启用实验性吸积盘光影后，桌面只取左下区域并被放大的问题。
+- 改用 Per-Monitor V2 DPI 感知，改善不同缩放比例双屏上的尺寸和坐标异常。
+- 限制同一目标只能运行一个 Renderer，避免重复启动造成画面叠加。
+- 黑洞移动速度现在允许设为 0，可保持黑洞静止。
+- 调整 Windows 11 WGC 捕获帧生命周期，避免帧池过早复用导致的竞争、闪烁或旧帧。
+
+吸积盘光影仍是实验性功能，启用后可能出现泛白、对比度变化或其他画面异常。
 
 ## 主要功能
 
@@ -134,7 +145,7 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 
 ## 更新机制
 
-当前版本为 **v1.2.3**。程序每次启动会在后台检查 GitHub Release，不阻塞启动流程：
+当前版本为 **v1.2.4**。程序每次启动会在后台检查 GitHub Release，不阻塞启动流程：
 
 - 有新版本时，设置入口显示红点。
 - 只有用户点击“检查更新”后才弹出更新窗口。
@@ -147,19 +158,19 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 
 ```powershell
 # Renderer
-cmake -S . -B _build_v123_renderer -G "MinGW Makefiles" `
+cmake -S . -B _build_v124_renderer -G "MinGW Makefiles" `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_CXX_COMPILER=C:/Qt/Tools/mingw1310_64/bin/c++.exe
-cmake --build _build_v123_renderer --config Release --clean-first
+cmake --build _build_v124_renderer --config Release --clean-first
 
 # Qt UI：按本机 Qt 安装路径调整 CMAKE_PREFIX_PATH
 cmake -S Blakhole_UI `
-  -B _build_v123_ui `
+  -B _build_v124_ui `
   -G "MinGW Makefiles" `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_CXX_COMPILER=C:/Qt/Tools/mingw1310_64/bin/c++.exe `
   -DCMAKE_PREFIX_PATH=C:/Qt/6.11.1/mingw_64
-cmake --build _build_v123_ui `
+cmake --build _build_v124_ui `
   --config Release --clean-first
 
 # 从已完成的构建生成 release 目录
