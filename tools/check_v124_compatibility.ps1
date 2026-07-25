@@ -95,6 +95,11 @@ if ($main -notmatch '\bWGC_TryGetMappedFrame\s*\(' -or
     $main -notmatch '\bWGC_GetStableFrame\s*\(') {
     Add-Failure "main.cpp does not use stable WGC APIs"
 }
+if ($main -notmatch 'const\s+bool\s+captureAuto' -or
+    $main -notmatch '(?s)WGC primary failed in auto mode.+?WGC_Release\(wgcPri\).+?useWGC\s*=\s*false' -or
+    $main -notmatch '(?s)WGC secondary failed in auto mode.+?WGC_Release\(wgcPri\).+?useWGC\s*=\s*false') {
+    Add-Failure "auto capture mode does not fall back from WGC initialization to DXGI"
+}
 if ($wgc -notmatch 'struct\s+WGCFrameLease' -or
     $wgc -notmatch '(?s)WGC_TryGetMappedFrame.+?CopyResource.+?Map\s*\(') {
     Add-Failure "WGC mapped-frame path does not hold a frame lease through Map"

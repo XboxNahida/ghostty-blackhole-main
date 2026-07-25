@@ -1183,6 +1183,7 @@ int main(int argc, char* argv[]) {
     // displayMode 2 (跨屏) 时两个捕获器都建，其余只建主屏一个
     WGCCapture wgcPri, wgcSec; DXGICapture dxgiPri, dxgiSec;
     bool useWGC = false;
+    const bool captureAuto = (cfg.captureMode != 0 && cfg.captureMode != 1);
     if (cfg.captureMode == 0) {
         useWGC = true;
     } else if (cfg.captureMode == 1) {
@@ -1202,19 +1203,33 @@ int main(int argc, char* argv[]) {
     int capW=0, capH=0; bool capOk;
     if (useWGC) {
         if (debugLog) { fprintf(debugLog, "[Init] Initializing WGC primary...\n"); fflush(debugLog); }
-        capOk = WGC_Init(wgcPri, hMonPri); capW=wgcPri.width; capH=wgcPri.height;
-        if (!capOk) {
+        capOk = WGC_Init(wgcPri, hMonPri);
+        if (!capOk && captureAuto) {
+            if (debugLog) { fprintf(debugLog, "[WARN] WGC primary failed in auto mode, falling back to DXGI\n"); fflush(debugLog); }
+            WGC_Release(wgcPri);
+            useWGC = false;
+        } else if (!capOk) {
             if (debugLog) { fprintf(debugLog, "[FAIL] WGC_Init primary failed!\n"); fclose(debugLog); }
             Win32GL_Shutdown(wgl); return 1;
+        } else {
+            capW=wgcPri.width; capH=wgcPri.height;
         }
-        if (crossScreen) {
+        if (useWGC && crossScreen) {
             if (debugLog) { fprintf(debugLog, "[Init] Initializing WGC secondary...\n"); fflush(debugLog); }
             if (!WGC_Init(wgcSec, hMonSec)) {
-                if (debugLog) { fprintf(debugLog, "[WARN] WGC secondary failed, falling back to primary-only\n"); fflush(debugLog); }
-                crossScreen = false;
+                if (captureAuto) {
+                    if (debugLog) { fprintf(debugLog, "[WARN] WGC secondary failed in auto mode, falling back to DXGI\n"); fflush(debugLog); }
+                    WGC_Release(wgcSec);
+                    WGC_Release(wgcPri);
+                    useWGC = false;
+                } else {
+                    if (debugLog) { fprintf(debugLog, "[WARN] WGC secondary failed, falling back to primary-only\n"); fflush(debugLog); }
+                    crossScreen = false;
+                }
             }
         }
-    } else {
+    }
+    if (!useWGC) {
         if (debugLog) { fprintf(debugLog, "[Init] Initializing DXGI primary...\n"); fflush(debugLog); }
         capOk = DXGI_Init(dxgiPri, hMonPri); capW=dxgiPri.width; capH=dxgiPri.height;
         if (!capOk) {
