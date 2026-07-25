@@ -220,8 +220,7 @@ bool WGC_Init(WGCCapture& wgc, HMONITOR hMon) {
         return false;
     }
 
-    // 7. Query monitor size (使用真实分辨率，避免DPI虚拟化)
-    SetProcessDPIAware();
+    // 7. Query monitor size (进程已在 main 入口启用 Per-Monitor DPI 感知)
     HMONITOR hMonSize = hMon ? hMon : MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
     MONITORINFO mi = { sizeof(mi) };
     GetMonitorInfoW(hMonSize, &mi);

@@ -31,6 +31,8 @@
 #include "gui_config.h"
 #include "frame_limiter.h"
 #include "movement_settings.h"
+#include "renderer_instance.h"
+#include "dpi_awareness.h"
 #include "win32_gl.h"
 #include "monitors.h"
 #ifdef BLACKHOLE_USE_D3D11
@@ -879,8 +881,8 @@ static bool MonitorRunning() {
 
 // ---- Main ----
 int main(int argc, char* argv[]) {
+    const DpiAwarenessMode dpiAwareness = EnableBestDpiAwareness();
     ShowWindow(GetConsoleWindow(), SW_HIDE);
-    SetProcessDPIAware();  // 声明 DPI 感知，防止 Windows 虚拟化缩放
 
     // Set working directory to project root
     {
@@ -895,8 +897,24 @@ int main(int argc, char* argv[]) {
     bool isConfig = (argc >= 2 && strcmp(argv[1], "--config") == 0);
     bool isMonitor = (argc >= 2 && strcmp(argv[1], "--monitor") == 0);
 
+    // --screen <idx>: 一屏一黑洞模式的子进程参数，指定渲染到第几个显示器
+    // 父进程不传 --screen，子进程传 --screen N (N>=1)
+    int screenIdx = -1;
+    if (isRenderer && argc >= 4 && strcmp(argv[2], "--screen") == 0) {
+        screenIdx = atoi(argv[3]);
+    }
+
     HANDLE controlMutex = nullptr;
-    if (!isRenderer) {
+    HANDLE rendererMutex = nullptr;
+    if (isRenderer) {
+        const std::string mutexName = RendererMutexName(screenIdx);
+        rendererMutex = CreateMutexA(nullptr, TRUE, mutexName.c_str());
+        if (!rendererMutex) return 1;
+        if (GetLastError() == ERROR_ALREADY_EXISTS) {
+            CloseHandle(rendererMutex);
+            return 0;
+        }
+    } else {
         const char* mutexName = isConfig
             ? "Local\\BlakholeRendererConfig"
             : "Local\\BlakholeRendererControl";
@@ -908,13 +926,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // --screen <idx>: 一屏一黑洞模式的子进程参数，指定渲染到第几个显示器
-    // 父进程不传 --screen，子进程传 --screen N (N>=1)
-    int screenIdx = -1;
-    if (isRenderer && argc >= 4 && strcmp(argv[2], "--screen") == 0) {
-        screenIdx = atoi(argv[3]);
-    }
-
     // 直接写入调试文件（子进程用独立文件名避免冲突）
     char debugName[64] = "blackhole_debug.txt";
     if (screenIdx >= 0)
@@ -923,6 +934,7 @@ int main(int argc, char* argv[]) {
     if (debugLog) {
         fprintf(debugLog, "========== BLACKHOLE START ==========\n");
         fprintf(debugLog, "[Init] isRenderer=%d, argc=%d\n", isRenderer, argc);
+        fprintf(debugLog, "[Init] dpiAwareness=%s\n", DpiAwarenessModeName(dpiAwareness));
         if (argc >= 2) fprintf(debugLog, "[Init] argv[1]='%s'\n", argv[1]);
         fflush(debugLog);
     }

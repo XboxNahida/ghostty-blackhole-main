@@ -87,9 +87,6 @@ bool Win32GL_Init(Win32GL& wgl, const char* title, int x, int y, int width, int 
     wgl.targetX = x;
     wgl.targetY = y;
 
-    // 声明DPI感知，获取真实分辨率
-    SetProcessDPIAware();
-
     // 获取主显示器真实分辨率（保留 capFullW/H 作为参考）
     HMONITOR hMon = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
     MONITORINFO mi = { sizeof(mi) };

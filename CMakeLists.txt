@@ -24,6 +24,8 @@ add_executable(blackhole
     src/game_detection.cpp
     src/media_session.cpp
     src/movement_settings.cpp
+    src/renderer_instance.cpp
+    src/dpi_awareness.cpp
     src/frame_limiter.cpp
     src/capture_wgc.cpp
     src/capture_dxgi.cpp

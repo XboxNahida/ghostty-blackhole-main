@@ -103,6 +103,13 @@ if(BUILD_TESTING)
     target_include_directories(movement_settings_tests PRIVATE ../src)
     add_test(NAME movement_settings_tests COMMAND movement_settings_tests)
 
+    add_executable(renderer_instance_tests EXCLUDE_FROM_ALL
+        ../tests/renderer_instance_tests.cpp
+        ../src/renderer_instance.cpp
+    )
+    target_include_directories(renderer_instance_tests PRIVATE ../src)
+    add_test(NAME renderer_instance_tests COMMAND renderer_instance_tests)
+
     add_executable(application_catalog_tests EXCLUDE_FROM_ALL
         ../tests/application_catalog_tests.cpp
         core/application_catalog.cpp
