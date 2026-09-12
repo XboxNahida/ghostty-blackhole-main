@@ -144,6 +144,7 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(float movementSpeed READ movementSpeed WRITE setMovementSpeed NOTIFY movementSpeedChanged)
     Q_PROPERTY(int animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged)
     Q_PROPERTY(bool lightingEffect READ lightingEffect WRITE setLightingEffect NOTIFY lightingEffectChanged)
+    Q_PROPERTY(bool consumptionFormula READ consumptionFormula WRITE setConsumptionFormula NOTIFY consumptionFormulaChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
     Q_PROPERTY(bool allowRecordingCapture READ allowRecordingCapture WRITE setAllowRecordingCapture NOTIFY allowRecordingCaptureChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
@@ -266,6 +267,8 @@ public:
     int animationSpeed() const;
     void setAnimationSpeed(int v);
     bool lightingEffect() const;
+    bool consumptionFormula() const { return m_consumptionFormula; }
+    void setConsumptionFormula(bool v) { if (m_consumptionFormula == v) return; m_consumptionFormula=v; emit consumptionFormulaChanged(); }
     void setLightingEffect(bool v);
     float distortion() const;
     void setDistortion(float v);
@@ -403,6 +406,7 @@ signals:
     void movementSpeedChanged();
     void animationSpeedChanged();
     void lightingEffectChanged();
+    void consumptionFormulaChanged();
     void distortionChanged();
     void allowRecordingCaptureChanged();
     void holeSizeChanged();
@@ -528,6 +532,7 @@ private:
     float   m_movementSpeed  = 1.0f;
     int     m_animationSpeed = 1;
     bool    m_lightingEffect = false;
+    bool    m_consumptionFormula = true;
     float   m_distortion     = 1.0f;
     bool    m_allowRecordingCapture = false;
     float   m_holeSize       = 1.0f;

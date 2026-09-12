@@ -653,6 +653,8 @@ void BlackHoleCore::resetDefaults()
     m_spawnPosition = 0;
     m_movementSpeed = 1.0f;
     m_lightingEffect = false;
+    m_consumptionFormula = true;
+    emit consumptionFormulaChanged();
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -1778,6 +1780,7 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "movementSpeed=" << QString::number(m_movementSpeed, 'f', 1) << "\n";
     out << "animationSpeed=" << m_animationSpeed << "\n";
     out << "lightingEffect=" << (m_lightingEffect ? 1 : 0) << "\n";
+    out << "consumptionFormula=" << (m_consumptionFormula ? 1 : 0) << "\n";
     out << "distortion="    << QString::number(m_distortion, 'f', 2) << "\n";
     out << "allowRecordingCapture=" << (m_allowRecordingCapture ? 1 : 0) << "\n";
     out << "holeSize="      << QString::number(m_holeSize, 'f', 2) << "\n";
@@ -1803,6 +1806,7 @@ void BlackHoleCore::loadAdvancedConfig()
 
     QTextStream in(&file);
     bool hasLightingEffect = false;
+    m_consumptionFormula = true;
     bool hasSpawnPosition = false;
     int legacyRandomPath = -1;
     while (!in.atEnd()) {
@@ -1821,6 +1825,7 @@ void BlackHoleCore::loadAdvancedConfig()
         else if (key == "randomPath") legacyRandomPath = val.toInt();
         else if (key == "animationSpeed") m_animationSpeed = val.toInt();
         else if (key == "lightingEffect") { m_lightingEffect = (val.toInt() != 0); hasLightingEffect = true; }
+        else if (key == "consumptionFormula") m_consumptionFormula = (val.toInt() != 0);
         else if (key == "screenSwallow" && !hasLightingEffect) m_lightingEffect = (val.toInt() != 0);
         else if (key == "swallowStrength") { /* 旧配置兼容：强度参数已废弃。 */ }
         else if (key == "distortion")     m_distortion     = val.toFloat();
@@ -1845,6 +1850,7 @@ void BlackHoleCore::loadAdvancedConfig()
     emit spawnPositionChanged();
     emit movementSpeedChanged();
     emit lightingEffectChanged();
+    emit consumptionFormulaChanged();
     emit allowRecordingCaptureChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
 }

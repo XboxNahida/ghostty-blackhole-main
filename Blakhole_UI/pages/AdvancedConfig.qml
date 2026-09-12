@@ -308,7 +308,7 @@ Item {
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: "实验性：以启动时桌面为快照，吞噬后不恢复，耗尽后切换公式。移动速度最高 0.3；鼠标扰动流面。重启效果可重置，预览仅展示基础盘面。"
+                        text: "实验性：以启动时桌面为快照，吞噬后不恢复。移动速度最高 0.3；鼠标扰动流面。重启效果可重置，预览仅展示基础盘面。"
                         font.pixelSize: 11
                         color: "#d6a04b"
                         Layout.preferredWidth: 390
@@ -338,6 +338,13 @@ Item {
                             }
                         }
                     }
+                }
+
+                CheckBox {
+                    text: "桌面耗尽后显示公式流带"
+                    checked: bhCore ? bhCore.consumptionFormula : true
+                    enabled: advPage.lightingEffect
+                    onToggled: if (bhCore) bhCore.consumptionFormula = checked
                 }
 
                 // 扭曲程度

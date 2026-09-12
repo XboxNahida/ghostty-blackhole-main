@@ -40,6 +40,8 @@ add_executable(blackhole
     src/gl_texture.cpp
     src/bloom_renderer.cpp
     src/formula_texture.cpp
+    src/desktop_transport.cpp
+    src/fragment_shader_builder.cpp
     src/win32_gl.cpp
     src/monitors.cpp
     src/win32_window.cpp
@@ -101,11 +103,15 @@ add_custom_command(TARGET blackhole POST_BUILD
 )
 
 if(BUILD_TESTING)
+    add_executable(desktop_transport_tests tests/desktop_transport_tests.cpp src/desktop_transport.cpp src/fragment_shader_builder.cpp src/formula_texture.cpp)
+    target_link_libraries(desktop_transport_tests PRIVATE glfw ${OPENGL_LIBRARIES} gdi32)
+    add_test(NAME desktop_transport_tests COMMAND desktop_transport_tests)
+    set_tests_properties(desktop_transport_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_executable(consumption_state_tests tests/consumption_state_tests.cpp)
     target_include_directories(consumption_state_tests PRIVATE src)
     add_test(NAME consumption_state_tests COMMAND consumption_state_tests)
 
-    add_executable(consumption_gl_tests tests/consumption_gl_tests.cpp src/formula_texture.cpp)
+    add_executable(consumption_gl_tests tests/consumption_gl_tests.cpp src/formula_texture.cpp src/desktop_transport.cpp)
     target_link_libraries(consumption_gl_tests PRIVATE glfw ${OPENGL_LIBRARIES} gdi32)
     add_test(NAME consumption_gl_tests COMMAND consumption_gl_tests)
     set_tests_properties(consumption_gl_tests PROPERTIES

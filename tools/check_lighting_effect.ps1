@@ -56,7 +56,7 @@ if ($qtConfig -match 'out\s*<<\s*"(?:screenSwallow|swallowStrength)=') {
 
 Require-Pattern "shaders\frag_desktop_header.glsl" "uniform\s+int\s+uLightingEffect" "lighting uniform"
 # 新实验模式的视觉行为由真实 OpenGL 像素测试验证，不再锁定旧双色公式。
-Require-Pattern "src\main.cpp" 'shaders/consumption\.glsl' "consumption source integration"
+Require-Pattern "src\fragment_shader_builder.cpp" 'shaders/consumption\.glsl' "consumption source integration"
 Require-Pattern "src\main.cpp" 'captureUpdateDue\s*=\s*!recordingCaptureFrozen\s*&&\s*!cfg\.lightingEffect' "persistent desktop snapshot"
 Require-Pattern "src\main.cpp" 'ConsumptionMovementSpeed\(cfg\.movementSpeed,\s*cfg\.lightingEffect\)' "experimental movement limit"
 

@@ -385,6 +385,7 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "spawnPosition=%d\n", cfg.spawnPosition);
     fprintf(f, "movementSpeed=%.3f\n", cfg.movementSpeed);
     fprintf(f, "lightingEffect=%d\n", cfg.lightingEffect ? 1 : 0);
+    fprintf(f, "consumptionFormula=%d\n", cfg.consumptionFormula ? 1 : 0);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
     fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
@@ -435,6 +436,7 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
             else if (strcmp(key, "movementSpeed") == 0) cfg.movementSpeed = ClampMovementSpeed(val);
             else if (strcmp(key, "randomPath") == 0) legacyRandomPath = (val != 0.0f);
             else if (strcmp(key, "lightingEffect") == 0) { cfg.lightingEffect = (val != 0.0f); hasLightingEffect = true; }
+            else if (strcmp(key, "consumptionFormula") == 0) cfg.consumptionFormula = (val != 0.0f);
             else if (strcmp(key, "screenSwallow") == 0 && !hasLightingEffect) cfg.lightingEffect = (val != 0.0f);
             else if (strcmp(key, "swallowStrength") == 0) { /* 旧配置兼容：强度参数已废弃。 */ }
             else if (strcmp(key, "distortion") == 0) {

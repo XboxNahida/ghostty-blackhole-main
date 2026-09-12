@@ -439,7 +439,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // diameters away (deliberately unphysical, like the work-area shield)
     float window = exp(-pow(plen / (7.0 * rh), 2.0));
 
-    float bmax = rout + 3.0;            // rays beyond this can't touch the disk
+    // 小洞盘面投影更容易落在临界边缘，扩大近场求交范围避免上下盘被提前切断。
+    float bmax = rout + (rh < 0.085 ? 8.0 : 3.0);
     float Z0   = max(14.0, rout + 5.0); // camera distance (shared with the tracer)
 
     // ================= far field: analytic weak deflection ==================
@@ -483,6 +484,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     // disk plane: normal tilted DISK_INCL about the screen x-axis
     float ci = cos(L.incl), si = sin(L.incl);
+    // 小黑洞的盘面投影像素很少；把内缘向光子球平滑延伸，避免倾角变化时盘带断裂。
+    float diskRin = mix(1.60, rin, smoothstep(0.035, 0.085, rh));
     vec3  n  = vec3(0.0, si, ci);
     vec3  e2 = vec3(0.0, ci, -si);      // in-plane axis completing (x̂, e2, n)
     float sdir = L.speed < 0.0 ? -1.0 : 1.0;
@@ -496,7 +499,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
     for (int i = 0; i < N_STEPS; i++) {
         float r2 = dot(x, x);
-        if (r2 < 1.0) { captured = true; break; }        // through the horizon
+        // 小黑洞允许先完成本步盘面交点，再终止于视界，避免内缘盘带被提前截断。
+        bool insideHorizon = r2 < 1.0;
+        if (insideHorizon && rh >= 0.085) { captured = true; break; }
         if (x.z < -Z0 && v.z < 0.0) break;               // escaped out the back
         if (r2 > 4.0 * Z0 * Z0) break;                   // flung far sideways
         float r  = sqrt(r2);
@@ -520,22 +525,24 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
             float tc = sPrev / (sPrev - s);
             vec3  xc = mix(xPrev, x, tc);
             float rc = length(xc);
-            if (rc > rin && rc < rout) {
-                float band = smoothstep(rin, rin * 1.25, rc)
+            if (rc > diskRin && rc < rout) {
+                float band = smoothstep(diskRin, diskRin * 1.25, rc)
                            * (1.0 - smoothstep(rout * 0.70, rout, rc));
 
                 // disk-plane polar coords for the streak texture
                 float phi   = atan(dot(xc, e2), xc.x);
                 float turns = phi / 6.2831853;
-                float kep   = pow(rin / rc, 1.5);
+                float kep   = pow(diskRin / rc, 1.5);
                 // √(1 − 1.5/r): time runs slower for the inner orbits — the
                 // pattern visibly freezes toward the inner edge; dil winds the
                 // whole disk down as the hole grows
                 float gloc  = sqrt(max(1.0 - 1.5 / rc, 0.02));
                 float swirl = rc * L.wind * 0.12 - t * kep * spd * gloc * dil * sdir;
-                float streaks = vnoiseWrapY(vec2(rc * 2.8, turns * 19.0 + swirl * 3.0), 19.0) * 0.65 +
-                                vnoiseWrapY(vec2(rc * 1.0, turns * 9.0  + swirl * 1.5 + 7.0), 9.0) * 0.35;
-                streaks = 0.35 + L.contr * streaks * streaks;
+                float fineStreak = vnoiseWrapY(vec2(rc * 2.8, turns * 19.0 + swirl * 3.0), 19.0);
+                float broadStreak = vnoiseWrapY(vec2(rc * 1.0, turns * 9.0  + swirl * 1.5 + 7.0), 9.0);
+                // 常规模式降低硬条纹对比度，并以低频光晕托住细节，避免线稿感。
+                float streaks = mix(0.52, 0.48 + 0.22 * broadStreak + 0.10 * fineStreak,
+                                     clamp(L.contr * 0.55, 0.0, 1.0));
 
                 // relativistic Doppler + gravitational shift for gas on a
                 // circular geodesic: g = √(1 − 1.5/r) / (1 − β·k̂), with the
@@ -546,16 +553,20 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 g = mix(1.0, g, L.dopp);
 
                 // Shakura–Sunyaev temperature profile, peak normalized to 1
-                float xpr   = max(1.0 - sqrt(rin / rc), 0.0);
+                float xpr   = max(1.0 - sqrt(diskRin / rc), 0.0);
                 float tprof = pow(rin / rc, 0.75) * pow(xpr, 0.25) / 0.488;
                 vec3  cbb   = blackbody(L.temp * tprof * g);      // doppler-shifted color
                 float boost = pow(g, L.beam);                     // relativistic beaming
 
                 float density = band * streaks;
                 emitc += trans * cbb * (L.gain * 2.2 * density * tprof * tprof * boost);
-                trans *= 1.0 - clamp(L.opac * density, 0.0, 1.0);
+                // 小黑洞斜视时前盘与后盘投影重叠；前盘保留发光但降低遮挡，
+                // 避免把后侧盘面和视界边缘压成黑色缺口。
+                float overlapOpacity = L.opac * density * (rh < 0.085 ? 0.58 : 1.0);
+                trans *= 1.0 - clamp(overlapOpacity, 0.0, 1.0);
             }
         }
+        if (insideHorizon) { captured = true; break; }
         sPrev = s;
         xPrev = x;
     }

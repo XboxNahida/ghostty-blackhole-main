@@ -1,8 +1,12 @@
 #include "formula_texture.h"
+#include "win32_gl.h"
 #include <cwchar>
 #include <cstring>
 
 GLuint CreateFormulaTexture() {
+    using GenerateMipmap = void (APIENTRY*)(GLenum);
+    auto generateMipmap = reinterpret_cast<GenerateMipmap>(Win32GL_GetProcAddress("glGenerateMipmap"));
+    if (!generateMipmap) return 0;
     constexpr int width = 1024, height = 1024;
     HDC dc = CreateCompatibleDC(nullptr);
     if (!dc) return 0;
@@ -15,7 +19,7 @@ GLuint CreateFormulaTexture() {
     info.bmiHeader.biCompression = BI_RGB;
     void* bits = nullptr;
     HBITMAP bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
-    HFONT font = CreateFontW(-31, 0, 0, 0, FW_NORMAL, TRUE, FALSE, FALSE,
+    HFONT font = CreateFontW(-21, 0, 0, 0, FW_NORMAL, TRUE, FALSE, FALSE,
                             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                             ANTIALIASED_QUALITY, DEFAULT_PITCH, L"Cambria Math");
     if (!bitmap || !bits || !font) {
@@ -28,6 +32,8 @@ GLuint CreateFormulaTexture() {
     HGDIOBJ oldFont = SelectObject(dc, font);
     std::memset(bits, 0, width * height * 4);
     SetBkMode(dc, TRANSPARENT);
+    // Cambria Math 的默认排版高度大于字形本身，明确基线避免跨行错位。
+    SetTextAlign(dc, TA_LEFT | TA_BASELINE);
     SetTextColor(dc, RGB(245, 245, 245));
     const wchar_t* equations[] = {
         L"G\u03bc\u03bd + \u039b g\u03bc\u03bd = 8\u03c0G T\u03bc\u03bd / c\u2074",
@@ -46,7 +52,7 @@ GLuint CreateFormulaTexture() {
     for (int row = 0; row < 20; ++row) {
         for (int column = 0; column < 2; ++column) {
             const wchar_t* text = equations[(row * 5 + column * 7) % 12];
-            TextOutW(dc, column * 512 + 12 + (row % 3) * 9, row * 51 + 7,
+            TextOutW(dc, column * 512 + 12 + (row % 3) * 9, row * 51 + 37,
                      text, static_cast<int>(std::wcslen(text)));
         }
     }
@@ -55,7 +61,8 @@ GLuint CreateFormulaTexture() {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bits);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    generateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
