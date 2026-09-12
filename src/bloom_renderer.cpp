@@ -94,16 +94,20 @@ uniform sampler2D sceneTexture;
 uniform vec2 blurDirection;
 uniform int extractBright;
 
+vec3 sampleLight(vec2 position) {
+    vec3 source = texture(sceneTexture, position).rgb;
+    return extractBright > 0 ? max(source - vec3(1.02), vec3(0.0)) : source;
+}
+
 void main() {
     float weight[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-    vec3 source = texture(sceneTexture, uv).rgb;
-    if (extractBright > 0) source = max(source - vec3(1.02), vec3(0.0));
+    vec3 source = sampleLight(uv);
     vec2 texel = 1.0 / vec2(textureSize(sceneTexture, 0));
     vec3 result = source * weight[0];
     for (int i = 1; i < 5; ++i) {
         vec2 offset = blurDirection * texel * float(i);
-        result += texture(sceneTexture, uv + offset).rgb * weight[i];
-        result += texture(sceneTexture, uv - offset).rgb * weight[i];
+        result += sampleLight(uv + offset) * weight[i];
+        result += sampleLight(uv - offset) * weight[i];
     }
     fragColor = vec4(result, 1.0);
 }

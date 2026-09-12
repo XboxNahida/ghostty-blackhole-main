@@ -58,7 +58,7 @@ if ($rendererConfigText -match 'fprintf\([^\r\n]*"randomPath=') {
 $mainText = Get-Content -Raw -Encoding UTF8 (Join-Path $root 'src\main.cpp')
 $mouseBlock = [regex]::Match(
     $mainText,
-    'if\s*\(cfg\.followMouse\)\s*\{[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*// \u9ed1\u6d1e\u751f\u957f/\u6e6e\u706d\u8fdb\u5ea6'
+    'if\s*\(cfg\.followMouse\s*&&\s*!cfg\.lightingEffect\)\s*\{[\s\S]*?\r?\n\s*\}\r?\n\r?\n\s*// \u9ed1\u6d1e\u751f\u957f/\u6e6e\u706d\u8fdb\u5ea6'
 )
 if (-not $mouseBlock.Success) {
     throw 'Unable to locate renderer mouse-follow block'

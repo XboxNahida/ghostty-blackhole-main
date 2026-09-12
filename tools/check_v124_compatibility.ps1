@@ -51,11 +51,8 @@ if ($advancedQml -notmatch $movementPattern) {
     Add-Failure "movement speed slider does not allow zero"
 }
 
-$lightingWarning = [Text.Encoding]::UTF8.GetString(
-    [Convert]::FromBase64String(
-        "5a6e6aqM5oCn5Yqf6IO977yM5bCa5pyq5a6M5oiQ77yb5ZCv55So5ZCO5Y+v6IO95Ye6546w5rOb55m944CB5a+55q+U5bqm5Y+Y5YyW5oiW55S76Z2i5byC5bi4"))
-if (-not $advancedQml.Contains($lightingWarning)) {
-    Add-Failure "accretion lighting warning is missing"
+if (-not $advancedQml.Contains('实验性') -or -not $advancedQml.Contains('吞噬后不恢复')) {
+    Add-Failure "experimental snapshot behavior warning is missing"
 }
 
 if (-not (Test-Path -LiteralPath $dpiPath -PathType Leaf)) {

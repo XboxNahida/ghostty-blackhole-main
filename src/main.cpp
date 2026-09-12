@@ -25,6 +25,8 @@
 #include "capture_dxgi.h"
 #include "gl_texture.h"
 #include "bloom_renderer.h"
+#include "consumption_state.h"
+#include "formula_texture.h"
 #include "foreground_window.h"
 #include "game_detection.h"
 #include "media_session.h"
@@ -218,7 +220,8 @@ static GLuint createProgram(const std::string& vert, const std::string& frag, FI
     return prog;
 }
 
-static bool buildFragmentShader(std::string& out, FILE* debugLog) {
+static bool consumptionShaderAvailable = false;
+static bool buildFragmentShader(std::string& out, FILE* debugLog, bool enableConsumption = true) {
     std::string header = readFile("shaders/frag_desktop_header.glsl");
     std::string body   = readFile("blackhole.glsl");
     if (header.empty() || body.empty()) {
@@ -484,47 +487,22 @@ static bool buildFragmentShader(std::string& out, FILE* debugLog) {
         p = body.find(oldNear);
         if (p != std::string::npos) body.replace(p, oldNear.length(), newNear);
 
-        const std::string finalColor = "    fragColor = vec4(col, 1.0);";
-        p = body.find(finalColor);
-        if (p != std::string::npos) {
-            body.replace(p, finalColor.length(),
-                "    if (uLightingEffect > 0) {\n"
-                "        vec3 diskLight = vec3(1.0) - exp(-emitc * L.expo);\n"
-                "        float diskEnergy = max(max(diskLight.r, diskLight.g), diskLight.b);\n"
-                "        float realDiskMask = smoothstep(0.012, 0.20, diskEnergy);\n"
-                "        vec2 diskLocalP = rot(vec2(p.x, -p.y), L.roll);\n"
-                "        float diskInclScale = max(abs(cos(L.incl)), 0.16);\n"
-                "        vec2 projectedLightP = vec2(diskLocalP.x, diskLocalP.y / diskInclScale);\n"
-                "        float projectedLightRadius = max(length(projectedLightP), 0.0005);\n"
-                "        float diskInnerScreen = rin * rh / B_CRIT;\n"
-                "        float diskOuterScreen = rout * rh / B_CRIT;\n"
-                "        float diskWidth = max(diskOuterScreen - diskInnerScreen, rh * 0.35);\n"
-                "        float diskUnit = clamp((projectedLightRadius - diskInnerScreen) / diskWidth, 0.0, 1.0);\n"
-                "        float outerLightMist = smoothstep(0.006, 0.028, diskEnergy) * (1.0 - smoothstep(0.10, 0.24, diskEnergy));\n"
-                "        float nativeGapEntry = smoothstep(0.036, 0.042, diskEnergy);\n"
-                "        float nativeGapExit = 1.0 - smoothstep(0.046, 0.052, diskEnergy);\n"
-                "        float darkFlowBands = nativeGapEntry * nativeGapExit;\n"
-                "        float bandTransmission = 1.0 - darkFlowBands * 0.88;\n"
-                "        float diskSide = smoothstep(-0.30, 0.30, projectedLightP.x / projectedLightRadius);\n"
-                "        vec3 warmGoldLight = vec3(1.00, 0.40, 0.08) * (1.0 - diskSide);\n"
-                "        vec3 coldBlueLight = vec3(0.10, 0.54, 1.00) * diskSide;\n"
-                "        vec3 dualToneLight = warmGoldLight + coldBlueLight;\n"
-                "        float outerDiskFade = smoothstep(0.15, 1.0, diskUnit);\n"
-                "        float nativeDiskDetail = smoothstep(0.018, 0.32, diskEnergy);\n"
-                "        float middleBrightLayer = realDiskMask * nativeDiskDetail * (0.32 + 0.82 * (1.0 - outerDiskFade));\n"
-                "        float screenR = length(p);\n"
-                "        float ringWidth = max(rh * 0.10, 0.0004);\n"
-                "        float lightingPhotonRing = exp(-pow((screenR - rh * 1.10) / ringWidth, 2.0)) * (captured ? 0.0 : 1.0);\n"
-                "        float eventHorizonMask = captured ? 1.0 : 0.0;\n"
-                "        float subtleDiskLighting = middleBrightLayer * bandTransmission;\n"
-                "        vec3 clampedBaseScene = clamp(col * (1.0 - darkFlowBands * 0.32), vec3(0.0), vec3(1.0));\n"
-                "        vec3 lightingHdr = dualToneLight * subtleDiskLighting * 0.18;\n"
-                "        lightingHdr += dualToneLight * outerLightMist * shield * (1.0 - eventHorizonMask) * 0.035;\n"
-                "        lightingHdr += vec3(1.00, 0.86, 0.66) * lightingPhotonRing * 0.12;\n"
-                "        col = clampedBaseScene + lightingHdr;\n"
-                "        col = mix(col, vec3(0.0), eventHorizonMask);\n"
-                "    }\n"
-                "    fragColor = vec4(col, 1.0);");
+    }
+
+    // 旧实验着色只由此组装入口使用；新模式独立渲染，关闭时保留基础代码。
+    consumptionShaderAvailable = false;
+    if (enableConsumption) {
+        const std::string effect = readFile("shaders/consumption.glsl");
+        const std::string radius = "float rh = HOLE_RADIUS * sz;";
+        size_t entry = body.find("void mainImage(");
+        size_t atRadius = body.find(radius);
+        if (!effect.empty() && entry != std::string::npos && atRadius != std::string::npos) {
+            body.insert(atRadius + radius.size(),
+                "\n    if (uLightingEffect > 0) { center = consumptionCenter(vec2(uHomeX, uHomeY), uMovementTime); fragColor = vec4(consumptionRender(uv, center, rh, L), 1.0); return; }\n");
+            body.insert(entry, effect + "\n");
+            consumptionShaderAvailable = true;
+        } else if (debugLog) {
+            fprintf(debugLog, "[Consumption][WARN] Effect source unavailable; using base renderer\n");
         }
     }
 
@@ -1279,6 +1257,12 @@ int main(int argc, char* argv[]) {
     if (debugLog) { fprintf(debugLog, "[OK] Fragment shader built (%zu bytes)\n", fragSrc.size()); fflush(debugLog); }
 
     GLuint program = createProgram(vertSrc, fragSrc, debugLog);
+    if (!program && consumptionShaderAvailable) {
+        if (debugLog) fprintf(debugLog, "[Consumption][WARN] Shader failed; retrying base renderer\n");
+        cfg.lightingEffect = false;
+        if (buildFragmentShader(fragSrc, debugLog, false))
+            program = createProgram(vertSrc, fragSrc, debugLog);
+    }
     if (!program) {
         if (debugLog) { fprintf(debugLog, "[CRITICAL] Shader program creation FAILED!\n"); fclose(debugLog); }
         GLTex_Shutdown(glTex);
@@ -1300,6 +1284,12 @@ int main(int argc, char* argv[]) {
     gl_BindVertexArray(0);
 
     BloomRenderer* bloom = Bloom_Create(wgl.width, wgl.height, debugLog);
+    cfg.lightingEffect = cfg.lightingEffect && consumptionShaderAvailable && bloom;
+    GLuint formulaTexture = cfg.lightingEffect ? CreateFormulaTexture() : 0;
+    if (cfg.lightingEffect && !formulaTexture) {
+        cfg.lightingEffect = false;
+        if (debugLog) fprintf(debugLog, "[Consumption][WARN] Formula texture failed; using base renderer\n");
+    }
 
     GLint locRes   = gl_GetUniformLocation(program, "iResolution");
     GLint locTime  = gl_GetUniformLocation(program, "iTime");
@@ -1336,6 +1326,10 @@ int main(int argc, char* argv[]) {
     GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
     GLint locInitialSize = gl_GetUniformLocation(program, "uInitialSize");
     GLint locLightingEffect = gl_GetUniformLocation(program, "uLightingEffect");
+    GLint locConsumeTime = gl_GetUniformLocation(program, "uConsumeTime");
+    GLint locConsumeOrigin = gl_GetUniformLocation(program, "uConsumeOrigin");
+    GLint locFormulaTexture = gl_GetUniformLocation(program, "uFormulaTexture");
+    GLint locFlowMouse = gl_GetUniformLocation(program, "uFlowMouse");
     GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
     GLint locHomeX  = gl_GetUniformLocation(program, "uHomeX");
     GLint locHomeY  = gl_GetUniformLocation(program, "uHomeY");
@@ -1374,11 +1368,15 @@ int main(int argc, char* argv[]) {
     // ---- 预热捕获并获取多帧确保稳定 ----
     if (debugLog) { fprintf(debugLog, "[Init] Warming up %s capture...\n", useWGC ? "WGC" : "DXGI"); fflush(debugLog); }
     int stableFrames = 0;
+    bool primarySnapshotReady = false;
+    bool secondarySnapshotReady = !crossScreen;
     const int requiredStableFrames = 5;
     int warmupAttempts = 0;
     const int maxWarmupAttempts = 300;  // 跨屏要更久
 
-    while (stableFrames < requiredStableFrames && warmupAttempts < maxWarmupAttempts) {
+    while ((stableFrames < requiredStableFrames
+            || (cfg.lightingEffect && (!primarySnapshotReady || !secondarySnapshotReady)))
+           && warmupAttempts < maxWarmupAttempts) {
         bool gotPri = false;
         if (useWGC) {
             D3D11_MAPPED_SUBRESOURCE mapped = {};
@@ -1388,6 +1386,7 @@ int main(int argc, char* argv[]) {
                 int dstX = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.left - winX);
                 int dstY = (cfg.displayMode == 1) ? 0 : (monPrimary.rc.top - winY);
                 GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                primarySnapshotReady = glGetError() == GL_NO_ERROR && fw > 0 && fh > 0;
                 unsigned char* pData = (unsigned char*)mapped.pData;
                 int sum = 0;
                 for (int i = 0; i < 100; i++) sum += pData[i];
@@ -1406,6 +1405,7 @@ int main(int argc, char* argv[]) {
                 D3D11_MAPPED_SUBRESOURCE mapped;
                 if (DXGI_CopyToStaging(dxgiPri, framePri, mapped)) {
                     GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                    primarySnapshotReady = glGetError() == GL_NO_ERROR && fw > 0 && fh > 0;
                     unsigned char* pData = (unsigned char*)mapped.pData;
                     int sum = 0;
                     for (int i = 0; i < 100; i++) sum += pData[i];
@@ -1425,6 +1425,7 @@ int main(int argc, char* argv[]) {
                 int dstX = monSecondary.rc.left - winX;
                 int dstY = monSecondary.rc.top - winY;
                 GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                secondarySnapshotReady = glGetError() == GL_NO_ERROR && fw > 0 && fh > 0;
                 WGC_UnmapStaging(wgcSec);
             }
         } else if (crossScreen) {
@@ -1437,13 +1438,14 @@ int main(int argc, char* argv[]) {
                 D3D11_MAPPED_SUBRESOURCE mapped;
                 if (DXGI_CopyToStaging(dxgiSec, frameSec, mapped)) {
                     GLTex_UploadRegion(glTex, mapped.pData, (int)mapped.RowPitch, dstX, dstY, fw, fh);
+                    secondarySnapshotReady = glGetError() == GL_NO_ERROR && fw > 0 && fh > 0;
                     DXGI_UnmapStaging(dxgiSec);
                 }
                 frameSec->Release();
                 DXGI_ReleaseFrame(dxgiSec);
             }
         }
-        if (!gotPri) Sleep(16);
+        if (!gotPri || (cfg.lightingEffect && !secondarySnapshotReady)) Sleep(16);
         warmupAttempts++;
         Win32GL_PollEvents(wgl);
     }
@@ -1452,6 +1454,15 @@ int main(int argc, char* argv[]) {
         if (debugLog) { fprintf(debugLog, "[OK] %s warmup complete: %d frames\n", useWGC ? "WGC" : "DXGI", stableFrames); fflush(debugLog); }
     } else {
         if (debugLog) { fprintf(debugLog, "[WARN] Only %d frames after %d attempts\n", stableFrames, warmupAttempts); fflush(debugLog); }
+    }
+
+    if (cfg.lightingEffect && (!primarySnapshotReady || !secondarySnapshotReady)) {
+        cfg.lightingEffect = false;
+        if (debugLog) fprintf(debugLog, "[Consumption][WARN] Incomplete desktop snapshot; using base renderer\n");
+    }
+    if (cfg.lightingEffect && debugLog) {
+        fprintf(debugLog, "[Consumption][OK] Frozen desktop; movement=%.2f; collect=60s drain=12s formulaFade=8s\n",
+                ConsumptionMovementSpeed(cfg.movementSpeed, true));
     }
 
     // ---- 显示窗口（屏幕外初始化已完成，移入并显示） ----
@@ -1472,6 +1483,10 @@ int main(int argc, char* argv[]) {
     {
         int fbW=wgl.width, fbH=wgl.height;
         const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
+        if (cfg.lightingEffect && !bloomActive) {
+            cfg.lightingEffect = false;
+            if (debugLog) { fprintf(debugLog, "[Consumption][WARN] HDR unavailable; using base renderer\n"); fflush(debugLog); }
+        }
         gl_UseProgram(program);
         gl_ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, GLTex_GetTexture(glTex));
         gl_Uniform1i(locCh0,0);
@@ -1505,12 +1520,17 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
         gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
-        float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
-        gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
+        gl_Uniform1f(locDistortion, cfg.distortion);
+        gl_Uniform1f(locConsumeTime, 0.0f);
+        auto uniform2f = reinterpret_cast<PFNGLUNIFORM2FPROC>(Win32GL_GetProcAddress("glUniform2f"));
+        if (uniform2f) uniform2f(locConsumeOrigin, homeX, homeY);
+        gl_ActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, formulaTexture);
+        gl_Uniform1i(locFormulaTexture, 2);
+        gl_ActiveTexture(GL_TEXTURE0);
         gl_Uniform1f(locBorn, 0.01f);
         gl_Uniform1f(locHomeX, homeX);
         gl_Uniform1f(locHomeY, homeY);
-        gl_Uniform1i(locFollowMouse, cfg.followMouse ? 1 : 0);
+        gl_Uniform1i(locFollowMouse, cfg.followMouse && !cfg.lightingEffect ? 1 : 0);
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
         gl_BindVertexArray(vao); gl_DrawArrays(GL_TRIANGLE_STRIP,0,4); gl_BindVertexArray(0);
@@ -1542,8 +1562,8 @@ int main(int argc, char* argv[]) {
                     frameLimiter.frameRateLimit());
         fflush(debugLog);
         fprintf(debugLog, "[OK] Ready, entering main loop\n");
-        fclose(debugLog);
-        debugLog = nullptr;
+        // Bloom 调整缓冲区失败时仍需要日志，生命周期必须覆盖渲染循环。
+        fflush(debugLog);
     }
 
     // ---- Main loop ----
@@ -1552,6 +1572,9 @@ int main(int argc, char* argv[]) {
     const double BORN_DURATION = 0.8;
     const double DIE_DURATION = 0.5;
     float bornProgress = 0.01f;
+    ConsumptionState consumption;
+    double previousFrameTime = startTime;
+    float flowMouseX = -10.0f, flowMouseY = -10.0f, flowMouseEnergy = 0.0f;
     bool exiting = false;
     double exitStart = 0;
     int frames = 0; double lastFps = startTime;
@@ -1589,7 +1612,7 @@ int main(int argc, char* argv[]) {
                     recordingCaptureRuntimeAllowed ? "allowed and frozen" : "excluded and live");
         }
 
-        bool captureUpdateDue = !recordingCaptureFrozen;
+        bool captureUpdateDue = !recordingCaptureFrozen && !cfg.lightingEffect;
 
         // 退出时跳过捕获，避免卡顿；录屏模式下完全冻结窗口显示前的桌面纹理，避免自捕获递归
         if (!exiting && captureUpdateDue) {
@@ -1648,10 +1671,27 @@ int main(int argc, char* argv[]) {
         }
 
         float t = (float)(now - startTime);
+        const double frameSeconds = std::max(0.0, now - previousFrameTime);
+        previousFrameTime = now;
+        if (cfg.lightingEffect && !exiting) consumption.advance(frameSeconds);
+        flowMouseEnergy *= std::exp(-static_cast<float>(frameSeconds) * 3.5f);
+        POINT flowCursor = {};
+        if (cfg.lightingEffect && GetCursorPos(&flowCursor)) {
+            const float mx = static_cast<float>(flowCursor.x - wgl.targetX) / std::max(wgl.width, 1);
+            const float my = static_cast<float>(flowCursor.y - wgl.targetY) / std::max(wgl.height, 1);
+            if (mx >= 0.0f && mx <= 1.0f && my >= 0.0f && my <= 1.0f) {
+                if (flowMouseX >= 0.0f && frameSeconds > 0.0) {
+                    const float distance = std::hypot(mx-flowMouseX, my-flowMouseY);
+                    flowMouseEnergy = std::min(1.0f, flowMouseEnergy + distance*12.0f);
+                }
+                flowMouseX = mx;
+                flowMouseY = my;
+            } else { flowMouseX = -10.0f; flowMouseY = -10.0f; }
+        }
         float ep = (float)time(nullptr);
         float frameHomeX = homeX;
         float frameHomeY = homeY;
-        if (cfg.followMouse) {
+        if (cfg.followMouse && !cfg.lightingEffect) {
             float inertia = cfg.mouseInertia;
             if (inertia < 0.0f) inertia = 0.0f;
             if (inertia > 1.0f) inertia = 1.0f;
@@ -1812,6 +1852,10 @@ int main(int argc, char* argv[]) {
         }
 
         const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
+        if (cfg.lightingEffect && !bloomActive) {
+            cfg.lightingEffect = false;
+            if (debugLog) { fprintf(debugLog, "[Consumption][WARN] HDR unavailable; using base renderer\n"); fflush(debugLog); }
+        }
         gl_UseProgram(program);
 
         gl_ActiveTexture(GL_TEXTURE0);
@@ -1819,7 +1863,12 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locCh0, 0);
         gl_Uniform3f(locRes, (float)fbW, (float)fbH, 0.0f);
         gl_Uniform1f(locTime, t);
-        gl_Uniform1f(locMovementTime, t * cfg.movementSpeed);
+        gl_Uniform1f(locMovementTime, t * ConsumptionMovementSpeed(cfg.movementSpeed, cfg.lightingEffect));
+        gl_Uniform1f(locConsumeTime, consumption.elapsed());
+        gl_Uniform4f(locFlowMouse, flowMouseX, flowMouseY, flowMouseEnergy, 0.0f);
+        gl_ActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, formulaTexture);
+        gl_Uniform1i(locFormulaTexture, 2);
+        gl_ActiveTexture(GL_TEXTURE0);
         gl_Uniform4f(locDate, 0,0,0,ep);
 
         gl_Uniform1f(loc_uHR, cfg.holeRadius);
@@ -1868,12 +1917,11 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locGrowEnabled, cfg.growEnabled ? 1 : 0);
         gl_Uniform1f(locInitialSize, cfg.initialSize);
         gl_Uniform1i(locLightingEffect, cfg.lightingEffect ? 1 : 0);
-        float lightingLensScale = cfg.lightingEffect ? 0.42f : 1.0f;
-        gl_Uniform1f(locDistortion, cfg.distortion * lightingLensScale);
+        gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1f(locHomeX, frameHomeX);
         gl_Uniform1f(locHomeY, frameHomeY);
-        gl_Uniform1i(locFollowMouse, cfg.followMouse ? 1 : 0);
+        gl_Uniform1i(locFollowMouse, cfg.followMouse && !cfg.lightingEffect ? 1 : 0);
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
 
@@ -1896,6 +1944,8 @@ int main(int argc, char* argv[]) {
     }
 
     Bloom_Destroy(bloom);
+    if (debugLog) { fclose(debugLog); debugLog = nullptr; }
+    if (formulaTexture) glDeleteTextures(1, &formulaTexture);
     GLTex_Shutdown(glTex);
     if (useWGC) { WGC_Release(wgcPri); if (crossScreen) WGC_Release(wgcSec); }
     else { DXGI_Release(dxgiPri); if (crossScreen) DXGI_Release(dxgiSec); }

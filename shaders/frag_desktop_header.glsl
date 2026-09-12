@@ -26,7 +26,7 @@ uniform int   uFixedSize   = 0;     // 0=正常生长, 1=固定大小
 uniform float uFixedLevel   = 1.0;   // 固定大小值 (0.1~1.0)
 uniform int   uGrowEnabled = 0;      // 0=完整大小, 1=从 uInitialSize 增长
 uniform float uInitialSize = 0.3;    // 逐渐增长的初始大小
-uniform int   uLightingEffect = 0;   // 0=关闭, 1=吸积盘分层光影与 Bloom
+uniform int   uLightingEffect = 0;   // 0=关闭, 1=持续吞噬、公式流面与 Bloom
 uniform float uDistortion = 1.0;     // 引力透镜扭曲强度
 
 // Demo preset overrides (negative = use hardcoded default)
