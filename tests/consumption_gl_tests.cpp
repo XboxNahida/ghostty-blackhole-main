@@ -91,6 +91,19 @@ void main() {
         float peak = 0.0f;
         for (float v : frame) { if (!std::isfinite(v)) return 15; peak = std::max(v, peak); }
         if (peak <= 1.0f) { std::fprintf(stderr, "FAIL no HDR light\n"); return 16; }
+        if (index == 3) {
+            double edgeEnergy = 0.0;
+            int edgeCount = 0;
+            for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
+                if (x > width/5 && x < width*4/5 && y > height/5 && y < height*4/5) continue;
+                const size_t p = static_cast<size_t>(y * width + x) * 4;
+                edgeEnergy += frame[p] + frame[p+1] + frame[p+2];
+                ++edgeCount;
+            }
+            if (edgeEnergy / edgeCount < 0.002) {
+                std::fprintf(stderr, "FAIL formula flow does not reach screen edges\n"); return 21;
+            }
+        }
         if (index == 2) exhausted = frame;
         if (index == 7) mouseBaseline = frame;
         if (index >= 8) {

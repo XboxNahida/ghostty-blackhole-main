@@ -1,6 +1,7 @@
 // 实验模式：固定桌面快照的有限输运、弯曲流面和白金色盘面。
 uniform float uConsumeTime = 0.0;
 uniform vec2 uConsumeOrigin = vec2(0.5);
+uniform vec2 uConsumeCenter = vec2(0.5);
 uniform sampler2D uFormulaTexture;
 uniform vec4 uFlowMouse = vec4(-10.0, -10.0, 0.0, 0.0);
 
@@ -18,13 +19,39 @@ float consumptionFormulaMix() {
     return smoothstep(72.0, 80.0, uConsumeTime);
 }
 
-vec3 consumptionDesktop(vec2 uv, float aspect) {
+float consumptionPathMask(vec2 uv, float aspect) {
     float farRadius = consumptionFarRadius(aspect);
-    float radius = length((uv-uConsumeOrigin) * vec2(aspect, 1.0));
+    vec2 scale = vec2(aspect, 1.0);
+    float originRadius = length((uv-uConsumeOrigin) * scale);
+    float centerRadius = length((uv-uConsumeCenter) * scale);
     float front = farRadius * clamp(uConsumeTime / 60.0, 0.0, 1.0);
-    float remaining = smoothstep(front-0.012, front+0.012, radius);
-    remaining *= 1.0-smoothstep(59.5, 60.0, uConsumeTime);
-    return texture(iChannel0, uv).rgb * remaining;
+    float originMask = smoothstep(front-0.018, front+0.018, originRadius);
+    float centerMask = smoothstep(front-0.028, front+0.028, centerRadius);
+    vec2 path = uConsumeCenter-uConsumeOrigin;
+    float pathLen = max(dot(path,path), 1e-5);
+    float along = clamp(dot(uv-uConsumeOrigin,path)/pathLen, 0.0, 1.0);
+    vec2 nearest = uConsumeOrigin + path*along;
+    float pathSoft = smoothstep(0.055, 0.0, length((uv-nearest)*scale));
+    return max(originMask, mix(centerMask, 0.0, pathSoft*0.72));
+}
+
+vec3 consumptionFormulaBackground(vec2 uv, float aspect) {
+    float flow = iTime*0.006;
+    vec2 p = uv*vec2(aspect, 1.0);
+    float warp = 0.035*sin(p.y*11.0+iTime*0.05) + 0.02*sin(p.x*17.0-iTime*0.035);
+    vec2 fuv = fract(vec2(uv.x*1.35 + flow + warp, uv.y*2.8 - flow*0.42 + warp*0.35));
+    float ink0 = texture(uFormulaTexture, fuv).r;
+    float ink1 = texture(uFormulaTexture, fract(fuv*1.73+vec2(0.17,0.31))).r;
+    float ink = max(ink0, ink1*0.55);
+    float vignette = 0.30 + 0.70*smoothstep(0.0, 0.28, min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y)));
+    return vec3(0.98,0.92,0.78)*ink*vignette*0.72;
+}
+
+vec3 consumptionDesktop(vec2 uv, float aspect) {
+    float remaining = consumptionPathMask(uv, aspect);
+    vec3 desktop = texture(iChannel0, uv).rgb * remaining;
+    float formula = consumptionFormulaMix();
+    return mix(desktop, consumptionFormulaBackground(uv, aspect), formula);
 }
 
 float consumptionHeight(vec2 q, float phase) {
@@ -120,15 +147,17 @@ vec3 consumptionRender(vec2 uv, vec2 center, float rh, DiskLook look) {
                 color += transmission*gold*density*(0.55+innerLight*5.5)*side;
                 transmission *= 1.0-clamp(density*0.68,0.0,0.85);
             } else {
-                float extent = smoothstep(6.0,9.0,rc)*(1.0-smoothstep(21.0,27.0,rc));
+                float extent = smoothstep(3.0,7.0,rc)*(1.0-smoothstep(24.0,31.0,rc));
                 if (extent <= 0.0) continue;
                 vec4 material = consumptionMaterial(q,aspect,phase);
                 float grooves = 0.5+0.5*sin(rc*17.0+2.0*sin(atan(q.y,q.x)*3.0-phase*0.2));
                 float light = 0.65+0.35*exp(-max(rc-4.0,0.0)*0.09);
+                float transition = smoothstep(2.0,8.0,rc) * (1.0-smoothstep(26.0,34.0,rc));
                 vec3 reflected = material.rgb * vec3(1.0,0.96,0.88) * light;
+                vec3 haze = material.rgb * vec3(0.52,0.46,0.35) * (0.18 + 0.22*grooves);
                 vec3 sheen = vec3(1.0,0.89,0.63)*(0.035*grooves+mouseSpot*1.8)*material.a;
-                color += transmission*extent*(reflected+sheen);
-                transmission *= 1.0-clamp(extent*material.a,0.0,0.97);
+                color += transmission*(extent*(reflected+sheen) + transition*haze*0.62);
+                transmission *= 1.0-clamp((extent*material.a + transition*0.12),0.0,0.97);
             }
         }
     }

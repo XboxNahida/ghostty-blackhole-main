@@ -1328,6 +1328,7 @@ int main(int argc, char* argv[]) {
     GLint locLightingEffect = gl_GetUniformLocation(program, "uLightingEffect");
     GLint locConsumeTime = gl_GetUniformLocation(program, "uConsumeTime");
     GLint locConsumeOrigin = gl_GetUniformLocation(program, "uConsumeOrigin");
+    GLint locConsumeCenter = gl_GetUniformLocation(program, "uConsumeCenter");
     GLint locFormulaTexture = gl_GetUniformLocation(program, "uFormulaTexture");
     GLint locFlowMouse = gl_GetUniformLocation(program, "uFlowMouse");
     GLint locDistortion = gl_GetUniformLocation(program, "uDistortion");
@@ -1524,6 +1525,7 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locConsumeTime, 0.0f);
         auto uniform2f = reinterpret_cast<PFNGLUNIFORM2FPROC>(Win32GL_GetProcAddress("glUniform2f"));
         if (uniform2f) uniform2f(locConsumeOrigin, homeX, homeY);
+        if (uniform2f) uniform2f(locConsumeCenter, homeX, homeY);
         gl_ActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, formulaTexture);
         gl_Uniform1i(locFormulaTexture, 2);
         gl_ActiveTexture(GL_TEXTURE0);
@@ -1863,7 +1865,14 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locCh0, 0);
         gl_Uniform3f(locRes, (float)fbW, (float)fbH, 0.0f);
         gl_Uniform1f(locTime, t);
-        gl_Uniform1f(locMovementTime, t * ConsumptionMovementSpeed(cfg.movementSpeed, cfg.lightingEffect));
+        const float movementTime = t * ConsumptionMovementSpeed(cfg.movementSpeed, cfg.lightingEffect);
+        gl_Uniform1f(locMovementTime, movementTime);
+        const float moveRoomX = std::min(0.15f, std::min(homeX, 1.0f-homeX));
+        const float moveRoomY = std::min(0.15f, std::min(homeY, 1.0f-homeY));
+        auto uniform2fFrame = reinterpret_cast<PFNGLUNIFORM2FPROC>(Win32GL_GetProcAddress("glUniform2f"));
+        if (uniform2fFrame) uniform2fFrame(locConsumeCenter,
+                     homeX + moveRoomX*std::sin(movementTime*0.17f),
+                     homeY + moveRoomY*std::sin(movementTime*0.13f));
         gl_Uniform1f(locConsumeTime, consumption.elapsed());
         gl_Uniform4f(locFlowMouse, flowMouseX, flowMouseY, flowMouseEnergy, 0.0f);
         gl_ActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, formulaTexture);
