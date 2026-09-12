@@ -2213,25 +2213,18 @@ QString BlackHoleCore::avatarStatus() const
 
 QString BlackHoleCore::paymentQrPrimaryUrl() const
 {
-    if (!paymentQrAvailable()) return {};
-    const QString path = QDir(QCoreApplication::applicationDirPath())
-                             .filePath(QStringLiteral("fonts/pic/QR_payment.jpg"));
-    return QUrl::fromLocalFile(path).toString();
+    return paymentQrAvailable() ? QStringLiteral("qrc:/new/prefix1/fonts/pic/QR_payment.jpg") : QString();
 }
 
 QString BlackHoleCore::paymentQrSecondaryUrl() const
 {
-    if (!paymentQrAvailable()) return {};
-    const QString path = QDir(QCoreApplication::applicationDirPath())
-                             .filePath(QStringLiteral("fonts/pic/WeChat_QR.png"));
-    return QUrl::fromLocalFile(path).toString();
+    return paymentQrAvailable() ? QStringLiteral("qrc:/new/prefix1/fonts/pic/WeChat_QR.png") : QString();
 }
 
 bool BlackHoleCore::paymentQrAvailable() const
 {
-    const QDir applicationDir(QCoreApplication::applicationDirPath());
-    return QFileInfo::exists(applicationDir.filePath(QStringLiteral("fonts/pic/QR_payment.jpg")))
-        && QFileInfo::exists(applicationDir.filePath(QStringLiteral("fonts/pic/WeChat_QR.png")));
+    return QFile(QStringLiteral(":/new/prefix1/fonts/pic/QR_payment.jpg")).exists()
+        && QFile(QStringLiteral(":/new/prefix1/fonts/pic/WeChat_QR.png")).exists();
 }
 
 void BlackHoleCore::chooseCustomAvatar()
