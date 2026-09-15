@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 include(cmake/AppVersion.cmake)
 project(blackhole-standalone VERSION ${BLACKHOLE_VERSION} LANGUAGES CXX RC)
+include(CTest)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,6 +39,9 @@ add_executable(blackhole
     src/imgui/imgui_impl_opengl3.cpp
     src/gl_texture.cpp
     src/bloom_renderer.cpp
+    src/formula_texture.cpp
+    src/desktop_transport.cpp
+    src/fragment_shader_builder.cpp
     src/win32_gl.cpp
     src/monitors.cpp
     src/win32_window.cpp
@@ -90,5 +94,28 @@ if(MINGW)
             COMMENT "Copying ${ucrt_dll} to output directory"
         )
     endforeach()
+endif()
+
+# 运行资源来自源码目录，由构建复制，避免手工修改发布目录。
+add_custom_command(TARGET blackhole POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/shaders" "$<TARGET_FILE_DIR:blackhole>/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/blackhole.glsl" "$<TARGET_FILE_DIR:blackhole>/blackhole.glsl"
+)
+
+if(BUILD_TESTING)
+    add_executable(desktop_transport_tests tests/desktop_transport_tests.cpp src/desktop_transport.cpp src/fragment_shader_builder.cpp src/formula_texture.cpp)
+    target_link_libraries(desktop_transport_tests PRIVATE glfw ${OPENGL_LIBRARIES} gdi32)
+    add_test(NAME desktop_transport_tests COMMAND desktop_transport_tests)
+    set_tests_properties(desktop_transport_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_executable(consumption_state_tests tests/consumption_state_tests.cpp)
+    target_include_directories(consumption_state_tests PRIVATE src)
+    add_test(NAME consumption_state_tests COMMAND consumption_state_tests)
+
+    add_executable(consumption_gl_tests tests/consumption_gl_tests.cpp src/formula_texture.cpp src/desktop_transport.cpp)
+    target_link_libraries(consumption_gl_tests PRIVATE glfw ${OPENGL_LIBRARIES} gdi32)
+    add_test(NAME consumption_gl_tests COMMAND consumption_gl_tests)
+    set_tests_properties(consumption_gl_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        ENVIRONMENT "PATH=C:/msys64/ucrt64/bin\;$ENV{PATH}")
 endif()
 

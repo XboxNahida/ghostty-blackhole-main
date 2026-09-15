@@ -47,6 +47,7 @@ struct BlackholeConfig {
     int   spawnPosition   = 0;     // 0=随机, 1~4=四角固定出生位置
     float movementSpeed   = 1.0f;  // 自由移动速度倍率（0.0~3.0，0=静止）
     bool  lightingEffect  = false; // 吸积盘分层光影与 Bloom
+    bool  consumptionFormula = true; // 耗尽后公式流带，可独立关闭
     float distortion      = 1.0f;  // 引力透镜扭曲强度
     bool  allowRecordingCapture = false; // 允许截图/录屏捕获黑洞窗口
     bool  growEnabled     = false; // 是否从 initialSize 逐渐增长

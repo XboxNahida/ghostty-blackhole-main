@@ -55,20 +55,10 @@ if ($qtConfig -match 'out\s*<<\s*"(?:screenSwallow|swallowStrength)=') {
 }
 
 Require-Pattern "shaders\frag_desktop_header.glsl" "uniform\s+int\s+uLightingEffect" "lighting uniform"
-Require-Pattern "src\main.cpp" "diskLocalP" "preset-local disk coordinates"
-Require-Pattern "src\main.cpp" "outerLightMist" "outer light mist"
-Require-Pattern "src\main.cpp" "darkFlowBands" "moving dark bands"
-Require-Pattern "src\main.cpp" "nativeGapEntry" "native disk-gap entry"
-Require-Pattern "src\main.cpp" "nativeGapExit" "native disk-gap exit"
-Require-Pattern "src\main.cpp" "outerDiskFade" "outer-to-inner disk gradient"
-Require-Pattern "src\main.cpp" "warmGoldLight" "gold lighting"
-Require-Pattern "src\main.cpp" "coldBlueLight" "blue lighting"
-Require-Pattern "src\main.cpp" "lightingPhotonRing" "photon ring lighting"
-Require-Pattern "src\main.cpp" 'lightingLensScale\s*=\s*cfg\.lightingEffect\s*\?\s*0\.42f' "lighting lens suppression"
-Require-Pattern "src\main.cpp" "subtleDiskLighting" "subtle disk lighting"
-Require-Pattern "src\main.cpp" "clampedBaseScene" "isolated lighting HDR source"
-Require-Pattern "src\main.cpp" 'nativeGapEntry\s*=\s*smoothstep\(0\.036,\s*0\.042' "hairline native gap entry"
-Require-Pattern "src\main.cpp" 'nativeGapExit\s*=\s*1\.0\s*-\s*smoothstep\(0\.046,\s*0\.052' "hairline native gap exit"
+# 新实验模式的视觉行为由真实 OpenGL 像素测试验证，不再锁定旧双色公式。
+Require-Pattern "src\fragment_shader_builder.cpp" 'shaders/consumption\.glsl' "consumption source integration"
+Require-Pattern "src\main.cpp" 'captureUpdateDue\s*=\s*!recordingCaptureFrozen\s*&&\s*!cfg\.lightingEffect' "persistent desktop snapshot"
+Require-Pattern "src\main.cpp" 'ConsumptionMovementSpeed\(cfg\.movementSpeed,\s*cfg\.lightingEffect\)' "experimental movement limit"
 
 $mainText = Get-ProjectText "src\main.cpp"
 $desktopHeader = Get-ProjectText "shaders\frag_desktop_header.glsl"
@@ -95,3 +85,13 @@ Require-Pattern "src\main.cpp" "Bloom_BeginScene" "main loop Bloom begin"
 Require-Pattern "src\main.cpp" "Bloom_EndScene" "main loop Bloom end"
 
 "LIGHTING_EFFECT_OK"
+
+$gpuTests = Join-Path $projectRoot 'build/consumption/consumption_gl_tests.exe'
+if (-not (Test-Path -LiteralPath $gpuTests)) {
+    throw 'Build consumption_gl_tests before verifying experimental rendering'
+}
+Push-Location $projectRoot
+try {
+    & $gpuTests
+    if ($LASTEXITCODE -ne 0) { throw "GPU regression failed: $LASTEXITCODE" }
+} finally { Pop-Location }
