@@ -146,6 +146,8 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool lightingEffect READ lightingEffect WRITE setLightingEffect NOTIFY lightingEffectChanged)
     Q_PROPERTY(bool consumptionFormula READ consumptionFormula WRITE setConsumptionFormula NOTIFY consumptionFormulaChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
+    Q_PROPERTY(int rippleMode READ rippleMode WRITE setRippleMode NOTIFY rippleModeChanged)
+    Q_PROPERTY(int diskRenderMode READ diskRenderMode WRITE setDiskRenderMode NOTIFY diskRenderModeChanged)
     Q_PROPERTY(bool allowRecordingCapture READ allowRecordingCapture WRITE setAllowRecordingCapture NOTIFY allowRecordingCaptureChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
     Q_PROPERTY(bool growEnabled READ growEnabled WRITE setGrowEnabled NOTIFY growEnabledChanged)
@@ -271,6 +273,10 @@ public:
     void setConsumptionFormula(bool v) { if (m_consumptionFormula == v) return; m_consumptionFormula=v; emit consumptionFormulaChanged(); }
     void setLightingEffect(bool v);
     float distortion() const;
+    int rippleMode() const { return m_rippleMode; }
+    void setRippleMode(int value);
+    int diskRenderMode() const { return m_diskRenderMode; }
+    void setDiskRenderMode(int value);
     void setDistortion(float v);
     bool allowRecordingCapture() const;
     void setAllowRecordingCapture(bool v);
@@ -408,6 +414,8 @@ signals:
     void lightingEffectChanged();
     void consumptionFormulaChanged();
     void distortionChanged();
+    void rippleModeChanged();
+    void diskRenderModeChanged();
     void allowRecordingCaptureChanged();
     void holeSizeChanged();
     void growEnabledChanged();
@@ -463,6 +471,8 @@ private:
     void refreshCurrentPresetProps();
     void saveAdvancedConfig();
     void loadAdvancedConfig();
+    void syncRippleProcess();
+    void stopRippleProcess();
     void saveIdleListConfig();
     void loadIdleListConfig();
     void setIdleDetectionState(const QString &summary, bool blocked);
@@ -514,6 +524,11 @@ private:
     // 进程
     bool m_refreshingProps = false;  // 防止currentPresetChanged信号级联
     QProcess *m_rendererProcess = nullptr;
+    QProcess *m_rippleProcess = nullptr;
+    QTimer *m_rippleTimer = nullptr;
+    bool m_shuttingDown = false;
+    bool m_stoppingRipple = false;
+    bool m_rippleFailure = false;
     RendererStartupDiagnostics m_rendererDiagnostics;
     QTimer *m_rendererStartupTimer = nullptr;
     QElapsedTimer m_rendererStartupElapsed;
@@ -534,6 +549,8 @@ private:
     bool    m_lightingEffect = false;
     bool    m_consumptionFormula = true;
     float   m_distortion     = 1.0f;
+    int m_rippleMode = 0;
+    int m_diskRenderMode = 0;
     bool    m_allowRecordingCapture = false;
     float   m_holeSize       = 1.0f;
     bool    m_growEnabled    = false;

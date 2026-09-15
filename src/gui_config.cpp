@@ -374,6 +374,8 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "# Blackhole Advanced Overrides\n");
     fprintf(f, "holeRadius=%.3f\n", cfg.holeRadius);
     fprintf(f, "diskGain=%.3f\n",   cfg.diskGain);
+    fprintf(f, "rippleMode=%d\n", NormalizeEffectMode(cfg.rippleMode));
+    fprintf(f, "diskRenderMode=%d\n", NormalizeEffectMode(cfg.diskRenderMode));
     fprintf(f, "diskTemp=%.1f\n",   cfg.diskTemp);
     fprintf(f, "exposure=%.3f\n",   cfg.exposure);
     fprintf(f, "spd=%.3f\n",        cfg.spd);
@@ -395,6 +397,8 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
 }
 
 void LoadAdvancedConfig(BlackholeConfig& cfg) {
+    cfg.rippleMode = 0;
+    cfg.diskRenderMode = 0;
     FILE* f = fopen("blackhole_advanced.txt", "r");
     if (!f) return;  // file not found, keep defaults (-1.0)
     char line[256];
@@ -411,6 +415,8 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
             continue;
         }
         char key[64] = {0};
+        if (strncmp(line, "rippleMode=", 11) == 0) { cfg.rippleMode = ParseEffectMode(line+11); continue; }
+        if (strncmp(line, "diskRenderMode=", 15) == 0) { cfg.diskRenderMode = ParseEffectMode(line+15); continue; }
         float val = -1.0f;
         if (sscanf(line, "%63[^=]=%f", key, &val) == 2) {
             if (strcmp(key, "holeRadius") == 0) cfg.holeRadius = val;

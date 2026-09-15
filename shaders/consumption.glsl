@@ -281,6 +281,16 @@ vec3 consumptionRender(vec2 uv, vec2 center, float rh, DiskLook look) {
                 vec2 turbulent = vec2(cos(flow),sin(flow))*rc*max(look.wind,0.0)/7.0;
                 float detail = consumptionNoise(turbulent*2.8);
                 float density = band*max(0.05,0.75+0.25*detail*look.contr/1.6);
+                if (uDiskRenderMode == 1 || uDiskRenderMode == 2) {
+                    float lines = 0.35 + max(look.contr,0.0)*detail*detail;
+                    if (uDiskRenderMode == 1) density = band*lines;
+                    else {
+                        float soft = max(0.05,0.75+0.25*detail*look.contr/1.6);
+                        float widerBand = smoothstep(inner,inner*1.34,rc)
+                            * (1.0-smoothstep(diskOuter*0.65,diskOuter*1.18,rc));
+                        density = band*mix(lines,soft,0.22) + max(widerBand-band,0.0)*soft*0.30;
+                    }
+                }
                 float innerLight = exp(-max(rc/inner-1.0,0.0)*1.62);
                 float beta=sqrt(0.5/max(rc,3.0));
                 float shift=mix(1.0,sqrt(1.0-beta*beta)/(1.0-0.55*beta*sin(look.incl)*q.x/max(rc,0.01)),clamp(look.dopp,0.0,1.0));

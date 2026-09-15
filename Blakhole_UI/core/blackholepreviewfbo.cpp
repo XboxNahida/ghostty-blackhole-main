@@ -69,6 +69,7 @@ void BlackholePreviewFBO::syncFromCore(QObject *core)
     BlackHoleCore *bh = qobject_cast<BlackHoleCore*>(core);
     if (!bh) return;
     setDiskTemp(bh->diskTemp());
+    setDiskRenderMode(bh->diskRenderMode());
     setDiskIncl(bh->diskIncl());
     setDiskRoll(bh->diskRoll());
     setDiskInner(bh->diskInner());
@@ -117,6 +118,7 @@ void BlackholePreviewRenderer::synchronize(QQuickFramebufferObject *item)
 {
     BlackholePreviewFBO *fboItem = static_cast<BlackholePreviewFBO*>(item);
     m_diskTemp  = fboItem->m_diskTemp;
+    m_diskRenderMode = fboItem->m_diskRenderMode;
     m_diskIncl  = fboItem->m_diskIncl;
     m_diskRoll  = fboItem->m_diskRoll;
     m_diskInner = fboItem->m_diskInner;
@@ -362,6 +364,7 @@ void BlackholePreviewRenderer::render()
     setArr("uPresetBeam",    m_diskBeam);
     setArr("uPresetGain",    m_diskGain);
     setArr("uPresetContr",   m_diskContr);
+    m_program->setUniformValue("uDiskRenderMode",m_diskRenderMode);
     setArr("uPresetWind",    m_diskWind);
     setArr("uPresetSpd",     m_diskSpeed);
     setArr("uPresetExpo",    m_diskExpo);

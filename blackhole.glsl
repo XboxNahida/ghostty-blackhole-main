@@ -1,4 +1,5 @@
 // blackhole.glsl — a geodesic-traced black hole for Ghostty
+uniform int uDiskRenderMode = 0;
 //
 // After Eric Bruneton's "Real-time High-Quality Rendering of Non-Rotating
 // Black Holes" (https://ebruneton.github.io/black_hole_shader/). Bruneton
@@ -525,7 +526,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
             float tc = sPrev / (sPrev - s);
             vec3  xc = mix(xPrev, x, tc);
             float rc = length(xc);
-            if (rc > diskRin && rc < rout) {
+            if (rc > diskRin && rc < rout * (uDiskRenderMode == 2 ? 1.18 : 1.0)) {
                 float band = smoothstep(diskRin, diskRin * 1.25, rc)
                            * (1.0 - smoothstep(rout * 0.70, rout, rc));
 
@@ -559,6 +560,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 float boost = pow(g, L.beam);                     // relativistic beaming
 
                 float density = band * streaks;
+                if (uDiskRenderMode == 1 || uDiskRenderMode == 2) {
+                    float originalNoise = fineStreak * 0.65 + broadStreak * 0.35;
+                    float originalLines = 0.35 + L.contr * originalNoise * originalNoise;
+                    density = band * originalLines;
+                    if (uDiskRenderMode == 2) {
+                        float widerBand = smoothstep(diskRin,diskRin*1.25,rc)
+                            * (1.0-smoothstep(rout*0.62,rout*1.18,rc));
+                        density = band*mix(originalLines,streaks,0.22)
+                            + max(widerBand-band,0.0)*streaks*0.30;
+                    }
+                }
                 emitc += trans * cbb * (L.gain * 2.2 * density * tprof * tprof * boost);
                 // 小黑洞斜视时前盘与后盘投影重叠；前盘保留发光但降低遮挡，
                 // 避免把后侧盘面和视界边缘压成黑色缺口。

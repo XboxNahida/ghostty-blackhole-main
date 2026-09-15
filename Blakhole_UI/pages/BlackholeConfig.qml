@@ -272,6 +272,7 @@ Item {
                         diskBeam:  configPage.diskBeam
                         diskGain:  configPage.diskGain
                         diskContr: configPage.diskContr
+                        diskRenderMode: bhCore ? bhCore.diskRenderMode : 0
                         diskWind:  configPage.diskWind
                         diskSpeed: configPage.diskSpeed
                         diskExpo:  configPage.diskExpo
@@ -729,6 +730,7 @@ Item {
         diskBeam:  configPage.diskBeam
         diskGain:  configPage.diskGain
         diskContr: configPage.diskContr
+        diskRenderMode: bhCore ? bhCore.diskRenderMode : 0
         diskWind:  configPage.diskWind
         diskSpeed: configPage.diskSpeed
         diskExpo:  configPage.diskExpo

@@ -1,4 +1,5 @@
 // blackhole.glsl — a geodesic-traced black hole for Ghostty
+uniform int uDiskRenderMode = 0;
 //
 // After Eric Bruneton's "Real-time High-Quality Rendering of Non-Rotating
 // Black Holes" (https://ebruneton.github.io/black_hole_shader/). Bruneton
@@ -520,7 +521,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
             float tc = sPrev / (sPrev - s);
             vec3  xc = mix(xPrev, x, tc);
             float rc = length(xc);
-            if (rc > rin && rc < rout) {
+            if (rc > rin && rc < rout * (uDiskRenderMode == 2 ? 1.18 : 1.0)) {
                 float band = smoothstep(rin, rin * 1.25, rc)
                            * (1.0 - smoothstep(rout * 0.70, rout, rc));
 
@@ -533,9 +534,10 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 // whole disk down as the hole grows
                 float gloc  = sqrt(max(1.0 - 1.5 / rc, 0.02));
                 float swirl = rc * L.wind * 0.12 - t * kep * spd * gloc * dil * sdir;
-                float streaks = vnoiseWrapY(vec2(rc * 2.8, turns * 19.0 + swirl * 3.0), 19.0) * 0.65 +
-                                vnoiseWrapY(vec2(rc * 1.0, turns * 9.0  + swirl * 1.5 + 7.0), 9.0) * 0.35;
-                streaks = 0.35 + L.contr * streaks * streaks;
+                float fineStreak = vnoiseWrapY(vec2(rc * 2.8, turns * 19.0 + swirl * 3.0), 19.0);
+                float broadStreak = vnoiseWrapY(vec2(rc * 1.0, turns * 9.0 + swirl * 1.5 + 7.0), 9.0);
+                float streaks = mix(0.52, 0.48 + 0.22 * broadStreak + 0.10 * fineStreak,
+                                     clamp(L.contr * 0.55, 0.0, 1.0));
 
                 // relativistic Doppler + gravitational shift for gas on a
                 // circular geodesic: g = √(1 − 1.5/r) / (1 − β·k̂), with the
@@ -552,6 +554,17 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
                 float boost = pow(g, L.beam);                     // relativistic beaming
 
                 float density = band * streaks;
+                if (uDiskRenderMode == 1 || uDiskRenderMode == 2) {
+                    float originalNoise = fineStreak * 0.65 + broadStreak * 0.35;
+                    float originalLines = 0.35 + L.contr * originalNoise * originalNoise;
+                    density = band * originalLines;
+                    if (uDiskRenderMode == 2) {
+                        float widerBand = smoothstep(rin,rin*1.25,rc)
+                            * (1.0-smoothstep(rout*0.62,rout*1.18,rc));
+                        density = band*mix(originalLines,streaks,0.22)
+                            + max(widerBand-band,0.0)*streaks*0.30;
+                    }
+                }
                 emitc += trans * cbb * (L.gain * 2.2 * density * tprof * tprof * boost);
                 trans *= 1.0 - clamp(L.opac * density, 0.0, 1.0);
             }

@@ -1,5 +1,7 @@
 // blackholecore.cpp — 黑洞配置管理 + 进程控制 实现
 #include "blackholecore.h"
+#include "../../src/render_effects.h"
+#include <QSaveFile>
 #include "application_catalog.h"
 #include "avatar_storage.h"
 #include "autostart_registry.h"
@@ -216,6 +218,10 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
 
     m_rendererStartupTimer = new QTimer(this);
     m_rendererStartupTimer->setInterval(200);
+    m_rippleTimer = new QTimer(this);
+    m_rippleTimer->setInterval(500);
+    connect(m_rippleTimer, &QTimer::timeout, this, &BlackHoleCore::syncRippleProcess);
+    m_rippleTimer->start();
     connect(m_rendererStartupTimer, &QTimer::timeout,
             this, &BlackHoleCore::pollRendererStartup);
 
@@ -236,6 +242,9 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
 
 BlackHoleCore::~BlackHoleCore()
 {
+    m_shuttingDown = true;
+    m_rippleTimer->stop();
+    stopRippleProcess();
     unregisterCloseHotkey();
     QCoreApplication::instance()->removeNativeEventFilter(this);
     stopRenderer();
@@ -653,6 +662,8 @@ void BlackHoleCore::resetDefaults()
     m_spawnPosition = 0;
     m_movementSpeed = 1.0f;
     m_lightingEffect = false;
+    setRippleMode(0);
+    setDiskRenderMode(0);
     m_consumptionFormula = true;
     emit consumptionFormulaChanged();
 
@@ -708,6 +719,7 @@ constexpr qint64 kRendererLogBoundaryProbeBytes = 64;
 
 void BlackHoleCore::startRendererInternal(bool userInitiated)
 {
+    stopRippleProcess();
     if (!userInitiated && m_rendererFailureLatched) return;
 
     if (m_rendererProcess && m_rendererProcess->state() != QProcess::NotRunning) {
@@ -1767,11 +1779,13 @@ void BlackHoleCore::setCountdownMinutes(int v) { if (m_countdownMinutes == v) re
 void BlackHoleCore::saveAdvancedConfig()
 {
     QString path = configPath("blackhole_advanced.txt");
-    QFile file(path);
+    QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
     QTextStream out(&file);
     out << "# Blackhole Advanced Settings v1\n";
+    out << "rippleMode=" << m_rippleMode << "\n";
+    out << "diskRenderMode=" << m_diskRenderMode << "\n";
     out << "followMouse="   << (m_followMouse ? 1 : 0) << "\n";
     out << "mouseInertia="  << QString::number(m_mouseInertia, 'f', 2) << "\n";
     out << "limitMouseOvershoot=" << (m_limitMouseOvershoot ? 1 : 0) << "\n";
@@ -1794,10 +1808,12 @@ void BlackHoleCore::saveAdvancedConfig()
     out << "spd="         << (m_animationSpeed == 1 ? QString("-1.0") : QString::number(m_animationSpeed, 'f', 3)) << "\n";
     out << "starGain="    << QString::number(m_overrideStarGain, 'f', 3) << "\n";
     out << "diskIncl="    << QString::number(m_overrideDiskIncl, 'f', 3) << "\n";
-    file.close();
+    file.commit();
 }
 void BlackHoleCore::loadAdvancedConfig()
 {
+    m_rippleMode = 0;
+    m_diskRenderMode = 0;
     QFile file;
     if (!openConfigForRead(file, "blackhole_advanced.txt")) {
         qDebug() << "BlackHoleCore: advanced config not found, using defaults";
@@ -1817,6 +1833,8 @@ void BlackHoleCore::loadAdvancedConfig()
         QString key = line.left(eq).trimmed();
         QString val = line.mid(eq + 1).trimmed();
         if (key == "followMouse")    m_followMouse    = (val.toInt() != 0);
+        else if (key == "rippleMode") m_rippleMode = ParseEffectMode(val.toUtf8().constData());
+        else if (key == "diskRenderMode") m_diskRenderMode = ParseEffectMode(val.toUtf8().constData());
         else if (key == "mouseInertia") setMouseInertia(val.toFloat());
         else if (key == "limitMouseOvershoot") setLimitMouseOvershoot(val.toInt() != 0);
         else if (key == "videoAsIdle")   m_videoAsIdle    = (val.toInt() != 0);
@@ -1853,6 +1871,85 @@ void BlackHoleCore::loadAdvancedConfig()
     emit consumptionFormulaChanged();
     emit allowRecordingCaptureChanged();
     qDebug() << "BlackHoleCore: loaded advanced config";
+    emit rippleModeChanged();
+    emit diskRenderModeChanged();
+}
+
+void BlackHoleCore::setRippleMode(int value)
+{
+    value = NormalizeEffectMode(value);
+    if (m_rippleMode == value) return;
+    m_rippleMode = value;
+    m_rippleFailure = false;
+    emit rippleModeChanged();
+    saveAdvancedConfig();
+}
+
+void BlackHoleCore::setDiskRenderMode(int value)
+{
+    value = NormalizeEffectMode(value);
+    if (m_diskRenderMode == value) return;
+    m_diskRenderMode = value;
+    emit diskRenderModeChanged();
+    saveAdvancedConfig();
+}
+
+void BlackHoleCore::stopRippleProcess()
+{
+    if (!m_rippleProcess || m_rippleProcess->state() == QProcess::NotRunning) return;
+    m_stoppingRipple = true;
+    m_rippleProcess->terminate();
+    if (!m_rippleProcess->waitForFinished(1500)) {
+        m_rippleProcess->kill();
+        m_rippleProcess->waitForFinished(1500);
+    }
+    m_stoppingRipple = false;
+}
+
+void BlackHoleCore::syncRippleProcess()
+{
+    bool allowed = !m_shuttingDown && m_rippleMode == 1 && !rendererRunning()
+        && !m_rendererStartupTimer->isActive() && !m_rippleFailure;
+#ifdef Q_OS_WIN
+    HDESK desktop = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS);
+    if (!desktop) allowed = false;
+    else {
+        wchar_t name[128]{}; DWORD needed = 0;
+        if (!GetUserObjectInformationW(desktop,UOI_NAME,name,sizeof(name),&needed)
+            || _wcsicmp(name,L"Default") != 0) allowed = false;
+        CloseDesktop(desktop);
+    }
+#endif
+    if (!allowed) { stopRippleProcess(); return; }
+    if (!m_rippleProcess) {
+        m_rippleProcess = new QProcess(this);
+        connect(m_rippleProcess,&QProcess::readyReadStandardOutput,this,[this] { m_rippleProcess->readAllStandardOutput(); });
+        connect(m_rippleProcess,&QProcess::readyReadStandardError,this,[this] { m_rippleProcess->readAllStandardError(); });
+        connect(m_rippleProcess,&QProcess::errorOccurred,this,[this](QProcess::ProcessError) {
+            if (m_stoppingRipple || m_shuttingDown) return;
+            m_rippleFailure = true;
+            emit rendererError(tr("鼠标波纹进程启动失败：%1").arg(m_rippleProcess->errorString()));
+        });
+        connect(m_rippleProcess,QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),this,
+                [this](int code,QProcess::ExitStatus status) {
+            if (!m_stoppingRipple && !m_shuttingDown && (code != 0 || status == QProcess::CrashExit)) {
+                m_rippleFailure = true;
+                emit rendererError(tr("鼠标波纹渲染停止，退出码：%1").arg(code));
+            }
+        });
+    }
+    if (m_rippleProcess->state() != QProcess::NotRunning) return;
+    QString root;
+    const QString exe = findRendererExe(&root);
+    if (exe.isEmpty() || !QFileInfo::exists(exe)) {
+        m_rippleFailure = true;
+        emit rendererError(tr("鼠标波纹无法启动：未找到 blackhole.exe"));
+        return;
+    }
+    saveConfig();
+    m_rippleProcess->setWorkingDirectory(root);
+    m_rippleProcess->start(exe,{QStringLiteral("--render"),QStringLiteral("--ripple-only"),
+        QStringLiteral("--parent-pid"),QString::number(QCoreApplication::applicationPid())});
 }
 
 // ====== 空闲名单 保存/加载 ======
