@@ -29,6 +29,7 @@ class BlackholePreviewFBO : public QQuickFramebufferObject {
 
     // 动画控制
     Q_PROPERTY(bool running READ running WRITE setRunning NOTIFY runningChanged)
+    Q_PROPERTY(int diskRenderMode READ diskRenderMode WRITE setDiskRenderMode NOTIFY diskRenderModeChanged)
 
 public:
     explicit BlackholePreviewFBO(QQuickItem *parent = nullptr);
@@ -48,6 +49,12 @@ public:
     float diskExpo()  const;
     float diskStar()  const;
     bool  running()   const;
+    int diskRenderMode() const { return m_diskRenderMode; }
+    void setDiskRenderMode(int value) {
+        value = value >= 0 && value <= 2 ? value : 0;
+        if (m_diskRenderMode == value) return;
+        m_diskRenderMode = value; emit diskRenderModeChanged(); update();
+    }
 
     void setDiskTemp(float v);
     void setDiskIncl(float v);
@@ -84,6 +91,7 @@ signals:
     void diskExpoChanged();
     void diskStarChanged();
     void runningChanged();
+    void diskRenderModeChanged();
 
 protected:
     Renderer *createRenderer() const override;
@@ -106,6 +114,7 @@ private:
     bool  m_running   = true;
 
     friend class BlackholePreviewRenderer;
+    int m_diskRenderMode = 0;
 };
 
 // 内部渲染器 — 在 Scene Graph 渲染线程中执行
@@ -150,4 +159,5 @@ private:
     float m_diskStar  = 0.0f;
     bool  m_running   = true;
     QSize m_viewSize;
+    int m_diskRenderMode = 0;
 };

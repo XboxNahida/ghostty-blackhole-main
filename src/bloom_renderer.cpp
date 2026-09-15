@@ -1,4 +1,5 @@
 #include "bloom_renderer.h"
+#include "render_effects.h"
 
 #include "win32_gl.h"
 
@@ -39,6 +40,7 @@ struct BloomGL {
     PFNGLGETUNIFORMLOCATIONPROC GetUniformLocation = nullptr;
     PFNGLUNIFORM1IPROC Uniform1i = nullptr;
     PFNGLUNIFORM2FPROC Uniform2f = nullptr;
+    PFNGLUNIFORM4FPROC Uniform4f = nullptr;
     PFNGLACTIVETEXTUREPROC ActiveTexture = nullptr;
     PFNGLGENVERTEXARRAYSPROC GenVertexArrays = nullptr;
     PFNGLBINDVERTEXARRAYPROC BindVertexArray = nullptr;
@@ -66,6 +68,7 @@ struct BloomGL {
             && LoadGLProc(GetUniformLocation, "glGetUniformLocation", debugLog)
             && LoadGLProc(Uniform1i, "glUniform1i", debugLog)
             && LoadGLProc(Uniform2f, "glUniform2f", debugLog)
+            && LoadGLProc(Uniform4f, "glUniform4f", debugLog)
             && LoadGLProc(ActiveTexture, "glActiveTexture", debugLog)
             && LoadGLProc(GenVertexArrays, "glGenVertexArrays", debugLog)
             && LoadGLProc(BindVertexArray, "glBindVertexArray", debugLog)
@@ -118,14 +121,42 @@ in vec2 uv;
 out vec4 fragColor;
 uniform sampler2D sceneTexture;
 uniform sampler2D bloomTexture;
+uniform int rippleCount = 0;
+uniform vec4 rippleEvents[16];
+uniform vec2 resolution;
+uniform int applyBloom = 1;
 
 void main() {
-    vec3 scene = texture(sceneTexture, uv).rgb;
-    vec3 bloom = texture(bloomTexture, uv).rgb;
+    vec2 offset = vec2(0.0);
+    float light = 0.0;
+    for (int i=0;i<rippleCount;++i) {
+        vec2 delta = (uv-rippleEvents[i].xy)*resolution;
+        float distance = length(delta);
+        float age = rippleEvents[i].z;
+        float front = age*280.0;
+        float width = 24.0+age*22.0;
+        float r = distance-front;
+        float envelope = exp(-r*r/(width*width))*exp(-age*1.15)
+            * smoothstep(0.0,0.06,age)*(1.0-smoothstep(1.8,2.4,age));
+        float slope = envelope*(cos(r*0.16)-sin(r*0.16)*2.0*r/(width*width*0.16));
+        vec2 radial = delta/max(distance,1.0);
+        offset += radial*slope*15.0;
+        light += dot(radial,normalize(vec2(-0.6,0.8)))*slope*0.16;
+    }
+    offset = clamp(offset,vec2(-28.0),vec2(28.0));
+    vec2 sampleUV = uv;
+    if (rippleCount > 0) sampleUV = clamp(uv+offset/resolution,0.5/resolution,1.0-0.5/resolution);
+    vec3 scene = texture(sceneTexture, sampleUV).rgb;
+    if (applyBloom == 0) {
+        fragColor = vec4(clamp(scene*(1.0+light)+vec3(max(light,0.0)*0.20),0.0,1.0),1.0);
+        return;
+    }
+    vec3 bloom = texture(bloomTexture, sampleUV).rgb;
     vec3 preservedScene = clamp(scene, vec3(0.0), vec3(1.0));
     vec3 hdrGlow = max(scene - vec3(1.0), vec3(0.0)) + bloom * 0.38;
     vec3 glowResponse = vec3(1.0) - exp(-hdrGlow * 1.05);
     vec3 mapped = preservedScene + (vec3(1.0) - preservedScene) * glowResponse;
+    if (rippleCount > 0) mapped = clamp(mapped*(1.0+light)+vec3(max(light,0.0)*0.20),0.0,1.0);
     fragColor = vec4(mapped, 1.0);
 }
 )GLSL";
@@ -316,7 +347,8 @@ bool Bloom_BeginScene(BloomRenderer* bloom, int width, int height, bool enabled)
     return true;
 }
 
-void Bloom_EndScene(BloomRenderer* bloom, int width, int height, bool enabled) {
+void Bloom_EndScene(BloomRenderer* bloom, int width, int height, bool enabled,
+                    const RippleState* ripples, double now, bool applyBloom) {
     if (!bloom || !enabled || !bloom->ready) return;
 
     glDisable(GL_BLEND);
@@ -326,7 +358,7 @@ void Bloom_EndScene(BloomRenderer* bloom, int width, int height, bool enabled) {
     bloom->gl.Uniform1i(bloom->blurSceneLoc, 0);
 
     constexpr int kBlurPasses = 3;
-    for (int pass = 0; pass < kBlurPasses; ++pass) {
+    for (int pass = 0; applyBloom && pass < kBlurPasses; ++pass) {
         const int target = pass & 1;
         const GLuint source = (pass == 0) ? bloom->sceneTexture : bloom->pingTexture[1 - target];
         bloom->gl.BindFramebuffer(GL_FRAMEBUFFER, bloom->pingFbo[target]);
@@ -343,6 +375,16 @@ void Bloom_EndScene(BloomRenderer* bloom, int width, int height, bool enabled) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     bloom->gl.UseProgram(bloom->compositeProgram);
+    bloom->gl.Uniform1i(bloom->gl.GetUniformLocation(bloom->compositeProgram,"applyBloom"),applyBloom ? 1 : 0);
+    bloom->gl.Uniform2f(bloom->gl.GetUniformLocation(bloom->compositeProgram,"resolution"),static_cast<float>(width),static_cast<float>(height));
+    const int count = ripples ? ripples->count : 0;
+    bloom->gl.Uniform1i(bloom->gl.GetUniformLocation(bloom->compositeProgram,"rippleCount"),count);
+    for (int i=0;i<count;++i) {
+        char name[40]; std::snprintf(name,sizeof(name),"rippleEvents[%d]",i);
+        const auto& event = ripples->events[i];
+        bloom->gl.Uniform4f(bloom->gl.GetUniformLocation(bloom->compositeProgram,name),
+            event.x,event.y,static_cast<float>(std::max(0.0,now-event.born)),0.0f);
+    }
     bloom->gl.ActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, bloom->sceneTexture);
     bloom->gl.Uniform1i(bloom->compositeSceneLoc, 0);

@@ -75,6 +75,16 @@ target_link_libraries(appBlakholeUI
 )
 
 if(BUILD_TESTING)
+    qt_add_executable(effects_core_tests ../tests/effects_core_tests.cpp
+        core/blackholecore.cpp core/blackholecore.h core/renderer_startup_diagnostics.cpp
+        core/avatar_storage.cpp core/application_catalog.cpp
+        ../src/autostart_registry.cpp ../src/foreground_window.cpp ../src/game_detection.cpp
+        ../src/frame_limiter.cpp ../src/media_session.cpp ../src/movement_settings.cpp)
+    target_include_directories(effects_core_tests PRIVATE ../src)
+    target_compile_features(effects_core_tests PRIVATE cxx_std_17)
+    target_link_libraries(effects_core_tests PRIVATE Qt6::Quick Qt6::Widgets advapi32 dwmapi ole32 runtimeobject version)
+    set_target_properties(effects_core_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/effects-core-test")
+    add_test(NAME effects_core_tests COMMAND effects_core_tests)
     add_executable(frame_limiter_tests EXCLUDE_FROM_ALL
         ../tests/frame_limiter_tests.cpp
         ../src/frame_limiter.cpp

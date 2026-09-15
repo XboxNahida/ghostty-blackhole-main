@@ -62,6 +62,34 @@ Item {
         }
 
         // === 空闲检测 ===
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 12
+            Text { text: "黑洞渲染"; color: theme.focusColor; font.pixelSize: 14; font.bold: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "吸积盘线条"; color: theme.textColor; font.pixelSize: 14; Layout.fillWidth: true }
+                Components.EDropDown {
+                    preferredWidth: 190
+                    model: ["柔化（默认）", "线条化", "边缘柔滑"]
+                    currentIndex: bhCore ? bhCore.diskRenderMode : 0
+                    onActivated: function(index) { if (bhCore) bhCore.diskRenderMode = index }
+                }
+            }
+            Text { text: "鼠标点击波纹"; color: theme.focusColor; font.pixelSize: 14; font.bold: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "特效模式"; color: theme.textColor; font.pixelSize: 14; Layout.fillWidth: true }
+                Components.EDropDown {
+                    preferredWidth: 190
+                    model: ["常驻关闭（默认）", "常驻开启", "仅黑洞显示时开启"]
+                    currentIndex: bhCore ? bhCore.rippleMode : 0
+                    onActivated: function(index) { if (bhCore) bhCore.rippleMode = index }
+                }
+            }
+        }
+
+        // === 空闲检测 ===
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: idleCol.implicitHeight + 24

@@ -331,6 +331,9 @@ bool BuildFragmentShader(std::string& out, FILE* debugLog, bool& consumptionShad
     }
 
     out = header + "\n// ===== blackhole.glsl =====" + body +
-          "\nvoid main() { vec4 c; vec2 fc = vec2(gl_FragCoord.x, iResolution.y - gl_FragCoord.y); mainImage(c, fc); fragColor = c; }\n";
+          "\nuniform int uRippleOnly = 0;\n"
+          "void main() { vec4 c; vec2 fc = vec2(gl_FragCoord.x, iResolution.y - gl_FragCoord.y);"
+          " if (uRippleOnly > 0) { fragColor=vec4(texture(iChannel0,fc/iResolution.xy).rgb,1.0); return; }"
+          " mainImage(c, fc); fragColor = c; }\n";
     return true;
 }

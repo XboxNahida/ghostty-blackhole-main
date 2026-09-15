@@ -25,6 +25,7 @@
 #include "capture_dxgi.h"
 #include "gl_texture.h"
 #include "bloom_renderer.h"
+#include "ripple_input.h"
 #include "consumption_state.h"
 #include "desktop_transport.h"
 #include "fragment_shader_builder.h"
@@ -578,6 +579,14 @@ int main(int argc, char* argv[]) {
     }
 
     bool isRenderer = (argc >= 2 && strcmp(argv[1], "--render") == 0);
+    bool rippleOnly = false;
+    for (int i=2;i<argc;++i) if (strcmp(argv[i],"--ripple-only")==0) rippleOnly = true;
+    HANDLE rippleParent = nullptr;
+    for (int i=2;rippleOnly && i+1<argc;++i) if (strcmp(argv[i],"--parent-pid")==0) {
+        const DWORD parentId = static_cast<DWORD>(std::strtoul(argv[i+1],nullptr,10));
+        rippleParent = OpenProcess(SYNCHRONIZE,FALSE,parentId);
+        if (!rippleParent) return 1;
+    }
     bool isConfig = (argc >= 2 && strcmp(argv[1], "--config") == 0);
     bool isMonitor = (argc >= 2 && strcmp(argv[1], "--monitor") == 0);
 
@@ -612,6 +621,7 @@ int main(int argc, char* argv[]) {
 
     // 直接写入调试文件（子进程用独立文件名避免冲突）
     char debugName[64] = "blackhole_debug.txt";
+    if (rippleOnly) std::snprintf(debugName,sizeof(debugName),"blackhole_ripple_debug.txt");
     if (screenIdx >= 0)
         snprintf(debugName, sizeof(debugName), "blackhole_debug_screen%d.txt", screenIdx);
     FILE* debugLog = fopen(debugName, "w");
@@ -634,6 +644,12 @@ int main(int argc, char* argv[]) {
             InitDefaultPresets(cfg);
         LoadAdvancedConfig(cfg);
         cfg.mode = 0;
+        if (rippleOnly) {
+            cfg.lightingEffect = false;
+            cfg.followMouse = false;
+            cfg.allowRecordingCapture = false;
+            if (cfg.displayMode == 3) cfg.displayMode = 2;
+        }
 
         // === 一屏一黑洞 (displayMode==3) 多进程分发 ===
         // 父进程 (screenIdx==-1): 枚举显示器，为副屏 spawn 子进程，本进程负责主屏
@@ -1032,6 +1048,8 @@ int main(int argc, char* argv[]) {
     GLint loc_uPE   = gl_GetUniformLocation(program, "uPresetExpo");
     GLint loc_uPSt  = gl_GetUniformLocation(program, "uPresetStar");
     GLint locBorn   = gl_GetUniformLocation(program, "uBornProgress");
+    GLint locDiskStyle = gl_GetUniformLocation(program, "uDiskRenderMode");
+    GLint locRippleOnly = gl_GetUniformLocation(program, "uRippleOnly");
     GLint locFixedSz  = gl_GetUniformLocation(program, "uFixedSize");
     GLint locFixedLvl = gl_GetUniformLocation(program, "uFixedLevel");
     GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
@@ -1180,7 +1198,7 @@ int main(int argc, char* argv[]) {
 
     // ---- 显示窗口（屏幕外初始化已完成，移入并显示） ----
     if (debugLog) { fprintf(debugLog, "[Init] Showing window...\n"); fflush(debugLog); }
-    Win32GL_Show(wgl);
+    if (!rippleOnly) Win32GL_Show(wgl);
     bool recordingCaptureRuntimeAllowed = cfg.allowRecordingCapture;
     bool recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
     Win32GL_SetCaptureExcluded(wgl, !recordingCaptureRuntimeAllowed);
@@ -1243,6 +1261,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locFormulaTexture, 2);
         gl_ActiveTexture(GL_TEXTURE0);
         gl_Uniform1f(locBorn, 0.01f);
+        gl_Uniform1i(locDiskStyle,cfg.diskRenderMode);
+        gl_Uniform1i(locRippleOnly,rippleOnly ? 1 : 0);
         gl_Uniform1f(locHomeX, homeX);
         gl_Uniform1f(locHomeY, homeY);
         gl_Uniform1i(locFollowMouse, cfg.followMouse && !cfg.lightingEffect ? 1 : 0);
@@ -1262,7 +1282,7 @@ int main(int argc, char* argv[]) {
     // 启用分层模式（鼠标穿透）
     Win32GL_EnableLayered(wgl);
     bool recordingHotkeyRegistered = false;
-    if (screenIdx < 0) {
+    if (screenIdx < 0 && !rippleOnly) {
         recordingHotkeyRegistered = RegisterHotKey(
             wgl.hwnd, WIN32GL_RECORDING_HOTKEY_ID,
             MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 'R') != FALSE;
@@ -1288,6 +1308,11 @@ int main(int argc, char* argv[]) {
 
     // ---- Main loop ----
     double startTime = Win32GL_GetTime();
+    RippleState ripples;
+    RippleInput rippleInput;
+    bool rippleWindowVisible = false;
+    double lastModeRead = startTime-1.0;
+    bool hookFailed = false;
     double bornStart = startTime;
     const double BORN_DURATION = 0.8;
     const double DIE_DURATION = 0.5;
@@ -1310,6 +1335,7 @@ int main(int argc, char* argv[]) {
     }
 
     while (true) {
+        if (rippleParent && WaitForSingleObject(rippleParent,0) != WAIT_TIMEOUT) break;
         if (exiting) {
             // 退出渐出：只处理消息，不检查 shouldClose
             Win32GL_DrainMessages(wgl);
@@ -1324,6 +1350,28 @@ int main(int argc, char* argv[]) {
         glViewport(0, 0, fbW, fbH);
 
         double now = Win32GL_GetTime();
+        if (now-lastModeRead >= 0.25) {
+            BlackholeConfig effects;
+            LoadAdvancedConfig(effects);
+            cfg.rippleMode = effects.rippleMode;
+            cfg.diskRenderMode = effects.diskRenderMode;
+            lastModeRead = now;
+        }
+        if (rippleOnly && (exiting || cfg.rippleMode != 1)) break;
+        const bool acceptClicks = !exiting && RippleEnabled(cfg.rippleMode,
+            !rippleOnly && IsWindowVisible(wgl.hwnd));
+        if (!rippleInput.enable(acceptClicks) && !hookFailed) {
+            if (debugLog) { fprintf(debugLog,"[Ripple][FAIL] Mouse hook unavailable: %lu\n",GetLastError()); fflush(debugLog); }
+            hookFailed = true;
+        }
+        if (!acceptClicks) ripples.clear();
+        rippleInput.drain(ripples,wgl.targetX,wgl.targetY,wgl.width,wgl.height,now);
+        ripples.expire(now);
+        if (rippleOnly && ripples.count == 0) {
+            if (rippleWindowVisible) { Win32GL_Hide(wgl); rippleWindowVisible=false; }
+            Sleep(16);
+            continue;
+        }
         if (!exiting && Win32GL_TakeRecordingHotkey(wgl)) {
             recordingCaptureRuntimeAllowed = !recordingCaptureRuntimeAllowed;
             recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
@@ -1571,7 +1619,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect);
+        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect || ripples.count > 0);
         if (cfg.lightingEffect && !bloomActive) {
             cfg.lightingEffect = false;
             if (debugLog) { fprintf(debugLog, "[Consumption][WARN] HDR unavailable; using base renderer\n"); fflush(debugLog); }
@@ -1647,6 +1695,8 @@ int main(int argc, char* argv[]) {
         gl_Uniform1i(locConsumptionFormula, cfg.consumptionFormula ? 1 : 0);
         gl_Uniform1f(locDistortion, cfg.distortion);
         gl_Uniform1f(locBorn, bornProgress);
+        gl_Uniform1i(locDiskStyle,cfg.diskRenderMode);
+        gl_Uniform1i(locRippleOnly,rippleOnly ? 1 : 0);
         gl_Uniform1f(locHomeX, frameHomeX);
         gl_Uniform1f(locHomeY, frameHomeY);
         gl_Uniform1i(locFollowMouse, cfg.followMouse && !cfg.lightingEffect ? 1 : 0);
@@ -1663,9 +1713,10 @@ int main(int argc, char* argv[]) {
         gl_BindVertexArray(0);
         gl_UseProgram(0);
 
-        Bloom_EndScene(bloom, fbW, fbH, bloomActive);
+        Bloom_EndScene(bloom, fbW, fbH, bloomActive,&ripples,now,cfg.lightingEffect);
 
         Win32GL_SwapBuffers(wgl);
+        if (rippleOnly && !rippleWindowVisible) { Win32GL_Show(wgl); rippleWindowVisible=true; }
 
         frames++;
         if (now - lastFps >= 1.0) {
@@ -1677,6 +1728,8 @@ int main(int argc, char* argv[]) {
     }
 
     DesktopTransport_Destroy(desktopTransport);
+    rippleInput.enable(false);
+    if (rippleParent) CloseHandle(rippleParent);
     Bloom_Destroy(bloom);
     if (debugLog) { fclose(debugLog); debugLog = nullptr; }
     if (formulaTexture) glDeleteTextures(1, &formulaTexture);

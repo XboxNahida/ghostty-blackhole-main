@@ -21,6 +21,7 @@ Item {
     property alias diskBeam:  fbo.diskBeam
     property alias diskGain:  fbo.diskGain
     property alias diskContr: fbo.diskContr
+    property alias diskRenderMode: fbo.diskRenderMode
     property alias diskWind:  fbo.diskWind
     property alias diskSpeed: fbo.diskSpeed
     property alias diskExpo:  fbo.diskExpo
