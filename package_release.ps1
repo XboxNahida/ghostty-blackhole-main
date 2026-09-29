@@ -264,8 +264,8 @@ Remove-ReleaseDebugSections -StripPath $uiStrip -ReleaseExecutable $UiRelease
 
 $buildTime = [DateTimeOffset]::Now
 $releaseInfo = @(
-    "Version: 1.2.4",
-    "Tag: v1.2.4",
+    "Version: 3.0.1",
+    "Tag: v3.0.1",
     "Commit: $commit",
     "BuildTimeUTC: $($buildTime.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ'))",
     "BuildTimeLocal: $($buildTime.ToString('yyyy-MM-ddTHH:mm:sszzz'))",

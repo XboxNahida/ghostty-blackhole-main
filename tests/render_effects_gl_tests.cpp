@@ -48,10 +48,20 @@ in vec2 uv; out vec4 fragColor; uniform sampler2D sceneTexture;
 void main() { fragColor=texture(sceneTexture,uv); }
 )GLSL"); CHECK(checker);
     auto pixels=[](int w,int h) { std::vector<unsigned char> p(w*h*3); glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,p.data()); return p; };
+    GLuint outputFbo=0,outputTexture=0;
     auto drawRipple=[&](int w,int h,const RippleState& r,double now) {
         Bloom_BeginScene(b,w,h,true); b->gl.UseProgram(checker); b->gl.ActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,desktop); b->gl.BindVertexArray(b->fullscreenVao);
-        glDrawArrays(GL_TRIANGLES,0,3); Bloom_EndScene(b,w,h,true,&r,now,false); return pixels(w,h);
+        glDrawArrays(GL_TRIANGLES,0,3); Bloom_EndScene(b,w,h,true,&r,now,false);
+        if (outputFbo) {
+            // Reuse the production composite program and its uploaded uniforms,
+            // but read from an FBO so Windows cannot clamp 4K to monitor size.
+            b->gl.BindFramebuffer(GL_FRAMEBUFFER,outputFbo);
+            b->gl.UseProgram(b->compositeProgram); b->gl.ActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D,b->sceneTexture);
+            b->gl.BindVertexArray(b->fullscreenVao); glDrawArrays(GL_TRIANGLES,0,3);
+        }
+        return pixels(w,h);
     };
     for(auto dimensions : {std::pair<int,int>{800,500},{360,480}}) {
         const int w=dimensions.first,h=dimensions.second;
@@ -67,6 +77,82 @@ void main() { fragColor=texture(sceneTexture,uv); }
         r.expire(3.0); CHECK(difference(empty,drawRipple(w,h,r,3.0))==0.0);
         if(w==800) { save("ripple-off",w,h,empty); save("ripple-035",w,h,first); save("ripple-065",w,h,second); }
     }
+    // Recover displaced coordinates from a complementary colour ramp. Subtract
+    // blue to remove common specular light, then divide out diffuse lighting.
+    std::vector<unsigned char> ramp(800*500*3);
+    for (int y=0;y<500;++y) for (int x=0;x<800;++x) {
+        const int p=(y*800+x)*3; ramp[p]=40+x*175/799;
+        ramp[p+1]=255-ramp[p]; ramp[p+2]=0;
+    }
+    glBindTexture(GL_TEXTURE_2D,desktop);
+    glTexSubImage2D(GL_TEXTURE_2D,0,0,0,800,500,GL_RGB,GL_UNSIGNED_BYTE,ramp.data());
+    auto position=[](const std::vector<unsigned char>& p,int x) {
+        const int i=(250*800+x)*3;
+        return (float(p[i])-p[i+2])/(float(p[i])+p[i+1]-2.0f*p[i+2]);
+    };
+    RippleState impulse; const auto rest=drawRipple(800,500,impulse,0);
+    impulse.add(0.25f,0.5f,0);
+    const auto stretch=drawRipple(800,500,impulse,0.16);
+    const auto rebound=drawRipple(800,500,impulse,0.56);
+    const float left=position(stretch,104)-position(rest,104);
+    const float right=position(stretch,296)-position(rest,296);
+    const float returnLeft=position(rebound,104)-position(rest,104);
+    const float returnRight=position(rebound,296)-position(rest,296);
+    std::printf("elastic stretch %.5f %.5f rebound %.5f %.5f\n",left,right,returnLeft,returnRight);
+    CHECK(left < -0.003f && right > 0.003f);
+    CHECK(returnLeft > 0.003f && returnRight < -0.003f);
+    glBindTexture(GL_TEXTURE_2D,desktop);
+    glTexSubImage2D(GL_TEXTURE_2D,0,0,0,800,500,GL_RGB,GL_UNSIGNED_BYTE,pattern.data());
+    // Broad pressure waves must affect distant content without fine rings.
+    b->gl.GenFramebuffers(1,&outputFbo); glGenTextures(1,&outputTexture);
+    for (auto dimensions : {std::pair<int,int>{800,500},{1920,1080},{1080,1920},{3840,2160}}) {
+        const int w=dimensions.first,h=dimensions.second;
+        b->gl.ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,outputTexture);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB8,w,h,0,GL_RGB,GL_UNSIGNED_BYTE,nullptr);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        b->gl.BindFramebuffer(GL_FRAMEBUFFER,outputFbo);
+        b->gl.FramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,outputTexture,0);
+        CHECK(b->gl.CheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE);
+        RippleState r;
+        const auto base=drawRipple(w,h,r,0);
+        r.add(0.1f,0.5f,0);
+        const auto shaken=drawRipple(w,h,r,0.12);
+        int refracted=0;
+        for (int y=h*4/10;y<h*6/10;++y) for (int x=w*85/100;x<w*98/100;++x) {
+            const int p=(y*w+x)*3+1;
+            if (std::abs(int(shaken[p])-int(base[p]))>65) ++refracted;
+        }
+        std::printf("fullscreen %dx%d: far-edge refraction=%d\n",w,h,refracted);
+        CHECK(refracted>40);
+        std::vector<unsigned char> flat(800*500*3,128);
+        glBindTexture(GL_TEXTURE_2D,desktop);
+        glTexSubImage2D(GL_TEXTURE_2D,0,0,0,800,500,GL_RGB,GL_UNSIGNED_BYTE,flat.data());
+        for (double age : {0.12,0.18}) {
+            const auto waves=drawRipple(w,h,r,age);
+            int crests=0,start=-1,minWidth=w,firstCrest=-1;
+            for (int x=w/10;x<w;++x) {
+                const int value=waves[(h/2*w+x)*3];
+                if (start<0 && value>130) { start=x; ++crests; }
+                if (start>=0 && value<=129) {
+                    minWidth=std::min(minWidth,x-start);
+                    if (firstCrest<0) firstCrest=(start+x)/2;
+                    start=-1;
+                }
+            }
+            std::printf("fullscreen %dx%d age %.1f: crests=%d width=%d\n",w,h,age,crests,minWidth);
+            CHECK(crests>=1 && crests<=2);
+            CHECK(minWidth>w/20);
+            if (w==1920 && age==0.12) save("ripple-fullscreen-flat",w,h,waves);
+        }
+        glBindTexture(GL_TEXTURE_2D,desktop);
+        glTexSubImage2D(GL_TEXTURE_2D,0,0,0,800,500,GL_RGB,GL_UNSIGNED_BYTE,pattern.data());
+        const auto settled=drawRipple(w,h,r,2.4);
+        CHECK(difference(base,settled)==0.0);
+        if (w==1920) save("ripple-fullscreen-shake",w,h,shaken);
+    }
+    b->gl.BindFramebuffer(GL_FRAMEBUFFER,0);
+    b->gl.DeleteFramebuffers(1,&outputFbo); glDeleteTextures(1,&outputTexture); outputFbo=0;
     std::string source; bool available=false;
     CHECK(BuildFragmentShader(source,stderr,available,true) && available);
     const GLuint mainProgram=CreateProgram(*b,source.c_str()); CHECK(mainProgram);

@@ -130,20 +130,26 @@ void main() {
     vec2 offset = vec2(0.0);
     float light = 0.0;
     for (int i=0;i<rippleCount;++i) {
+        float age = rippleEvents[i].z;
+        // A click presses a broad patch of water. Neighbouring content stretches
+        // in opposite directions and rebounds with a gradual spatial phase lag.
+        // One wavelength exceeds the viewport diagonal: no dense ring train.
         vec2 delta = (uv-rippleEvents[i].xy)*resolution;
         float distance = length(delta);
-        float age = rippleEvents[i].z;
-        float front = age*280.0;
-        float width = 24.0+age*22.0;
-        float r = distance-front;
-        float envelope = exp(-r*r/(width*width))*exp(-age*1.15)
-            * smoothstep(0.0,0.06,age)*(1.0-smoothstep(1.8,2.4,age));
-        float slope = envelope*(cos(r*0.16)-sin(r*0.16)*2.0*r/(width*width*0.16));
-        vec2 radial = delta/max(distance,1.0);
-        offset += radial*slope*15.0;
-        light += dot(radial,normalize(vec2(-0.6,0.8)))*slope*0.16;
+        float r = distance/max(length(resolution),1.0);
+        float spread = 0.65+age*0.12;
+        float envelope = exp(-age*1.6)*smoothstep(0.0,0.06,age)
+            * (1.0-smoothstep(1.8,2.4,age));
+        float slope = sin(age*9.0-r*5.0)*exp(-r*r/(spread*spread))
+            * envelope*smoothstep(0.0,0.07,r);
+        vec2 normal = delta/max(distance,1.0);
+        offset += normal*slope*min(min(resolution.x,resolution.y)*0.055,100.0);
+        light += dot(normal,normalize(vec2(-0.6,0.8)))*slope*0.09;
     }
-    offset = clamp(offset,vec2(-28.0),vec2(28.0));
+    float maxOffset = min(min(resolution.x,resolution.y)*0.075,120.0);
+    // A smooth limiter keeps rapid clicks from introducing hard displacement edges.
+    offset = offset/sqrt(1.0+dot(offset,offset)/(maxOffset*maxOffset));
+    light = 0.18*tanh(light/0.18);
     vec2 sampleUV = uv;
     if (rippleCount > 0) sampleUV = clamp(uv+offset/resolution,0.5/resolution,1.0-0.5/resolution);
     vec3 scene = texture(sceneTexture, sampleUV).rgb;
