@@ -1,0 +1,9 @@
+isDark=1
+followSystem=1
+focusColor=#ff00c4b3
+launchMinimized=0
+skipExitDialog=1
+defaultCloseAction=0
+closeHotkeyEnabled=1
+closeHotkeySequence=Ctrl+Alt+B
+customAvatarPath=

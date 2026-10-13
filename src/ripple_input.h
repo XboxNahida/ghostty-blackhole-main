@@ -25,11 +25,12 @@ public:
         if (!hook_) owner_ = nullptr;
         return hook_ != nullptr;
     }
-    void drain(RippleState& state, int x, int y, int width, int height, double now) {
+    void drain(RippleState& state, int x, int y, int width, int height, double now,
+               const RippleSettings& settings = {}) {
         for (int i=0;i<pending_;++i) {
             const float nx = static_cast<float>(points_[i].x-x)/std::max(width,1);
             const float ny = static_cast<float>(points_[i].y-y)/std::max(height,1);
-            if (nx>=0 && nx<=1 && ny>=0 && ny<=1) state.add(nx,1.0f-ny,now);
+            if (nx>=0 && nx<=1 && ny>=0 && ny<=1) state.addClick(nx,1.0f-ny,now,settings);
         }
         pending_ = 0;
     }

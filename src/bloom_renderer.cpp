@@ -123,6 +123,8 @@ uniform sampler2D sceneTexture;
 uniform sampler2D bloomTexture;
 uniform int rippleCount = 0;
 uniform vec4 rippleEvents[16];
+uniform int rippleDirection[16];
+uniform vec2 rippleSettings[16]; // 振荡次数、点击扩散方式。
 uniform vec2 resolution;
 uniform int applyBloom = 1;
 
@@ -140,8 +142,25 @@ void main() {
         float spread = 0.65+age*0.12;
         float envelope = exp(-age*1.6)*smoothstep(0.0,0.06,age)
             * (1.0-smoothstep(1.8,2.4,age));
-        float slope = sin(age*9.0-r*5.0)*exp(-r*r/(spread*spread))
-            * envelope*smoothstep(0.0,0.07,r);
+        float frequency = rippleSettings[i].x > 0.0 ? 6.2831853*rippleSettings[i].x/2.4 : 9.0;
+        float slope = sin(age*frequency-r*5.0)*exp(-r*r/(spread*spread))
+            * envelope*smoothstep(0.0,0.07,r)*rippleEvents[i].w;
+        if (rippleDirection[i] != 0 || rippleSettings[i].y > 0.0) {
+            // 单个宽波面单向传播：出现外扩，消失内缩，不做时间反向振荡。
+            bool systemWave = rippleDirection[i] != 0;
+            float direction = systemWave ? float(rippleDirection[i]) : (rippleSettings[i].y < 1.5 ? 1.0 : -1.0);
+            float phase = clamp(age/(systemWave ? 1.2 : 2.4),0.0,1.0);
+            if (!systemWave) phase = fract(phase*rippleSettings[i].x);
+            vec2 reach = max(rippleEvents[i].xy,vec2(1.0)-rippleEvents[i].xy)*resolution;
+            float maxRadius = length(reach)/max(length(resolution),1.0);
+            float front = maxRadius*(direction > 0.0 ? phase : 1.0-phase);
+            float band = (r-front)/0.12;
+            float fade = smoothstep(0.0,0.15,phase)*(1.0-smoothstep(0.85,1.0,phase));
+            // UV 反向采样，负偏移使画面向外推，正偏移使画面向内收。
+            if (!systemWave) fade *= exp(-age*0.7);
+            slope = -direction*exp(-band*band)*fade
+                *smoothstep(0.0,0.04,r)*rippleEvents[i].w;
+        }
         vec2 normal = delta/max(distance,1.0);
         offset += normal*slope*min(min(resolution.x,resolution.y)*0.055,100.0);
         light += dot(normal,normalize(vec2(-0.6,0.8)))*slope*0.09;
@@ -389,7 +408,12 @@ void Bloom_EndScene(BloomRenderer* bloom, int width, int height, bool enabled,
         char name[40]; std::snprintf(name,sizeof(name),"rippleEvents[%d]",i);
         const auto& event = ripples->events[i];
         bloom->gl.Uniform4f(bloom->gl.GetUniformLocation(bloom->compositeProgram,name),
-            event.x,event.y,static_cast<float>(std::max(0.0,now-event.born)),0.0f);
+            event.x,event.y,static_cast<float>(std::max(0.0,now-event.born)),event.strength);
+        std::snprintf(name,sizeof(name),"rippleDirection[%d]",i);
+        bloom->gl.Uniform1i(bloom->gl.GetUniformLocation(bloom->compositeProgram,name),event.direction);
+        std::snprintf(name,sizeof(name),"rippleSettings[%d]",i);
+        bloom->gl.Uniform2f(bloom->gl.GetUniformLocation(bloom->compositeProgram,name),
+            static_cast<float>(event.oscillations),static_cast<float>(event.spread));
     }
     bloom->gl.ActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, bloom->sceneTexture);

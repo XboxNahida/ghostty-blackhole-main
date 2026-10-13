@@ -22,8 +22,8 @@ struct DiskPreset {
 };
 
 struct BlackholeConfig {
-    int   mode       = 1;
-    int   idleSec    = 300;
+    int   mode       = 0;
+    int   idleSec    = 60;
     float holeRadius = -1.0f;
     float diskGain   = -1.0f;
     float diskTemp   = -1.0f;
@@ -35,7 +35,7 @@ struct BlackholeConfig {
     int   presetCount = 0;
     DiskPreset presets[64];
     int   playMode        = 1;    // 0=顺序 1=循环 2=随机
-    float slotSec        = 5.25f; // 每个预设播放秒数
+    float slotSec        = 5.3f; // 每个预设播放秒数
     bool  videoAsIdle     = false; // 播放视频时视为空闲
     bool  autoStart       = false; // 开机自启
     bool  fixedSize       = false; // 固定大小（不再随时间增长）
@@ -46,16 +46,19 @@ struct BlackholeConfig {
     float mouseInertia    = 0.30f;  // 鼠标跟随惯性（0=贴住鼠标, 1=最大惯性/游走）
     bool  limitMouseOvershoot = true; // 是否把过冲限制在鼠标半径内
     int   spawnPosition   = 0;     // 0=随机, 1~4=四角固定出生位置
-    float movementSpeed   = 1.0f;  // 自由移动速度倍率（0.0~3.0，0=静止）
+    float movementSpeed   = 0.3f;  // 自由移动速度倍率（0.0~3.0，0=静止）
     bool  lightingEffect  = false; // 吸积盘分层光影与 Bloom
     bool  consumptionFormula = true; // 耗尽后公式流带，可独立关闭
     float distortion      = 1.0f;  // 引力透镜扭曲强度
     int rippleMode = 0;
+    RippleSettings rippleSettings{1,1,1};
+    bool emergenceEnabled = false;
+    float emergenceWaitMin = 10, emergenceWaitMax = 25;
     int diskRenderMode = 0;
     bool  allowRecordingCapture = false; // 允许截图/录屏捕获黑洞窗口
-    bool  growEnabled     = false; // 是否从 initialSize 逐渐增长
-    float initialSize     = 0.3f;  // 逐渐增长的初始大小（0.01~1.0）
-    int   frameRateLimit = kDefaultFrameRateLimit;
+    bool  growEnabled     = true; // 是否从 initialSize 逐渐增长
+    float initialSize     = 0.05f; // 逐渐增长的初始大小（0.01~1.0）
+    int   frameRateLimit = 0;
     bool  confirmed  = false;
 };
 

@@ -50,3 +50,7 @@ _work.txt
 # OS
 Thumbs.db
 debug_state.md
+
+# 私有收款码仅用于本地发布资源，不进入公开源码
+Blakhole_UI/fonts/pic/QR_payment.jpg
+Blakhole_UI/fonts/pic/WeChat_QR.png

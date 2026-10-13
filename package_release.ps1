@@ -5,6 +5,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = $PSScriptRoot
+$versionSource = Get-Content -LiteralPath (Join-Path $ProjectRoot "cmake/AppVersion.cmake") -Encoding UTF8 -Raw
+if ($versionSource -notmatch 'set\(BLACKHOLE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"\)') {
+    throw "无法读取发布版本号"
+}
+$packageVersion = $Matches[1]
 $UiBuildDir = Join-Path $ProjectRoot "_build_v124_ui"
 $CoreBuildDir = Join-Path $ProjectRoot "_build_v124_renderer"
 $ReleaseDir = Join-Path $ProjectRoot "release"
@@ -264,8 +269,8 @@ Remove-ReleaseDebugSections -StripPath $uiStrip -ReleaseExecutable $UiRelease
 
 $buildTime = [DateTimeOffset]::Now
 $releaseInfo = @(
-    "Version: 3.0.1",
-    "Tag: v3.0.1",
+    "Version: $packageVersion",
+    "Tag: v$packageVersion",
     "Commit: $commit",
     "BuildTimeUTC: $($buildTime.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ'))",
     "BuildTimeLocal: $($buildTime.ToString('yyyy-MM-ddTHH:mm:sszzz'))",

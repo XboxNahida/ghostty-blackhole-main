@@ -68,6 +68,41 @@ Item {
             Text { text: "黑洞渲染"; color: theme.focusColor; font.pixelSize: 14; font.bold: true }
             RowLayout {
                 Layout.fillWidth: true
+                Text { text: "黑洞特效模式"; color: theme.textColor; font.pixelSize: 14; Layout.fillWidth: true }
+                Components.EDropDown {
+                    preferredWidth: 190
+                    model: ["常规黑洞", "持续吞噬", "随机浮现"]
+                    currentIndex: bhCore ? bhCore.effectMode : 0
+                    onActivated: function(index) {
+                        if (bhCore) bhCore.effectMode = index
+                        // EDropDown 选择时会赋值 currentIndex，恢复绑定以同步重置和其他入口。
+                        currentIndex = Qt.binding(function() { return bhCore ? bhCore.effectMode : 0 })
+                    }
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: bhCore && bhCore.effectMode === 2
+                Components.ESlider {
+                    Layout.fillWidth: true
+                    label: "随机等待下限"; from: 1; to: 300; stepSize: 1; decimals: 0; suffix: " 秒"
+                    externalValue: bhCore ? bhCore.emergenceWaitMin : 10
+                    onUserChanged: function(v) { if (bhCore) bhCore.emergenceWaitMin = Math.round(v) }
+                }
+                Components.ESlider {
+                    Layout.fillWidth: true
+                    label: "随机等待上限"; from: 1; to: 300; stepSize: 1; decimals: 0; suffix: " 秒"
+                    externalValue: bhCore ? bhCore.emergenceWaitMax : 25
+                    onUserChanged: function(v) { if (bhCore) bhCore.emergenceWaitMax = Math.round(v) }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "每轮停留约 8 秒，缩小消失后随机等待再出现。等待范围在下一次退场时生效；保留常规移动和生长配置，含吸积盘的主体直径限制为屏幕短边约 40%。"
+                    wrapMode: Text.WordWrap; color: theme.textColor; opacity: 0.7; font.pixelSize: 12
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
                 Text { text: "吸积盘线条"; color: theme.textColor; font.pixelSize: 14; Layout.fillWidth: true }
                 Components.EDropDown {
                     preferredWidth: 190
@@ -75,6 +110,23 @@ Item {
                     currentIndex: bhCore ? bhCore.diskRenderMode : 0
                     onActivated: function(index) { if (bhCore) bhCore.diskRenderMode = index }
                 }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "浮现动画预览"; color: theme.textColor; font.pixelSize: 14; Layout.fillWidth: true }
+                Button {
+                    text: "预览一次"
+                    enabled: bhCore && !bhCore.systemActive
+                    onClicked: if (bhCore) bhCore.previewEmergence()
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "预览前先关闭系统运行。出场外扩一轮波纹、退场内缩一轮波纹，约 11 秒结束；正式循环请选择“随机浮现”，再启动系统。"
+                wrapMode: Text.WordWrap
+                color: theme.textColor
+                opacity: 0.7
+                font.pixelSize: 12
             }
             Text { text: "鼠标点击波纹"; color: theme.focusColor; font.pixelSize: 14; font.bold: true }
             RowLayout {
@@ -86,6 +138,36 @@ Item {
                     currentIndex: bhCore ? bhCore.rippleMode : 0
                     onActivated: function(index) { if (bhCore) bhCore.rippleMode = index }
                 }
+            }
+            Components.ESlider {
+                Layout.fillWidth: true
+                label: "振幅"; from: 0; to: 200; stepSize: 5; decimals: 0; suffix: "%"
+                externalValue: bhCore ? bhCore.rippleAmplitude * 100 : 100
+                onUserChanged: function(v) { if (bhCore) bhCore.rippleAmplitude = v / 100 }
+            }
+            Components.ESlider {
+                Layout.fillWidth: true
+                label: "振荡次数"; from: 1; to: 6; stepSize: 1; decimals: 0; suffix: " 次"
+                externalValue: bhCore ? bhCore.rippleOscillations : 3
+                onUserChanged: function(v) { if (bhCore) bhCore.rippleOscillations = Math.round(v) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "扩散方式"; color: theme.textColor; font.pixelSize: 14; Layout.fillWidth: true }
+                Components.EDropDown {
+                    preferredWidth: 190
+                    model: ["弹性按压", "向外扩散", "向内收拢"]
+                    currentIndex: bhCore ? bhCore.rippleSpread : 0
+                    onActivated: function(index) {
+                        if (bhCore) bhCore.rippleSpread = index
+                        currentIndex = Qt.binding(function() { return bhCore ? bhCore.rippleSpread : 0 })
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "参数对下一次点击生效。每次点击在 2.4 秒内完成指定次数；定向模式依次播放宽波，黑洞出入场仍各播放一次。"
+                wrapMode: Text.WordWrap; color: theme.textColor; opacity: 0.7; font.pixelSize: 12
             }
         }
 
@@ -324,48 +406,13 @@ Item {
                     opacity: 0.2
                 }
 
-                // 实验性持续吞噬
-                RowLayout {
+                // 吞噬模式统一由顶部选择，这里保留说明和独立子选项。
+                Text {
                     Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "吞噬与光影效果"
-                        font.pixelSize: 14
-                        color: theme.textColor
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "实验性：以启动时桌面为快照，吞噬后不恢复。移动速度最高 0.3；鼠标扰动流面。重启效果可重置，预览仅展示基础盘面。"
-                        font.pixelSize: 11
-                        color: "#d6a04b"
-                        Layout.preferredWidth: 390
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignRight
-                    }
-                    CheckBox {
-                        id: lightingCheck
-                        checked: advPage.lightingEffect
-                        onToggled: {
-                            advPage.lightingEffect = checked
-                            if (bhCore) bhCore.lightingEffect = checked
-                        }
-                        indicator: Rectangle {
-                            implicitWidth: 20; implicitHeight: 20
-                            x: lightingCheck.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 4
-                            color: lightingCheck.checked ? theme.focusColor : "transparent"
-                            border.color: lightingCheck.checked ? theme.focusColor : theme.borderColor
-                            border.width: 2
-                            Behavior on color { ColorAnimation { duration: 120 } }
-                            Text {
-                                anchors.centerIn: parent; text: "\uf00c"
-                                font.family: iconFont.name; font.pixelSize: 12
-                                color: "#ffffff"; visible: lightingCheck.checked
-                            }
-                        }
-                    }
+                    text: "持续吞噬说明：以启动时桌面为快照，吞噬后不恢复。移动速度最高 0.3；鼠标扰动流面。重启效果可重置，预览仅展示基础盘面。"
+                    font.pixelSize: 11
+                    color: "#d6a04b"
+                    wrapMode: Text.WordWrap
                 }
 
                 CheckBox {
