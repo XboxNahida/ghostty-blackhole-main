@@ -1,0 +1,8 @@
+# Blackhole Schedule v1
+scheduleEnabled=0
+startHour=8
+startMinute=0
+endHour=22
+endMinute=0
+countdownEnabled=0
+countdownMinutes=30

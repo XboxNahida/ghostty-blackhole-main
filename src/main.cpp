@@ -580,6 +580,9 @@ int main(int argc, char* argv[]) {
 
     bool isRenderer = (argc >= 2 && strcmp(argv[1], "--render") == 0);
     bool rippleOnly = false;
+    bool emergencePreview = false;
+    bool emergenceMode = false;
+    for (int i=2;i<argc;++i) if (strcmp(argv[i],"--emergence-preview")==0) emergencePreview = true;
     for (int i=2;i<argc;++i) if (strcmp(argv[i],"--ripple-only")==0) rippleOnly = true;
     HANDLE rippleParent = nullptr;
     for (int i=2;rippleOnly && i+1<argc;++i) if (strcmp(argv[i],"--parent-pid")==0) {
@@ -644,6 +647,12 @@ int main(int argc, char* argv[]) {
             InitDefaultPresets(cfg);
         LoadAdvancedConfig(cfg);
         cfg.mode = 0;
+        emergenceMode = !rippleOnly && (emergencePreview || cfg.emergenceEnabled);
+        if (emergenceMode) {
+            cfg.lightingEffect = false;
+            cfg.allowRecordingCapture = false;
+            if (emergencePreview && cfg.displayMode >= 2) cfg.displayMode = 0;
+        }
         if (rippleOnly) {
             cfg.lightingEffect = false;
             cfg.followMouse = false;
@@ -1050,6 +1059,8 @@ int main(int argc, char* argv[]) {
     GLint locBorn   = gl_GetUniformLocation(program, "uBornProgress");
     GLint locDiskStyle = gl_GetUniformLocation(program, "uDiskRenderMode");
     GLint locRippleOnly = gl_GetUniformLocation(program, "uRippleOnly");
+    GLint locCenterProbe = gl_GetUniformLocation(program, "uCenterProbe");
+    GLint locEmergenceSizeLimit = gl_GetUniformLocation(program, "uEmergenceSizeLimit");
     GLint locFixedSz  = gl_GetUniformLocation(program, "uFixedSize");
     GLint locFixedLvl = gl_GetUniformLocation(program, "uFixedLevel");
     GLint locGrowEnabled = gl_GetUniformLocation(program, "uGrowEnabled");
@@ -1073,6 +1084,7 @@ int main(int argc, char* argv[]) {
     // 否则同秒启动的父子进程会拿到相同的 time(nullptr) → 相同的 rand() 序列 →
     // 相同的 home/phase/presetOff，两个屏的黑洞动作完全同步。
     unsigned seed = (unsigned)time(nullptr) + (unsigned)(screenIdx + 1) * 2654435761u;
+    if (emergenceMode) seed ^= GetTickCount() ^ GetCurrentProcessId();
     srand(seed);
     // 随机出生位置：避免边缘，范围 [0.15, 0.85]
     float randHomeX = 0.15f + 0.70f * (float)rand() / (float)RAND_MAX;
@@ -1085,6 +1097,12 @@ int main(int argc, char* argv[]) {
         cfg.spawnPosition, randHomeX, randHomeY, randPhase, randPresetOff);
     float homeX = cfg.lightingEffect ? randHomeX : spawn.x;
     float homeY = cfg.lightingEffect ? randHomeY : spawn.y;
+    if (emergenceMode && debugLog) {
+        fprintf(debugLog,"[Emergence] Regular movement: speed=%.2f followMouse=%d fixedSize=%d fixedLevel=%.3f growEnabled=%d initialSize=%.3f\n",
+            cfg.movementSpeed,static_cast<int>(cfg.followMouse),static_cast<int>(cfg.fixedSize),
+            cfg.fixedLevel,static_cast<int>(cfg.growEnabled),cfg.initialSize);
+        fflush(debugLog);
+    }
     float cursorHomeX = homeX;
     float cursorHomeY = homeY;
     float mouseVelX = 0.0f;
@@ -1198,7 +1216,7 @@ int main(int argc, char* argv[]) {
 
     // ---- 显示窗口（屏幕外初始化已完成，移入并显示） ----
     if (debugLog) { fprintf(debugLog, "[Init] Showing window...\n"); fflush(debugLog); }
-    if (!rippleOnly) Win32GL_Show(wgl);
+    if (!rippleOnly && !emergenceMode) Win32GL_Show(wgl);
     bool recordingCaptureRuntimeAllowed = cfg.allowRecordingCapture;
     bool recordingCaptureFrozen = recordingCaptureRuntimeAllowed;
     Win32GL_SetCaptureExcluded(wgl, !recordingCaptureRuntimeAllowed);
@@ -1260,9 +1278,11 @@ int main(int argc, char* argv[]) {
         gl_ActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, formulaTexture);
         gl_Uniform1i(locFormulaTexture, 2);
         gl_ActiveTexture(GL_TEXTURE0);
-        gl_Uniform1f(locBorn, 0.01f);
+        gl_Uniform1f(locBorn, emergenceMode ? 0.0f : 0.01f);
         gl_Uniform1i(locDiskStyle,cfg.diskRenderMode);
         gl_Uniform1i(locRippleOnly,rippleOnly ? 1 : 0);
+        gl_Uniform1i(locCenterProbe,0);
+        gl_Uniform1i(locEmergenceSizeLimit,emergenceMode ? 1 : 0);
         gl_Uniform1f(locHomeX, homeX);
         gl_Uniform1f(locHomeY, homeY);
         gl_Uniform1i(locFollowMouse, cfg.followMouse && !cfg.lightingEffect ? 1 : 0);
@@ -1313,15 +1333,19 @@ int main(int argc, char* argv[]) {
     bool rippleWindowVisible = false;
     double lastModeRead = startTime-1.0;
     bool hookFailed = false;
+    int emergencePulse = 0;
+    EmergenceSchedule emergenceSchedule;
+    emergenceSchedule.start(startTime);
     double bornStart = startTime;
     const double BORN_DURATION = 0.8;
-    const double DIE_DURATION = 0.5;
+    const double DIE_DURATION = emergenceMode ? 1.2 : 0.5;
     float bornProgress = 0.01f;
     ConsumptionState consumption;
     double previousFrameTime = startTime;
     float flowMouseX = -10.0f, flowMouseY = -10.0f, flowMouseEnergy = 0.0f;
     bool exiting = false;
     double exitStart = 0;
+    float exitInitialScale = 1;
     int frames = 0; double lastFps = startTime;
     char title[128];
 
@@ -1342,6 +1366,7 @@ int main(int argc, char* argv[]) {
         } else {
             if (!Win32GL_PollEvents(wgl)) {
                 exiting = true;
+                exitInitialScale = bornProgress;
                 exitStart = Win32GL_GetTime();
                 wgl.active = true;  // 恢复active，让退出动画能渲染
             }
@@ -1355,19 +1380,49 @@ int main(int argc, char* argv[]) {
             LoadAdvancedConfig(effects);
             cfg.rippleMode = effects.rippleMode;
             cfg.diskRenderMode = effects.diskRenderMode;
+            cfg.rippleSettings = effects.rippleSettings;
+            cfg.emergenceWaitMin = effects.emergenceWaitMin;
+            cfg.emergenceWaitMax = effects.emergenceWaitMax;
             lastModeRead = now;
         }
+        if (emergenceMode && exiting && !emergenceSchedule.active) break;
+        if (emergenceMode && !exiting && emergenceSchedule.active
+            && EmergenceFrameAt(now-emergenceSchedule.started).finished) {
+            Win32GL_Hide(wgl); rippleWindowVisible=false;
+            if (emergencePreview) {
+                if (debugLog) { fprintf(debugLog,"[Emergence][OK] Completed preview at %.3f seconds\n",now-emergenceSchedule.started); fflush(debugLog); }
+                break;
+            }
+            emergenceSchedule.finish(now,cfg.emergenceWaitMin,cfg.emergenceWaitMax,
+                static_cast<float>(rand())/RAND_MAX);
+            if (debugLog) { fprintf(debugLog,"[Emergence] Waiting %.3f seconds; window hidden\n",emergenceSchedule.next-now); fflush(debugLog); }
+        }
+        if (emergenceMode && !exiting && emergenceSchedule.ready(now)) {
+            emergenceSchedule.start(now); emergencePulse=0;
+            const auto nextSpawn=ResolveMovementSpawn(cfg.spawnPosition,
+                0.15f+0.70f*static_cast<float>(rand())/RAND_MAX,
+                0.15f+0.70f*static_cast<float>(rand())/RAND_MAX,
+                6.2831853f*static_cast<float>(rand())/RAND_MAX,
+                60.0f*static_cast<float>(rand())/RAND_MAX);
+            homeX=nextSpawn.x; homeY=nextSpawn.y;
+            cursorHomeX=homeX; cursorHomeY=homeY; mouseVelX=0; mouseVelY=0;
+            phaseOffset=nextSpawn.phaseOffset; presetOffset=nextSpawn.presetOffset;
+            previousFrameTime=now;
+            if (debugLog) { fprintf(debugLog,"[Emergence] New cycle home=(%.4f,%.4f), phase=%.4f\n",homeX,homeY,phaseOffset); fflush(debugLog); }
+        }
+        const double emergenceAge=emergenceSchedule.active ? now-emergenceSchedule.started : -1.0;
+        const auto emergence=EmergenceFrameAt(emergenceAge);
         if (rippleOnly && (exiting || cfg.rippleMode != 1)) break;
         const bool acceptClicks = !exiting && RippleEnabled(cfg.rippleMode,
-            !rippleOnly && IsWindowVisible(wgl.hwnd));
+            !rippleOnly && IsWindowVisible(wgl.hwnd) && (!emergenceMode || emergence.scale > 0.01f));
         if (!rippleInput.enable(acceptClicks) && !hookFailed) {
             if (debugLog) { fprintf(debugLog,"[Ripple][FAIL] Mouse hook unavailable: %lu\n",GetLastError()); fflush(debugLog); }
             hookFailed = true;
         }
-        if (!acceptClicks) ripples.clear();
-        rippleInput.drain(ripples,wgl.targetX,wgl.targetY,wgl.width,wgl.height,now);
+        if ((!acceptClicks && !emergenceMode) || (emergenceMode && !emergenceSchedule.active && cfg.rippleMode!=1)) ripples.clear();
+        rippleInput.drain(ripples,wgl.targetX,wgl.targetY,wgl.width,wgl.height,now,cfg.rippleSettings);
         ripples.expire(now);
-        if (rippleOnly && ripples.count == 0) {
+        if ((rippleOnly || (emergenceMode && !emergenceSchedule.active)) && ripples.count == 0) {
             if (rippleWindowVisible) { Win32GL_Hide(wgl); rippleWindowVisible=false; }
             Sleep(16);
             continue;
@@ -1438,7 +1493,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        float t = (float)(now - startTime);
+        float t = static_cast<float>(now - (emergenceMode ? emergenceSchedule.started : startTime));
         const double frameSeconds = std::max(0.0, now - previousFrameTime);
         previousFrameTime = now;
         if (cfg.lightingEffect && !exiting) consumption.advance(frameSeconds);
@@ -1611,7 +1666,7 @@ int main(int argc, char* argv[]) {
             if (bornProgress > 1.0f) bornProgress = 1.0f;
             if (bornProgress < 0.01f) bornProgress = 0.01f;
         } else {
-            bornProgress = 1.0f - (float)((now - exitStart) / DIE_DURATION);
+            bornProgress = exitInitialScale * (1.0f - static_cast<float>((now - exitStart) / DIE_DURATION));
             if (bornProgress < 0.01f) {
                 // 先隐藏窗口，让用户感知瞬间结束，后台再清理资源
                 Win32GL_Hide(wgl);
@@ -1619,7 +1674,10 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect || ripples.count > 0);
+        if (emergenceMode) {
+            if (!exiting) bornProgress = emergence.scale;
+        }
+        const bool bloomActive = Bloom_BeginScene(bloom, fbW, fbH, cfg.lightingEffect || ripples.count > 0 || emergenceMode);
         if (cfg.lightingEffect && !bloomActive) {
             cfg.lightingEffect = false;
             if (debugLog) { fprintf(debugLog, "[Consumption][WARN] HDR unavailable; using base renderer\n"); fflush(debugLog); }
@@ -1697,11 +1755,40 @@ int main(int argc, char* argv[]) {
         gl_Uniform1f(locBorn, bornProgress);
         gl_Uniform1i(locDiskStyle,cfg.diskRenderMode);
         gl_Uniform1i(locRippleOnly,rippleOnly ? 1 : 0);
+        gl_Uniform1i(locCenterProbe,0);
+        gl_Uniform1i(locEmergenceSizeLimit,emergenceMode ? 1 : 0);
         gl_Uniform1f(locHomeX, frameHomeX);
         gl_Uniform1f(locHomeY, frameHomeY);
         gl_Uniform1i(locFollowMouse, cfg.followMouse && !cfg.lightingEffect ? 1 : 0);
         gl_Uniform1f(locPhase, phaseOffset);
         gl_Uniform1f(locPresetOff, presetOffset);
+
+        if (emergenceMode && emergenceSchedule.active) {
+            const double times[] = {0.3,9.5};
+            const int directions[] = {1,-1};
+            const float strengths[] = {0.55f,0.40f};
+            while (emergencePulse < 2 && ((!exiting && emergenceAge >= times[emergencePulse])
+                || (exiting && emergencePulse==1))) {
+                // 当前帧配置已经上传，仅两次事件读取 Shader 的真实运动中心。
+                float center[4] = {};
+                gl_Uniform1i(locCenterProbe,1);
+                glViewport(0,0,1,1);
+                gl_BindVertexArray(vao);
+                gl_DrawArrays(GL_TRIANGLE_STRIP,0,4);
+                glReadPixels(0,0,1,1,GL_RGBA,GL_FLOAT,center);
+                gl_Uniform1i(locCenterProbe,0);
+                glViewport(0,0,fbW,fbH);
+                ripples.add(center[0],1.0f-center[1],exiting ? now : emergenceSchedule.started+times[emergencePulse],
+                    strengths[emergencePulse],directions[emergencePulse]);
+                if (debugLog) {
+                    fprintf(debugLog,"[Emergence] %s water wave at %.3f seconds center=(%.4f,%.4f) radius=%.5f\n",
+                        directions[emergencePulse] > 0 ? "Outward" : "Inward",emergenceAge,
+                        center[0],center[1],center[2]);
+                    fflush(debugLog);
+                }
+                ++emergencePulse;
+            }
+        }
 
         if (cfg.lightingEffect && !DesktopTransport_Render(desktopTransport,program,GLTex_GetTexture(glTex),fbW,fbH,exiting ? 0.0 : frameSeconds)) {
             cfg.lightingEffect=false;
@@ -1716,6 +1803,7 @@ int main(int argc, char* argv[]) {
         Bloom_EndScene(bloom, fbW, fbH, bloomActive,&ripples,now,cfg.lightingEffect);
 
         Win32GL_SwapBuffers(wgl);
+        if (emergenceMode && !rippleWindowVisible) { Win32GL_Show(wgl); rippleWindowVisible=true; }
         if (rippleOnly && !rippleWindowVisible) { Win32GL_Show(wgl); rippleWindowVisible=true; }
 
         frames++;

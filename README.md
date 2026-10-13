@@ -1,6 +1,6 @@
 # Black Hole / 黑洞桌面特效
 
-[![Release](https://img.shields.io/badge/release-v1.2.4-2ea44f)](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.4)
+[![Version](https://img.shields.io/badge/version-v3.1.0-2ea44f)](cmake/AppVersion.cmake)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#设备要求与兼容性)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -8,29 +8,29 @@
 
 Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面并实时渲染引力透镜、吸积盘和光子环效果，可常驻显示，也可在系统空闲时自动出现。
 
-**当前版本：v1.2.4**
+**当前源码版本：v3.1.0**
 
-[下载 v1.2.4](https://github.com/XboxNahida/ghostty-blackhole-main/releases/tag/v1.2.4) · [查看全部 Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases)
+[下载已发布版本](https://github.com/XboxNahida/ghostty-blackhole-main/releases) · [v3.1.0 更新说明](release-notes-v3.1.0.md)
 
 ## 下载与安装
 
-1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载 `BlakholeUI-v1.2.4-windows-x64.zip`。
+1. 从 [Releases](https://github.com/XboxNahida/ghostty-blackhole-main/releases) 下载对应版本的完整 ZIP；v3.1.0 包名为 `BlakholeUI-v3.1.0.zip`，由维护者上传发布。
 2. 将 ZIP **完整解压**到一个可写目录。
 3. 双击 `appBlakholeUI.exe` 启动界面。
 
 > 不要只复制单个 EXE。Qt DLL、插件、Shader、图片和 `blackhole.exe` Renderer 都是运行所需文件；文件缺失会导致界面、预览或黑洞渲染无法启动。
 
-## v1.2.4 修复重点
+## v3.1.0 更新重点
 
-- 修复 AMD 等严格 OpenGL 驱动上的片元 Shader 编译失败。
-- 修复启用实验性吸积盘光影后，桌面只取左下区域并被放大的问题。
-- 改用 Per-Monitor V2 DPI 感知，改善不同缩放比例双屏上的尺寸和坐标异常。
-- 限制同一目标只能运行一个 Renderer，避免重复启动造成画面叠加。
-- 黑洞移动速度现在允许设为 0，可保持黑洞静止。
-- 调整 Windows 11 WGC 捕获帧生命周期，避免帧池过早复用导致的竞争、闪烁或旧帧。
-- 自动模式下 WGC 初始化失败时改为回退 DXGI，避免瞬时捕获服务异常导致 Renderer 直接退出。
+- 新增正式随机浮现：黑洞展开出现、缩小消失，出场外扩一次波纹，退场内缩一次波纹。
+- 每轮停留约 8 秒，默认随机等待 10～25 秒；等待上下限可调，保留常规移动与生长配置，并限制主体尺寸。
+- 鼠标全屏宽波支持振幅、振荡次数、弹性按压／向外扩散／向内收拢；可常驻开启或仅黑洞实际显示时生效，默认关闭。
+- 合并吞噬模式入口，保留吞噬说明及公式流带子选项。
+- 更新默认配置和 14 项黑洞列表；恢复默认会先停止系统，避免界面模式与后台运行不一致。
 
-吸积盘光影仍是实验性功能，启用后可能出现泛白、对比度变化或其他画面异常。
+默认采用常规模式、始终显示、移动速度 0.3，开启生长且初始大小为 5%，不限帧率；鼠标波纹预设参数为 100% 振幅、一次向外扩散。
+
+公开源码不包含收款码图片，默认构建也不依赖这些图片。维护者可通过 `BLACKHOLE_PRIVATE_RESOURCE_FILE` 显式提供本地 qrc，仅在私有发布构建中嵌入收款码。
 
 ## 主要功能
 
@@ -42,6 +42,7 @@ Black Hole 是一款 Windows 桌面黑洞可视化工具。它捕获当前桌面
 - **多显示器**：主屏、副屏、跨屏和一屏一黑洞。
 - **移动控制**：鼠标跟随、鼠标惯性、范围限制、四角或随机出现位置、自由移动速度。
 - **外观配置**：预设管理、播放顺序、固定大小、吸积盘光影及实时预览。
+- **特效配置**：常规／持续吞噬／随机浮现三种模式，吸积盘柔化／线条化／边缘柔滑，以及可调的鼠标全屏波纹。
 - **更新提醒**：启动后后台检查新版本，在设置入口显示红点，不阻塞主界面。
 - **启动诊断**：Renderer 缺文件、初始化失败、提前退出或超时会显示错误详情，可复制信息并打开程序目录。
 

@@ -175,14 +175,15 @@ void PresetModel::movePreset(int from, int to)
 
 // ========== BlackHoleCore ==========
 
-static const char *DEFAULT_PRESET_NAMES[16] = {
+static const char *DEFAULT_PRESET_NAMES[] = {
     "Inferno", "Gargantua", "M87* Donut", "Face-on Ember",
     "Quasar", "Blazar", "Pure Lens", "Inferno 2",
-    "Crimson Vortex", "Azure Spiral", "Ruby Ring", "Ghost Halo",
+    "Azure Spiral", "Ghost Halo",
     "Top-down Galaxy", "White Dwarf Beam", "Solar Forge", "Obsidian Eye"
 };
 
-static const float DEFAULT_PRESET_VALUES[16][14] = {
+static constexpr int DEFAULT_PRESET_COUNT = sizeof(DEFAULT_PRESET_NAMES) / sizeof(DEFAULT_PRESET_NAMES[0]);
+static const float DEFAULT_PRESET_VALUES[DEFAULT_PRESET_COUNT][14] = {
     // temp,   incl,  roll, inner,outer,opac, dopp, beam, gain, contr,wind, speed,expo, star
     { 5500,   1.50f, 0.35f, 1.8f, 8.0f, 0.90f,0.60f,2.5f, 2.2f, 1.6f, 7.0f, 5.0f, 1.40f, 0.0f }, // Inferno
     { 4500,   1.52f, 0.10f, 2.2f, 7.0f, 0.85f,0.35f,2.0f, 1.4f, 0.5f, 7.0f, 5.0f, 1.20f, 0.0f }, // Gargantua
@@ -192,15 +193,25 @@ static const float DEFAULT_PRESET_VALUES[16][14] = {
     { 18000,  1.05f, 0.55f, 3.0f,16.0f, 0.30f,1.00f,5.0f, 1.0f, 1.5f, 9.0f, 6.0f, 0.75f, 0.0f }, // Blazar
     { 5500,   1.50f, 0.35f, 1.8f, 8.0f, 0.00f,1.00f,2.5f, 0.0f, 1.6f, 7.0f, 5.0f, 1.00f, 0.6f }, // Pure Lens
     { 5500,   1.50f, 0.35f, 1.8f, 8.0f, 0.90f,0.60f,2.5f, 2.2f, 1.6f, 7.0f, 5.0f, 1.40f, 0.0f }, // Inferno 2
-    { 3200,   1.45f, 0.60f, 2.0f, 9.0f, 0.95f,0.20f,1.5f, 3.0f, 2.0f, 5.0f, 4.0f, 1.60f, 0.0f }, // Crimson Vortex
     { 8000,   1.20f,-0.50f, 2.5f, 7.0f, 0.70f,0.75f,2.8f, 1.8f, 1.4f, 8.0f, 5.5f, 1.30f, 0.0f }, // Azure Spiral
-    { 2500,   1.55f, 0.20f, 1.6f, 6.0f, 0.60f,0.10f,1.2f, 2.6f, 1.8f, 4.0f, 3.0f, 1.50f, 0.0f }, // Ruby Ring
     { 12000,  0.80f, 0.45f, 2.8f,12.0f, 0.40f,0.95f,3.5f, 1.5f, 1.2f, 8.5f, 5.0f, 0.90f, 0.0f }, // Ghost Halo
     { 5000,   0.10f, 0.00f, 2.0f, 9.0f, 0.85f,0.50f,2.0f, 1.3f, 1.5f, 6.0f, 4.5f, 1.10f, 0.0f }, // Top-down Galaxy
     { 22000,  1.40f, 0.70f, 3.5f,18.0f, 0.25f,1.00f,4.5f, 0.9f, 1.7f,10.0f, 6.5f, 0.70f, 0.0f }, // White Dwarf Beam
     { 4200,   1.48f, 0.15f, 1.9f, 7.5f, 0.80f,0.45f,2.2f, 2.0f, 0.8f, 6.5f, 4.8f, 1.25f, 0.0f }, // Solar Forge
     { 9000,   0.45f,-0.15f, 2.6f,11.0f, 0.55f,0.85f,3.0f, 1.1f, 1.3f, 7.5f, 5.2f, 1.05f, 0.0f }  // Obsidian Eye
 };
+
+static QStringList DefaultMediaHints()
+{
+    return {
+        "vlc", "mpv", "potplayer", "mpc", "wmplayer",
+        "bilibili", "bili", "iqiyi", "youku", "mgtv", "douyin", "kuaishou",
+        "哔哩哔哩", "爱奇艺", "优酷", "芒果", "抖音", "快手", "腾讯视频",
+        "qqlive", "nvidia", "chrome", "msedge", "firefox", "opera", "brave",
+        "steam", "epic", "ubisoft", "ubiconnect", "eaapp", "origin",
+        "battlenet", "riot", "gog", "xbox", "gamebar"
+    };
+}
 
 BlackHoleCore::BlackHoleCore(QObject *parent)
     : QObject(parent)
@@ -225,19 +236,8 @@ BlackHoleCore::BlackHoleCore(QObject *parent)
     connect(m_rendererStartupTimer, &QTimer::timeout,
             this, &BlackHoleCore::pollRendererStartup);
 
-    // 默认黑名单 = 原生 blackhole.exe isWatchingVideo() 中的列表
-    m_idleBlacklist = QStringList({
-        "vlc", "mpv", "potplayer", "mpc", "wmplayer",
-        "bilibili", "bili",
-        "iqiyi", "youku", "mgtv",
-        "douyin", "kuaishou",
-        "哔哩哔哩", "爱奇艺", "优酷", "芒果",
-        "抖音", "快手", "腾讯视频",
-        "qqlive", "nvidia",
-        "chrome", "msedge", "firefox", "opera", "brave",
-        "steam", "epic", "ubisoft", "ubiconnect", "eaapp", "origin",
-        "battlenet", "riot", "gog", "xbox", "gamebar"
-    });
+    // 默认媒体提示列表与恢复默认使用同一份数据。
+    m_idleBlacklist = DefaultMediaHints();
 }
 
 BlackHoleCore::~BlackHoleCore()
@@ -255,8 +255,8 @@ BlackHoleCore::~BlackHoleCore()
 void BlackHoleCore::initDefaultPresets()
 {
     QVector<PresetData> presets;
-    presets.reserve(16);
-    for (int i = 0; i < 16; i++) {
+    presets.reserve(DEFAULT_PRESET_COUNT);
+    for (int i = 0; i < DEFAULT_PRESET_COUNT; i++) {
         PresetData p;
         p.name      = QString::fromUtf8(DEFAULT_PRESET_NAMES[i]);
         p.diskTemp  = DEFAULT_PRESET_VALUES[i][0];
@@ -275,6 +275,9 @@ void BlackHoleCore::initDefaultPresets()
         p.diskStar  = DEFAULT_PRESET_VALUES[i][13];
         presets.append(p);
     }
+    m_allLists.clear();
+    m_listNames.clear();
+    m_currentListIndex = 0;
     m_allLists.append(presets);
     m_listNames.append(QString::fromUtf8("\xe9\xbb\x98\xe8\xae\xa4"));
     m_presetModel->setPresets(presets);
@@ -572,10 +575,12 @@ void BlackHoleCore::saveConfig()
 
 void BlackHoleCore::resetDefaults()
 {
+    // 默认值恢复前停止运行，避免界面模式与已启动的渲染器模式不一致。
+    stopAll();
     // 构建硬编码的规范默认预设
     QVector<PresetData> canonical;
-    canonical.reserve(16);
-    for (int i = 0; i < 16; i++) {
+    canonical.reserve(DEFAULT_PRESET_COUNT);
+    for (int i = 0; i < DEFAULT_PRESET_COUNT; i++) {
         PresetData p;
         p.name      = QString::fromUtf8(DEFAULT_PRESET_NAMES[i]);
         p.diskTemp  = DEFAULT_PRESET_VALUES[i][0];
@@ -647,25 +652,56 @@ void BlackHoleCore::resetDefaults()
         emit currentListChanged();
     }
 
-    m_displayMode = 1;
-    m_idleSeconds = 300;
+    m_displayMode = 0;
+    m_idleSeconds = 60;
     m_playMode    = 1;
-    m_slotSeconds = 5.25f;
+    m_slotSeconds = 5.3f;
     m_videoAsIdle = false;
     m_autoStart   = false;
     m_captureMode = -1; // 默认自动检测 (Win10→DXGI 无黄框, Win11 22H2+→WGC)
-    m_frameRateLimit = kDefaultFrameRateLimit;
+    m_frameRateLimit = 0;
     m_fixedSize   = false;
     m_fixedLevel  = 1.0f;
     m_mouseInertia = 0.30f;
     m_limitMouseOvershoot = true;
     m_spawnPosition = 0;
-    m_movementSpeed = 1.0f;
+    m_movementSpeed = 0.3f;
     m_lightingEffect = false;
+    m_emergenceEnabled = false;
+    m_emergenceWaitMin = 10; m_emergenceWaitMax = 25;
+    m_rippleSettings = {1,1,1};
+    emit effectModeChanged(); emit emergenceWaitChanged(); emit rippleParametersChanged();
     setRippleMode(0);
     setDiskRenderMode(0);
     m_consumptionFormula = true;
     emit consumptionFormulaChanged();
+    m_followMouse = false;
+    m_animationSpeed = 1;
+    m_distortion = 1;
+    m_allowRecordingCapture = false;
+    m_holeSize = 1;
+    m_growEnabled = true;
+    m_initialSize = 0.05f;
+    m_screenTarget = 0;
+    m_overrideHoleRadius = m_overrideDiskGain = m_overrideDiskTemp = -1;
+    m_overrideExposure = m_overrideSpd = m_overrideStarGain = m_overrideDiskIncl = -1;
+    setSkipExitDialog(true);
+    m_idleWhitelist.clear();
+    m_idleBlacklist = DefaultMediaHints();
+    m_idleForceBlocklist.clear();
+    m_scheduleEnabled = false;
+    m_startHour = 8; m_startMinute = 0;
+    m_endHour = 22; m_endMinute = 0;
+    m_countdownEnabled = false; m_countdownMinutes = 30;
+    setLaunchMinimized(false);
+    setIsDark(true); setFollowSystem(true);
+    setFocusColor(QColor("#00c4b3"));
+    setDefaultCloseAction(0);
+    setCloseHotkeyEnabled(true);
+    setCloseHotkeySequence(QStringLiteral("Ctrl+Alt+B"));
+    m_customAvatarPath.clear();
+    m_avatarStatus.clear();
+    emit customAvatarUrlChanged(); emit avatarStatusChanged();
 
     emit displayModeChanged();
     emit idleSecondsChanged();
@@ -678,6 +714,7 @@ void BlackHoleCore::resetDefaults()
     emit fixedSizeChanged();
     emit fixedLevelChanged();
     emit screenTargetChanged();
+    emit allowRecordingCaptureChanged();
 
     setCurrentPresetIndex(0);
     emit followMouseChanged();
@@ -706,7 +743,16 @@ void BlackHoleCore::resetDefaults()
 
 void BlackHoleCore::startRenderer()
 {
+    m_emergencePreview = false;
     startRendererInternal(true);
+}
+
+void BlackHoleCore::previewEmergence()
+{
+    if (isSystemActive()) return;
+    m_emergencePreview = true;
+    startRendererInternal(true);
+    if (!rendererRunning()) m_emergencePreview = false;
 }
 
 namespace {
@@ -784,6 +830,7 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
         connect(m_rendererProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this](int code, QProcess::ExitStatus status) {
             qDebug() << "BlackHoleCore: renderer stopped, exit code:" << code;
+            m_emergencePreview = false;
             RendererDiagnostic diagnostic;
             if (m_rendererDiagnostics.state() == RendererStartupState::Starting) {
                 diagnostic = consumeRendererStartupLog(kMaxRendererLogDrainBytes);
@@ -818,7 +865,9 @@ void BlackHoleCore::startRendererInternal(bool userInitiated)
 
     qDebug() << "BlackHoleCore: starting" << exePath << "--render" << "cwd:" << projectRoot;
     m_rendererStartupElapsed.restart();
-    m_rendererProcess->start(exePath, {QStringLiteral("--render")});
+    QStringList arguments{QStringLiteral("--render")};
+    if (m_emergencePreview) arguments.append(QStringLiteral("--emergence-preview"));
+    m_rendererProcess->start(exePath, arguments);
     m_rendererStartupTimer->start(200);
 }
 
@@ -1623,7 +1672,57 @@ int BlackHoleCore::animationSpeed() const { return m_animationSpeed; }
 void BlackHoleCore::setAnimationSpeed(int v) { if (m_animationSpeed == v) return; m_animationSpeed = v; emit animationSpeedChanged(); }
 
 bool BlackHoleCore::lightingEffect() const { return m_lightingEffect; }
-void BlackHoleCore::setLightingEffect(bool v) { if (m_lightingEffect == v) return; m_lightingEffect = v; emit lightingEffectChanged(); }
+void BlackHoleCore::setLightingEffect(bool v) { if (m_lightingEffect == v) return; setEffectMode(v ? 1 : 0); }
+
+void BlackHoleCore::setEffectMode(int value)
+{
+    value=NormalizeEffectMode(value);
+    if (effectMode()==value) return;
+    const bool resume=rendererRunning() && !m_emergencePreview;
+    if (resume) stopRenderer();
+    m_emergenceEnabled=value==2;
+    m_lightingEffect=value==1;
+    emit effectModeChanged(); emit lightingEffectChanged();
+    saveAdvancedConfig();
+    if (resume) startRendererInternal(true);
+}
+void BlackHoleCore::setEmergenceWaitMin(int value)
+{
+    value=std::clamp(value,1,300);
+    if (m_emergenceWaitMin==value) return;
+    m_emergenceWaitMin=value;
+    m_emergenceWaitMax=std::max(value,m_emergenceWaitMax);
+    emit emergenceWaitChanged(); saveAdvancedConfig();
+}
+void BlackHoleCore::setEmergenceWaitMax(int value)
+{
+    value=std::clamp(value,1,300);
+    if (m_emergenceWaitMax==value) return;
+    m_emergenceWaitMax=value;
+    m_emergenceWaitMin=std::min(value,m_emergenceWaitMin);
+    emit emergenceWaitChanged(); saveAdvancedConfig();
+}
+void BlackHoleCore::setRippleAmplitude(float value)
+{
+    value=ClampEffectNumber(value,1,0,2);
+    if (m_rippleSettings.amplitude==value) return;
+    m_rippleSettings.amplitude=value;
+    emit rippleParametersChanged(); saveAdvancedConfig();
+}
+void BlackHoleCore::setRippleOscillations(int value)
+{
+    value=std::clamp(value,1,6);
+    if (m_rippleSettings.oscillations==value) return;
+    m_rippleSettings.oscillations=value;
+    emit rippleParametersChanged(); saveAdvancedConfig();
+}
+void BlackHoleCore::setRippleSpread(int value)
+{
+    value=NormalizeEffectMode(value);
+    if (m_rippleSettings.spread==value) return;
+    m_rippleSettings.spread=value;
+    emit rippleParametersChanged(); saveAdvancedConfig();
+}
 
 float BlackHoleCore::distortion() const { return m_distortion; }
 void BlackHoleCore::setDistortion(float v) { if (qFuzzyCompare(m_distortion, v)) return; m_distortion = v; emit distortionChanged(); }
@@ -1785,6 +1884,12 @@ void BlackHoleCore::saveAdvancedConfig()
     QTextStream out(&file);
     out << "# Blackhole Advanced Settings v1\n";
     out << "rippleMode=" << m_rippleMode << "\n";
+    out << "rippleAmplitude=" << QString::number(m_rippleSettings.amplitude,'f',3) << "\n";
+    out << "rippleOscillations=" << m_rippleSettings.oscillations << "\n";
+    out << "rippleSpread=" << m_rippleSettings.spread << "\n";
+    out << "emergenceEnabled=" << (m_emergenceEnabled ? 1 : 0) << "\n";
+    out << "emergenceWaitMin=" << m_emergenceWaitMin << "\n";
+    out << "emergenceWaitMax=" << m_emergenceWaitMax << "\n";
     out << "diskRenderMode=" << m_diskRenderMode << "\n";
     out << "followMouse="   << (m_followMouse ? 1 : 0) << "\n";
     out << "mouseInertia="  << QString::number(m_mouseInertia, 'f', 2) << "\n";
@@ -1814,6 +1919,9 @@ void BlackHoleCore::loadAdvancedConfig()
 {
     m_rippleMode = 0;
     m_diskRenderMode = 0;
+    m_rippleSettings = {1,1,1};
+    m_emergenceEnabled = false; m_lightingEffect = false;
+    m_emergenceWaitMin = 10; m_emergenceWaitMax = 25;
     QFile file;
     if (!openConfigForRead(file, "blackhole_advanced.txt")) {
         qDebug() << "BlackHoleCore: advanced config not found, using defaults";
@@ -1834,6 +1942,12 @@ void BlackHoleCore::loadAdvancedConfig()
         QString val = line.mid(eq + 1).trimmed();
         if (key == "followMouse")    m_followMouse    = (val.toInt() != 0);
         else if (key == "rippleMode") m_rippleMode = ParseEffectMode(val.toUtf8().constData());
+        else if (key == "rippleAmplitude") m_rippleSettings.amplitude=ParseEffectNumber(val.toUtf8().constData(),1,0,2);
+        else if (key == "rippleOscillations") m_rippleSettings.oscillations=ParseEffectInteger(val.toUtf8().constData(),1,1,6);
+        else if (key == "rippleSpread") m_rippleSettings.spread=ParseEffectMode(val.toUtf8().constData());
+        else if (key == "emergenceEnabled") m_emergenceEnabled=ParseEffectMode(val.toUtf8().constData())==1;
+        else if (key == "emergenceWaitMin") m_emergenceWaitMin=ParseEffectInteger(val.toUtf8().constData(),10,1,300);
+        else if (key == "emergenceWaitMax") m_emergenceWaitMax=ParseEffectInteger(val.toUtf8().constData(),25,1,300);
         else if (key == "diskRenderMode") m_diskRenderMode = ParseEffectMode(val.toUtf8().constData());
         else if (key == "mouseInertia") setMouseInertia(val.toFloat());
         else if (key == "limitMouseOvershoot") setLimitMouseOvershoot(val.toInt() != 0);
@@ -1863,6 +1977,9 @@ void BlackHoleCore::loadAdvancedConfig()
     if (!hasSpawnPosition && legacyRandomPath >= 0)
         m_spawnPosition = legacyRandomPath ? 0 : 2;
     file.close();
+    if (m_emergenceWaitMin>m_emergenceWaitMax) std::swap(m_emergenceWaitMin,m_emergenceWaitMax);
+    if (m_emergenceEnabled) m_lightingEffect=false;
+    emit effectModeChanged(); emit emergenceWaitChanged(); emit rippleParametersChanged();
     emit mouseInertiaChanged();
     emit limitMouseOvershootChanged();
     emit spawnPositionChanged();

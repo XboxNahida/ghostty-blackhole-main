@@ -7,6 +7,7 @@
 #include <QAbstractListModel>
 #include <QAbstractNativeEventFilter>
 #include "../../src/frame_limiter.h"
+#include "../../src/render_effects.h"
 #include <QVector>
 #include <QString>
 #include <QColor>
@@ -147,6 +148,12 @@ class BlackHoleCore : public QObject, public QAbstractNativeEventFilter {
     Q_PROPERTY(bool consumptionFormula READ consumptionFormula WRITE setConsumptionFormula NOTIFY consumptionFormulaChanged)
     Q_PROPERTY(float distortion READ distortion WRITE setDistortion NOTIFY distortionChanged)
     Q_PROPERTY(int rippleMode READ rippleMode WRITE setRippleMode NOTIFY rippleModeChanged)
+    Q_PROPERTY(int effectMode READ effectMode WRITE setEffectMode NOTIFY effectModeChanged)
+    Q_PROPERTY(int emergenceWaitMin READ emergenceWaitMin WRITE setEmergenceWaitMin NOTIFY emergenceWaitChanged)
+    Q_PROPERTY(int emergenceWaitMax READ emergenceWaitMax WRITE setEmergenceWaitMax NOTIFY emergenceWaitChanged)
+    Q_PROPERTY(float rippleAmplitude READ rippleAmplitude WRITE setRippleAmplitude NOTIFY rippleParametersChanged)
+    Q_PROPERTY(int rippleOscillations READ rippleOscillations WRITE setRippleOscillations NOTIFY rippleParametersChanged)
+    Q_PROPERTY(int rippleSpread READ rippleSpread WRITE setRippleSpread NOTIFY rippleParametersChanged)
     Q_PROPERTY(int diskRenderMode READ diskRenderMode WRITE setDiskRenderMode NOTIFY diskRenderModeChanged)
     Q_PROPERTY(bool allowRecordingCapture READ allowRecordingCapture WRITE setAllowRecordingCapture NOTIFY allowRecordingCaptureChanged)
     Q_PROPERTY(float holeSize READ holeSize WRITE setHoleSize NOTIFY holeSizeChanged)
@@ -275,6 +282,18 @@ public:
     float distortion() const;
     int rippleMode() const { return m_rippleMode; }
     void setRippleMode(int value);
+    int effectMode() const { return m_emergenceEnabled ? 2 : (m_lightingEffect ? 1 : 0); }
+    void setEffectMode(int value);
+    int emergenceWaitMin() const { return m_emergenceWaitMin; }
+    int emergenceWaitMax() const { return m_emergenceWaitMax; }
+    void setEmergenceWaitMin(int value);
+    void setEmergenceWaitMax(int value);
+    float rippleAmplitude() const { return m_rippleSettings.amplitude; }
+    int rippleOscillations() const { return m_rippleSettings.oscillations; }
+    int rippleSpread() const { return m_rippleSettings.spread; }
+    void setRippleAmplitude(float value);
+    void setRippleOscillations(int value);
+    void setRippleSpread(int value);
     int diskRenderMode() const { return m_diskRenderMode; }
     void setDiskRenderMode(int value);
     void setDistortion(float v);
@@ -334,6 +353,7 @@ public:
     bool paymentQrAvailable() const;
     Q_INVOKABLE void chooseCustomAvatar();
     Q_INVOKABLE void openRendererLogDirectory() const;
+    Q_INVOKABLE void previewEmergence();
 
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
@@ -415,6 +435,9 @@ signals:
     void consumptionFormulaChanged();
     void distortionChanged();
     void rippleModeChanged();
+    void effectModeChanged();
+    void emergenceWaitChanged();
+    void rippleParametersChanged();
     void diskRenderModeChanged();
     void allowRecordingCaptureChanged();
     void holeSizeChanged();
@@ -496,9 +519,9 @@ private:
 
     // 全局设置
     int     m_displayMode  = 0;  // 0=始终显示 1=空闲检测 (对齐 blackhole.exe)
-    int     m_idleSeconds  = 300;
+    int     m_idleSeconds  = 60;
     int     m_playMode     = 1;     // 0=顺序 1=循环 2=随机
-    float   m_slotSeconds  = 5.25f;
+    float   m_slotSeconds  = 5.3f;
     bool    m_videoAsIdle  = false;
     bool    m_autoStart    = false;
     QString m_autoStartStatus;
@@ -506,7 +529,7 @@ private:
 
     int     m_screenTarget = 0;  // 0=主屏, 1=副屏, 2=跨屏, 3=一屏一黑洞
     int     m_captureMode  = -1; // -1=自动检测, 0=WGC, 1=DXGI (对齐 main.cpp)
-    int     m_frameRateLimit = kDefaultFrameRateLimit;
+    int     m_frameRateLimit = 0;
     bool    m_fixedSize    = false;  // 固定大小（不随时间增长）
     float   m_fixedLevel   = 1.0f;   // 固定大小级别 (0.01~1.0 = 1%~100%)
 
@@ -524,6 +547,7 @@ private:
     // 进程
     bool m_refreshingProps = false;  // 防止currentPresetChanged信号级联
     QProcess *m_rendererProcess = nullptr;
+    bool m_emergencePreview = false;
     QProcess *m_rippleProcess = nullptr;
     QTimer *m_rippleTimer = nullptr;
     bool m_shuttingDown = false;
@@ -544,17 +568,20 @@ private:
     float   m_mouseInertia   = 0.30f;
     bool    m_limitMouseOvershoot = true;
     int     m_spawnPosition  = 0;
-    float   m_movementSpeed  = 1.0f;
+    float   m_movementSpeed  = 0.3f;
     int     m_animationSpeed = 1;
     bool    m_lightingEffect = false;
     bool    m_consumptionFormula = true;
     float   m_distortion     = 1.0f;
     int m_rippleMode = 0;
+    RippleSettings m_rippleSettings{1,1,1};
+    bool m_emergenceEnabled = false;
+    int m_emergenceWaitMin = 10, m_emergenceWaitMax = 25;
     int m_diskRenderMode = 0;
     bool    m_allowRecordingCapture = false;
     float   m_holeSize       = 1.0f;
-    bool    m_growEnabled    = false;
-    float   m_initialSize    = 0.3f;
+    bool    m_growEnabled    = true;
+    float   m_initialSize    = 0.05f;
 
     // 空闲名单
     QStringList m_idleWhitelist;
@@ -576,7 +603,7 @@ private:
     bool    m_isDark             = true;
     bool    m_followSystem       = true;
     QColor  m_focusColor         = QColor("#00C4B3");
-    bool    m_skipExitDialog     = false;
+    bool    m_skipExitDialog     = true;
     int     m_defaultCloseAction = 0;
     bool    m_closeHotkeyEnabled = true;
     QString m_closeHotkeySequence = QStringLiteral("Ctrl+Alt+B");

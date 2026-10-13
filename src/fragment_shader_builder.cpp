@@ -169,7 +169,23 @@ bool BuildFragmentShader(std::string& out, FILE* debugLog, bool& consumptionShad
     {
         size_t lp = body.find("mod(iTime, DEMO_SEC) / DEMO_GROW_SEC");
         if (lp != std::string::npos)
-            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : min(iTime / DEMO_GROW_SEC, 1.0)))");
+            body.replace(lp, 36, "(uFixedSize > 0 ? uFixedLevel : (uGrowEnabled > 0 ? mix(uInitialSize, 1.0, min(iTime / DEMO_GROW_SEC, 1.0)) : 1.0))");
+    }
+
+    // 浮现模式限制完整尺寸，再按原生长曲线缩放，避免生长中途撞到硬上限。
+    {
+        const std::string sizePoint = "sz = rhT / max(HOLE_RADIUS, 1e-4);";
+        const size_t p = body.find(sizePoint);
+        if (p == std::string::npos) {
+            if (debugLog) fprintf(debugLog, "[FAIL] Emergence size shader template not found\n");
+            return false;
+        }
+        body.insert(p,
+            "if (uEmergenceSizeLimit > 0) {\n"
+            "            float fullRadius = rhMax * (HOLE_RADIUS / 0.08);\n"
+            "            float maxRadius = 0.20 * min(aspect, 1.0) / max(rout / B_CRIT, 1.0);\n"
+            "            rhT *= min(1.0, maxRadius / max(fullRadius, 1e-4));\n"
+            "        }\n        ");
     }
 
     // Apply uBornProgress to sz for smooth hole birth/die
@@ -330,10 +346,22 @@ bool BuildFragmentShader(std::string& out, FILE* debugLog, bool& consumptionShad
         }
     }
 
-    out = header + "\n// ===== blackhole.glsl =====" + body +
+    // 仅在出场/退场触发水波时读回中心，复用实际移动公式，避免 CPU 重算漂移。
+    {
+        const std::string probePoint = "float vis = smoothstep(0.0, 0.10, I);";
+        const size_t p = body.find(probePoint);
+        if (p == std::string::npos) {
+            if (debugLog) fprintf(debugLog, "[FAIL] Center probe shader template not found\n");
+            return false;
+        }
+        body.insert(p, "if (uCenterProbe > 0) { fragColor=vec4(center,HOLE_RADIUS*sz*uBornProgress,1.0); return; }\n    ");
+    }
+    out = header + "\nuniform int uCenterProbe = 0;\nuniform int uEmergenceSizeLimit = 0;\n// ===== blackhole.glsl =====" + body +
           "\nuniform int uRippleOnly = 0;\n"
           "void main() { vec4 c; vec2 fc = vec2(gl_FragCoord.x, iResolution.y - gl_FragCoord.y);"
-          " if (uRippleOnly > 0) { fragColor=vec4(texture(iChannel0,fc/iResolution.xy).rgb,1.0); return; }"
-          " mainImage(c, fc); fragColor = c; }\n";
+          " if (uCenterProbe > 0) { mainImage(c,fc); fragColor=c; return; }"
+          " vec4 desktop=vec4(texture(iChannel0,fc/iResolution.xy).rgb,1.0);"
+          " if (uRippleOnly > 0 || uBornProgress <= 0.0) { fragColor=desktop; return; }"
+          " mainImage(c, fc); fragColor=c; }\n";
     return true;
 }

@@ -77,6 +77,21 @@ void main() { fragColor=texture(sceneTexture,uv); }
         r.expire(3.0); CHECK(difference(empty,drawRipple(w,h,r,3.0))==0.0);
         if(w==800) { save("ripple-off",w,h,empty); save("ripple-035",w,h,first); save("ripple-065",w,h,second); }
     }
+    RippleSettings clickSettings;
+    RippleState adjustable;
+    const auto untouched=drawRipple(800,500,adjustable,0);
+    clickSettings.amplitude=0; adjustable.addClick(0.25f,0.5f,0,clickSettings);
+    CHECK(difference(untouched,drawRipple(800,500,adjustable,0.25))==0);
+    clickSettings.amplitude=0.3f; adjustable.addClick(0.25f,0.5f,0,clickSettings);
+    const double lowAmplitude=difference(untouched,drawRipple(800,500,adjustable,0.25));
+    adjustable.clear(); clickSettings.amplitude=1.5f;
+    adjustable.addClick(0.25f,0.5f,0,clickSettings);
+    CHECK(difference(untouched,drawRipple(800,500,adjustable,0.25))>lowAmplitude*1.2);
+    const auto threeCycles=drawRipple(800,500,adjustable,0.55);
+    adjustable.clear(); clickSettings.oscillations=1;
+    adjustable.addClick(0.25f,0.5f,0,clickSettings);
+    CHECK(difference(threeCycles,drawRipple(800,500,adjustable,0.55))>0.2);
+
     // Recover displaced coordinates from a complementary colour ramp. Subtract
     // blue to remove common specular light, then divide out diffuse lighting.
     std::vector<unsigned char> ramp(800*500*3);
@@ -101,6 +116,44 @@ void main() { fragColor=texture(sceneTexture,uv); }
     std::printf("elastic stretch %.5f %.5f rebound %.5f %.5f\n",left,right,returnLeft,returnRight);
     CHECK(left < -0.003f && right > 0.003f);
     CHECK(returnLeft > 0.003f && returnRight < -0.003f);
+    for (int direction : {1,-1}) {
+        RippleState travelling;
+        travelling.add(0.25f,0.5f,0,0.55f,direction);
+        int previousPeak=-1;
+        for (double age : {0.24,0.6,0.96}) {
+            const auto frame=drawRipple(800,500,travelling,age);
+            float strongest=0; int peak=-1;
+            for (int x=230;x<770;++x) {
+                const float displacement=position(frame,x)-position(rest,x);
+                const float movement=-direction*displacement;
+                if (movement>strongest) { strongest=movement; peak=x; }
+            }
+            std::printf("travelling direction %d age %.2f peak %d strength %.5f\n",direction,age,peak,strongest);
+            CHECK(strongest>0.005f);
+            if (previousPeak>=0) CHECK(direction*(peak-previousPeak)>100);
+            previousPeak=peak;
+        }
+        CHECK(difference(rest,drawRipple(800,500,travelling,1.2))==0);
+    }
+    for (int spread : {1,2}) {
+        RippleState travelling;
+        clickSettings.amplitude=1; clickSettings.oscillations=1; clickSettings.spread=spread;
+        travelling.addClick(0.25f,0.5f,0,clickSettings);
+        const int direction=spread==1 ? 1 : -1;
+        int previousPeak=-1;
+        for (double age : {0.48,1.2,1.92}) {
+            const auto frame=drawRipple(800,500,travelling,age);
+            float strongest=0; int peak=-1;
+            for (int x=230;x<770;++x) {
+                const float displacement=-direction*(position(frame,x)-position(rest,x));
+                if (displacement>strongest) { strongest=displacement; peak=x; }
+            }
+            CHECK(strongest>0.003f);
+            if (previousPeak>=0) CHECK(direction*(peak-previousPeak)>100);
+            previousPeak=peak;
+        }
+        CHECK(difference(rest,drawRipple(800,500,travelling,2.4))==0);
+    }
     glBindTexture(GL_TEXTURE_2D,desktop);
     glTexSubImage2D(GL_TEXTURE_2D,0,0,0,800,500,GL_RGB,GL_UNSIGNED_BYTE,pattern.data());
     // Broad pressure waves must affect distant content without fine rings.
@@ -159,19 +212,31 @@ void main() { fragColor=texture(sceneTexture,uv); }
     const std::string preview=read("shaders/frag_preview_header.glsl")+"\n"+read("shaders/blackhole_preview.glsl")
         +"\nvoid main(){vec4 c;mainImage(c,gl_FragCoord.xy);fragColor=c;}";
     const GLuint previewProgram=CreateProgram(*b,preview.c_str()); CHECK(previewProgram);
-    auto drawDisk=[&](GLuint program,int mode,int consumption) {
+    struct DiskSettings {
+        float birthScale=1, time=8, movementTime=0, level=0.55f;
+        float radiusDial=-1;
+        int width=800, height=500;
+        bool fixed=true, grow=false, follow=true, probe=false, limited=false, preset=false;
+    };
+    auto drawDisk=[&](GLuint program,int mode,int consumption,const DiskSettings& settings=DiskSettings{}) {
         Bloom_BeginScene(b,800,500,true); b->gl.UseProgram(program);
         auto integer=[&](const char* key,int v){b->gl.Uniform1i(b->gl.GetUniformLocation(program,key),v);};
         auto scalar=[&](const char* key,float v){one(b->gl.GetUniformLocation(program,key),v);};
-        three(b->gl.GetUniformLocation(program,"iResolution"),800,500,0);
-        scalar("iTime",8); scalar("uMovementTime",0); scalar("uBornProgress",1);
+        three(b->gl.GetUniformLocation(program,"iResolution"),static_cast<float>(settings.width),static_cast<float>(settings.height),0);
+        scalar("iTime",settings.time); scalar("uMovementTime",settings.movementTime);
+        scalar("uBornProgress",settings.birthScale);
+        integer("uCenterProbe",settings.probe ? 1 : 0);
+        integer("uEmergenceSizeLimit",settings.limited ? 1 : 0);
+        integer("uPresetCount",settings.preset ? 1 : 0);
+        scalar("uHoleRadius",settings.radiusDial);
         scalar("uPresetTemp[0]",5500); scalar("uPresetIncl[0]",1.5f); scalar("uPresetRoll[0]",0.35f);
         scalar("uPresetInner[0]",1.8f); scalar("uPresetOuter[0]",8); scalar("uPresetOpac[0]",0.9f);
         scalar("uPresetDopp[0]",0.6f); scalar("uPresetBeam[0]",2.5f); scalar("uPresetGain[0]",2.2f);
         scalar("uPresetContr[0]",1.6f); scalar("uPresetWind[0]",7); scalar("uPresetSpd[0]",5);
         scalar("uPresetExpo[0]",1.4f);
-        scalar("uFixedLevel",0.55f); integer("uFixedSize",1);
-        scalar("uHomeX",0.5f); scalar("uHomeY",0.5f); integer("uFollowMouse",1);
+        scalar("uFixedLevel",settings.level); integer("uFixedSize",settings.fixed ? 1 : 0);
+        integer("uGrowEnabled",settings.grow ? 1 : 0); scalar("uInitialSize",0.2f);
+        scalar("uHomeX",0.5f); scalar("uHomeY",0.5f); integer("uFollowMouse",settings.follow ? 1 : 0);
         integer("uLightingEffect",consumption); integer("uDiskRenderMode",mode);
         integer("uRippleOnly",0); integer("iChannel0",0);
         b->gl.ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,desktop);
@@ -191,6 +256,64 @@ void main() { fragColor=texture(sceneTexture,uv); }
         std::snprintf(name,sizeof(name),"disk-%d-soft",scene); save(name,800,500,soft);
         std::snprintf(name,sizeof(name),"disk-%d-lines",scene); save(name,800,500,lines);
         std::snprintf(name,sizeof(name),"disk-%d-edge",scene); save(name,800,500,edge);
+    }
+    auto hdrPixels=[]() {
+        std::vector<float> values(800*500*3);
+        glReadPixels(0,0,800,500,GL_RGB,GL_FLOAT,values.data());
+        return values;
+    };
+    DiskSettings settings;
+    settings.birthScale=0; const auto invisible=drawDisk(mainProgram,0,0,settings);
+    settings.birthScale=1; const auto visible=drawDisk(mainProgram,0,0,settings);
+    settings.birthScale=0.5f; const auto halfway=drawDisk(mainProgram,0,0,settings);
+    CHECK(difference(invisible,visible)>0.01);
+    auto shadowArea=[](const std::vector<unsigned char>& pixels) {
+        int count=0;
+        for (int y=150;y<350;++y) for (int x=250;x<550;++x) {
+            const int p=(y*800+x)*3;
+            if (pixels[p]<12 && pixels[p+1]<12 && pixels[p+2]<12) ++count;
+        }
+        return count;
+    };
+    std::printf("shrink shadow full=%d half=%d absent=%d\n",shadowArea(visible),shadowArea(halfway),shadowArea(invisible));
+    CHECK(shadowArea(visible)>100);
+    CHECK(shadowArea(halfway)>20 && shadowArea(halfway)<shadowArea(visible)*0.6);
+    CHECK(shadowArea(invisible)==0);
+    save("emergence-shrink-half",800,500,halfway);
+    auto probe=[&](const DiskSettings& frame) {
+        drawDisk(mainProgram,0,0,frame); const auto values=hdrPixels();
+        return std::array<float,3>{values[0],values[1],values[2]};
+    };
+    settings=DiskSettings{}; settings.probe=true; settings.fixed=false;
+    settings.time=2; const auto constantStart=probe(settings);
+    settings.time=8; const auto constantEnd=probe(settings);
+    CHECK(std::abs(constantStart[2]-constantEnd[2])<0.0001f);
+    settings.grow=true; settings.time=2; const auto growingStart=probe(settings);
+    settings.time=8; const auto growingEnd=probe(settings);
+    CHECK(growingEnd[2]>growingStart[2]*1.1f);
+    settings.grow=false; settings.follow=false; settings.movementTime=0;
+    const auto motionStart=probe(settings);
+    settings.movementTime=8; const auto motionEnd=probe(settings);
+    CHECK(std::hypot(motionEnd[0]-motionStart[0],motionEnd[1]-motionStart[1])>0.01f);
+    for (auto dimensions : {std::pair<int,int>{800,500},{500,800},{1800,500}}) {
+        settings=DiskSettings{}; settings.probe=true; settings.fixed=false;
+        settings.preset=true;
+        settings.width=dimensions.first; settings.height=dimensions.second;
+        settings.radiusDial=0.16f;
+        const float unrestricted=probe(settings)[2];
+        settings.limited=true;
+        const float limited=probe(settings)[2];
+        const float diameter=2*limited*(8.0f/2.5980762f)*settings.height;
+        std::printf("emergence limit %dx%d: unrestricted=%.5f limited=%.5f disk diameter=%.1f\n",
+            settings.width,settings.height,unrestricted,limited,diameter);
+        CHECK(limited>0 && limited<unrestricted*0.5f);
+        CHECK(diameter<=0.401f*std::min(settings.width,settings.height));
+        settings.grow=true; settings.time=2; const float growingSmall=probe(settings)[2];
+        settings.time=8; CHECK(probe(settings)[2]>growingSmall*1.1f);
+        settings.grow=false; settings.radiusDial=0.002f;
+        const float smallLimited=probe(settings)[2];
+        settings.limited=false;
+        CHECK(std::abs(probe(settings)[2]-smallLimited)<0.0001f);
     }
     CHECK(glGetError()==GL_NO_ERROR);
     b->gl.DeleteProgram(checker); b->gl.DeleteProgram(mainProgram); b->gl.DeleteProgram(previewProgram);

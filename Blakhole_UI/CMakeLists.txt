@@ -63,6 +63,16 @@ qt_add_resources(APP_RESOURCES
 
 target_sources(appBlakholeUI PRIVATE ${APP_RESOURCES})
 
+# 私有收款码资源只在本地发布构建显式提供，公开资源清单不引用二维码。
+set(BLACKHOLE_PRIVATE_RESOURCE_FILE "" CACHE FILEPATH "本地发布构建的私有资源清单")
+if(BLACKHOLE_PRIVATE_RESOURCE_FILE)
+    if(NOT EXISTS "${BLACKHOLE_PRIVATE_RESOURCE_FILE}")
+        message(FATAL_ERROR "私有资源清单不存在: ${BLACKHOLE_PRIVATE_RESOURCE_FILE}")
+    endif()
+    qt_add_resources(PRIVATE_RELEASE_RESOURCES "${BLACKHOLE_PRIVATE_RESOURCE_FILE}")
+    target_sources(appBlakholeUI PRIVATE ${PRIVATE_RELEASE_RESOURCES})
+endif()
+
 set_target_properties(appBlakholeUI PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
@@ -81,6 +91,10 @@ if(BUILD_TESTING)
         ../src/autostart_registry.cpp ../src/foreground_window.cpp ../src/game_detection.cpp
         ../src/frame_limiter.cpp ../src/media_session.cpp ../src/movement_settings.cpp)
     target_include_directories(effects_core_tests PRIVATE ../src)
+    if(BLACKHOLE_PRIVATE_RESOURCE_FILE)
+        target_sources(effects_core_tests PRIVATE ${PRIVATE_RELEASE_RESOURCES})
+        target_compile_definitions(effects_core_tests PRIVATE BLACKHOLE_VERIFY_PAYMENT_RESOURCES)
+    endif()
     target_compile_features(effects_core_tests PRIVATE cxx_std_17)
     target_link_libraries(effects_core_tests PRIVATE Qt6::Quick Qt6::Widgets advapi32 dwmapi ole32 runtimeobject version)
     set_target_properties(effects_core_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/effects-core-test")

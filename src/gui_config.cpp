@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-static const DiskPreset DEFAULT_PRESETS[16] = {
+static const DiskPreset DEFAULT_PRESETS[] = {
     // 原始8个
     {5500, 1.50f, 0.35f, 1.8f, 8.0f, 0.90f, 0.60f, 2.5f, 2.2f, 1.6f, 7.0f, 5.0f, 1.40f, 0.0f},   // Inferno
     {4500, 1.52f, 0.10f, 2.2f, 7.0f, 0.85f, 0.35f, 2.0f, 1.4f, 0.5f, 7.0f, 5.0f, 1.20f, 0.0f},   // Gargantua
@@ -19,10 +19,8 @@ static const DiskPreset DEFAULT_PRESETS[16] = {
     {18000,1.05f, 0.55f, 3.0f,16.0f, 0.30f, 1.00f, 5.0f, 1.0f, 1.5f, 9.0f, 6.0f, 0.75f, 0.0f},   // Blazar
     {5500, 1.50f, 0.35f, 1.8f, 8.0f, 0.00f, 1.00f, 2.5f, 0.0f, 1.6f, 7.0f, 5.0f, 1.00f, 0.6f},   // Pure Lens
     {5500, 1.50f, 0.35f, 1.8f, 8.0f, 0.90f, 0.60f, 2.5f, 2.2f, 1.6f, 7.0f, 5.0f, 1.40f, 0.0f},   // Inferno 2
-    // 新增8个
-    {3200, 1.45f, 0.60f, 2.0f, 9.0f, 0.95f, 0.20f, 1.5f, 3.0f, 2.0f, 5.0f, 4.0f, 1.60f, 0.0f},   // Crimson Vortex
+    // 其余默认预设
     {8000, 1.20f,-0.50f, 2.5f, 7.0f, 0.70f, 0.75f, 2.8f, 1.8f, 1.4f, 8.0f, 5.5f, 1.30f, 0.0f},   // Azure Spiral
-    {2500, 1.55f, 0.20f, 1.6f, 6.0f, 0.60f, 0.10f, 1.2f, 2.6f, 1.8f, 4.0f, 3.0f, 1.50f, 0.0f},   // Ruby Ring
     {12000,0.80f, 0.45f, 2.8f,12.0f, 0.40f, 0.95f, 3.5f, 1.5f, 1.2f, 8.5f, 5.0f, 0.90f, 0.0f},   // Ghost Halo
     {5000, 0.10f, 0.00f, 2.0f, 9.0f, 0.85f, 0.50f, 2.0f, 1.3f, 1.5f, 6.0f, 4.5f, 1.10f, 0.0f},   // Top-down Galaxy
     {22000,1.40f, 0.70f, 3.5f,18.0f, 0.25f, 1.00f, 4.5f, 0.9f, 1.7f,10.0f, 6.5f, 0.70f, 0.0f},   // White Dwarf Beam
@@ -30,15 +28,16 @@ static const DiskPreset DEFAULT_PRESETS[16] = {
     {9000, 0.45f,-0.15f, 2.6f,11.0f, 0.55f, 0.85f, 3.0f, 1.1f, 1.3f, 7.5f, 5.2f, 1.05f, 0.0f},   // Obsidian Eye
 };
 
+static constexpr int DEFAULT_PRESET_COUNT = sizeof(DEFAULT_PRESETS) / sizeof(DEFAULT_PRESETS[0]);
 void InitDefaultPresets(BlackholeConfig& cfg) {
-    cfg.presetCount = 16;
-    for (int i = 0; i < 16; i++) cfg.presets[i] = DEFAULT_PRESETS[i];
+    cfg.presetCount = DEFAULT_PRESET_COUNT;
+    for (int i = 0; i < DEFAULT_PRESET_COUNT; i++) cfg.presets[i] = DEFAULT_PRESETS[i];
 }
 
-static const char* PRESET_NAMES[16] = {
+static const char* PRESET_NAMES[DEFAULT_PRESET_COUNT] = {
     "Inferno", "Gargantua", "M87* Donut", "Face-on Ember",
     "Quasar", "Blazar", "Pure Lens", "Inferno 2",
-    "Crimson Vortex", "Azure Spiral", "Ruby Ring", "Ghost Halo",
+    "Azure Spiral", "Ghost Halo",
     "Top-down Galaxy", "White Dwarf Beam", "Solar Forge", "Obsidian Eye"
 };
 
@@ -74,7 +73,7 @@ bool LoadPresetsFromFile(BlackholeConfig& cfg, char names[64][64]) {
     if (!strstr(line, "v4")) {
         fclose(f);
         InitDefaultPresets(cfg);
-        for (int i = 0; i < cfg.presetCount && i < 16; i++) {
+        for (int i = 0; i < cfg.presetCount && i < DEFAULT_PRESET_COUNT; i++) {
             strncpy(names[i], PRESET_NAMES[i], 63);
             names[i][63] = 0;
         }
@@ -147,9 +146,9 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
     if (LoadPresetsFromFile(cfg, presetName)) {
         // loaded successfully, presetName already filled
     } else {
-        for (int i = 0; i < cfg.presetCount && i < 8; i++)
-            strcpy(presetName[i], PRESET_NAMES[i]);
-        for (int i = 8; i < cfg.presetCount; i++)
+        for (int i = 0; i < cfg.presetCount && i < DEFAULT_PRESET_COUNT; i++)
+            snprintf(presetName[i], sizeof(presetName[i]), "%s", PRESET_NAMES[i]);
+        for (int i = DEFAULT_PRESET_COUNT; i < cfg.presetCount; i++)
             snprintf(presetName[i], 64, "Custom %d", i + 1);
     }
 
@@ -267,9 +266,10 @@ bool GUI_ShowConfigPanel(BlackholeConfig& cfg) {
         }
 
         if (ImGui::Button("恢复默认", ImVec2(120,30))) {
+            cfg = BlackholeConfig{};
             InitDefaultPresets(cfg);
-            for (int i = 0; i < 8; i++) strcpy(presetName[i], PRESET_NAMES[i]);
-            cfg.presetCount = 8;
+            for (int i = 0; i < DEFAULT_PRESET_COUNT; i++)
+                snprintf(presetName[i], sizeof(presetName[i]), "%s", PRESET_NAMES[i]);
             selPreset = 0;
         }
 
@@ -388,6 +388,10 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
     fprintf(f, "movementSpeed=%.3f\n", cfg.movementSpeed);
     fprintf(f, "lightingEffect=%d\n", cfg.lightingEffect ? 1 : 0);
     fprintf(f, "consumptionFormula=%d\n", cfg.consumptionFormula ? 1 : 0);
+    fprintf(f, "emergenceEnabled=%d\n", cfg.emergenceEnabled ? 1 : 0);
+    fprintf(f, "emergenceWaitMin=%.1f\nemergenceWaitMax=%.1f\n", cfg.emergenceWaitMin,cfg.emergenceWaitMax);
+    fprintf(f, "rippleAmplitude=%.3f\nrippleOscillations=%d\nrippleSpread=%d\n",
+        cfg.rippleSettings.amplitude,cfg.rippleSettings.oscillations,cfg.rippleSettings.spread);
     fprintf(f, "distortion=%.3f\n", cfg.distortion);
     fprintf(f, "allowRecordingCapture=%d\n", cfg.allowRecordingCapture ? 1 : 0);
     fprintf(f, "growEnabled=%d\n",  cfg.growEnabled ? 1 : 0);
@@ -399,6 +403,9 @@ void SaveAdvancedConfig(const BlackholeConfig& cfg) {
 void LoadAdvancedConfig(BlackholeConfig& cfg) {
     cfg.rippleMode = 0;
     cfg.diskRenderMode = 0;
+    cfg.rippleSettings = {1,1,1};
+    cfg.emergenceEnabled = false;
+    cfg.emergenceWaitMin = 10; cfg.emergenceWaitMax = 25;
     FILE* f = fopen("blackhole_advanced.txt", "r");
     if (!f) return;  // file not found, keep defaults (-1.0)
     char line[256];
@@ -417,6 +424,15 @@ void LoadAdvancedConfig(BlackholeConfig& cfg) {
         char key[64] = {0};
         if (strncmp(line, "rippleMode=", 11) == 0) { cfg.rippleMode = ParseEffectMode(line+11); continue; }
         if (strncmp(line, "diskRenderMode=", 15) == 0) { cfg.diskRenderMode = ParseEffectMode(line+15); continue; }
+        char valueText[160] = {};
+        if (sscanf(line,"%63[^=]=%159[^\r\n]",key,valueText)==2) {
+            if (strcmp(key,"rippleAmplitude")==0) { cfg.rippleSettings.amplitude=ParseEffectNumber(valueText,1,0,2); continue; }
+            if (strcmp(key,"rippleOscillations")==0) { cfg.rippleSettings.oscillations=ParseEffectInteger(valueText,1,1,6); continue; }
+            if (strcmp(key,"rippleSpread")==0) { cfg.rippleSettings.spread=ParseEffectMode(valueText); continue; }
+            if (strcmp(key,"emergenceEnabled")==0) { cfg.emergenceEnabled=ParseEffectMode(valueText)==1; continue; }
+            if (strcmp(key,"emergenceWaitMin")==0) { cfg.emergenceWaitMin=ParseEffectNumber(valueText,10,1,300); continue; }
+            if (strcmp(key,"emergenceWaitMax")==0) { cfg.emergenceWaitMax=ParseEffectNumber(valueText,25,1,300); continue; }
+        }
         float val = -1.0f;
         if (sscanf(line, "%63[^=]=%f", key, &val) == 2) {
             if (strcmp(key, "holeRadius") == 0) cfg.holeRadius = val;
